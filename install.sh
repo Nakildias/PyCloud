@@ -16,7 +16,7 @@ TARGET_BIN_DIR="/usr/local/bin"          # Standard location for user-installed 
 # Assumes install.sh is in the parent directory of MSMP
 SOURCE_APP_DIR="./"
 REQUIRED_ITEMS=( # Items needed from the source directory
-    "${SOURCE_APP_DIR}/app.py"
+    "${SOURCE_APP_DIR}/main.py"
     "${SOURCE_APP_DIR}/static"
     "${SOURCE_APP_DIR}/templates"
     # Add manager_settings.json if you want to ship a default one
