@@ -13,7 +13,7 @@ VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
 APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live inside the venv
 TARGET_BIN_DIR="/usr/local/bin"          # Standard location for user-installed executables
 # Source directories/files relative to the script location
-# Assumes install.sh is in the parent directory of MSMP
+# Assumes install.sh is in the parent directory of PyCloud
 SOURCE_APP_DIR="./"
 REQUIRED_ITEMS=( # Items needed from the source directory
     "${SOURCE_APP_DIR}/main.py"
@@ -171,8 +171,8 @@ cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/templates" "${APP_INSTALL_DIR}/" || error
 #     cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
 # fi
 
-info "Copying msmp executable to /usr/local/bin/"
-sudo cp ./msmp /usr/local/bin/
+info "Copying PyCloud executable to /usr/local/bin/"
+sudo cp ./PyCloud /usr/local/bin/
 
 # Copy the temporary file to the target destination using sudo and set permissions
 run_sudo chmod +x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to set executable permission."
