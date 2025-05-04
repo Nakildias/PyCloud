@@ -29,7 +29,8 @@ PYTHON_DEPS=( # Python packages to install via pip
     "Flask"
     "Flask-SQLAlchemy"
     "Flask-Login"
-    "Flask-WTF" # Main dependency for the web app
+    "Flask-WTF"
+    "requests" # Main dependency for the web app
     # Werkzeug is installed as a Flask dependency
 )
 MAIN_EXECUTABLE_NAME="PyCloud" # Name of the script to link in TARGET_BIN_DIR
