@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Settings - {{ super() }}{% endblock %}
+
+{% block content %}
+    <h2>Administrator Settings</h2>
+
+    <form method="POST" action="{{ url_for('admin_settings') }}" novalidate>
+        {{ form.hidden_tag() }} {# Required for CSRF protection #}
+
+        <fieldset style="margin-bottom: 20px;">
+            <legend>General</legend>
+            {# Registration Toggle #}
+            <div class="form-check" style="margin-bottom: 10px;">
+                {{ form.allow_registration(class="form-check-input") }}
+                {{ form.allow_registration.label(class="form-check-label") }}
+            </div>
+            {% if form.allow_registration.errors %}
+                <ul class="errors">
+                    {% for error in form.allow_registration.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </fieldset>
+
+        <fieldset>
+            <legend>File Storage</legend>
+            {# Default Storage Limit #}
+            <div class="form-group">
+                 {{ form.default_storage_limit_mb.label }}
+                 {{ form.default_storage_limit_mb(class="form-control", style="max-width: 150px;") }} MB
+                 <small class="form-text text-muted">Default storage space allocated per user (Enter 0 for unlimited).</small>
+                {% if form.default_storage_limit_mb.errors %}
+                    <ul class="errors">
+                        {% for error in form.default_storage_limit_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                 {{ form.max_upload_size_mb.label }}
+                 {{ form.max_upload_size_mb(class="form-control", style="max-width: 150px;") }} MB
+                 <small class="form-text text-muted">
+                     {% if form.max_upload_size_mb.description %}
+                         {{ form.max_upload_size_mb.description }}
+                     {% else %}
+                          Maximum size allowed for a single file upload.
+                     {% endif %}
+                 </small>
+                {% if form.max_upload_size_mb.errors %}
+                    <ul class="errors">
+                        {% for error in form.max_upload_size_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>User Management</legend>
+            {# User Management Link #}
+            <div class="form-group">
+                 <a href="{{ url_for('admin_list_users') }}" class="btn btn-secondary btn-sm">Manage Users</a>
+            </div>
+        </fieldset>
+
+
+        <div class="form-group" style="margin-top: 20px;">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+
+{% endblock %}

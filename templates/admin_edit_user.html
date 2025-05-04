@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+    <h2>{{ title }}</h2>
+
+    {# Use POST method to the same route #}
+    <form method="POST" action="{{ url_for('admin_edit_user', user_id=user_id) }}" novalidate>
+        {{ form.hidden_tag() }} {# Required for CSRF protection #}
+
+        <fieldset style="margin-bottom: 20px;">
+            <legend>Account Details</legend>
+            <div class="form-group">
+                {{ form.username.label }}
+                {{ form.username(class="form-control") }}
+                {% if form.username.errors %}
+                    <ul class="errors">{% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.email.label }}
+                {{ form.email(class="form-control") }}
+                {% if form.email.errors %}
+                    <ul class="errors">{% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-check" style="margin-bottom: 10px;">
+                {{ form.is_admin(class="form-check-input") }}
+                {{ form.is_admin.label(class="form-check-label") }}
+                {% if form.is_admin.errors %}
+                    <ul class="errors">{% for error in form.is_admin.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Storage Limit</legend>
+             <div class="form-group">
+                 {{ form.storage_limit_mb.label }}
+                 {{ form.storage_limit_mb(class="form-control", style="max-width: 150px;", placeholder="Default") }} MB
+                 <small class="form-text text-muted">
+                    {% if form.storage_limit_mb.description %}
+                        {{ form.storage_limit_mb.description }}
+                    {% else %}
+                        Leave blank to use the default storage limit. Enter 0 for explicitly unlimited.
+                    {% endif %}
+                 </small>
+                {% if form.storage_limit_mb.errors %}
+                    <ul class="errors">
+                        {% for error in form.storage_limit_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <div class="form-group" style="margin-top: 20px;">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('admin_list_users') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+
+{% endblock %}

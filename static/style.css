@@ -1,0 +1,486 @@
+/* static/style.css */
+
+:root {
+    --bg-color: #1a1a1a; /* Dark background */
+    --text-color: #e0e0e0; /* Light text */
+    --primary-color: #4a90e2; /* A blue accent color */
+    --secondary-color: #2a2a2a; /* Slightly lighter dark for elements */
+    --border-color: #444;
+    --error-color: #e74c3c; /* Red for errors */
+    --success-color: #2ecc71; /* Green for success */
+    --info-color: #3498db; /* Blue for info */
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+h1, h2, h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+h3 { /* General h3 styling, removed dashboard-specific border/padding */
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+    color: var(--text-color); /* Make header stand out a bit */
+}
+
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* --- Forms --- */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Spacing between form elements */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea { /* Added textarea for notes */
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 1rem;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5); /* Subtle focus ring */
+}
+
+/* Specific styling for smaller inputs/buttons (e.g., file list actions) */
+.form-control-sm {
+    padding: 6px 8px; /* Smaller padding */
+    font-size: 0.9em;
+}
+.btn-sm { /* Smaller button */
+    padding: 6px 12px;
+    font-size: 0.9em;
+}
+
+.form-check { /* For checkboxes */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+input[type="checkbox"] {
+    width: auto;
+    margin-right: 5px;
+}
+
+/* Error messages from WTForms */
+.invalid-feedback { /* Bootstrap class sometimes used */
+    color: var(--error-color);
+    font-size: 0.9em;
+    margin-top: 4px;
+}
+ul.errors { /* WTForms default error list style */
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0; /* Adjusted margin */
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+
+
+/* --- Buttons --- */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    text-align: center;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #3a7ac0; /* Darker shade on hover */
+}
+
+.btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+.btn-secondary:hover {
+    background-color: #555;
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: #ffffff;
+}
+.btn-danger:hover {
+    background-color: #c0392b; /* Darker red */
+}
+
+/* --- Flash Messages --- */
+.flashes {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+}
+
+.flashes li {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.flashes .success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.flashes .danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.flashes .info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* --- Navigation --- */
+nav {
+    background-color: var(--secondary-color);
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: flex-end; /* Align items to the right */
+    gap: 15px;
+}
+nav ul li a {
+    color: var(--text-color);
+    font-weight: bold;
+}
+nav ul li a:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+
+/* --- Notes Specific Styling --- */
+textarea { /* Basic textarea styling was added in forms */
+    min-height: 150px; /* Give textarea a decent default height */
+    resize: vertical; /* Allow vertical resizing */
+}
+
+/* Style for note list items */
+.notes-list { /* Added for clarity */
+    list-style: none;
+    padding: 0;
+}
+.notes-list li { /* Style individual note list items */
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.notes-list h3 a {
+    color: var(--primary-color); /* Use primary color for note titles */
+}
+.notes-list h3 a:hover {
+    text-decoration: underline;
+}
+
+/* Style for viewing note content */
+.note-content {
+    white-space: pre-wrap;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 5px;
+}
+
+
+/* --- Files / Context Menu Specific Styling --- */
+
+/* Style for dimmed 'cut' items in file list */
+.item-row.cut-item {
+    opacity: 0.6;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    list-style: none;
+    align-items: center;
+    font-size: 1.1em;
+}
+.breadcrumb a {
+    color: var(--primary-color);
+}
+.breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    /* Optional: Add separator via CSS if not using text in HTML */
+    /* content: ">"; */
+    /* padding-right: 0.5rem; */
+    /* color: #6c757d; */
+}
+
+
+/* Action cell and context menu container */
+.actions-cell {
+    position: relative; /* Needed for absolute positioning of menu */
+    text-align: center;
+    white-space: nowrap;
+}
+
+.context-menu-container {
+    display: inline-block; /* Keep button and menu together */
+    position: relative;
+    margin-left: 5px;
+}
+
+/* Context menu button (...) */
+.btn-context-menu {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 2px 8px; /* Small padding */
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.9em;
+    line-height: 1.2;
+}
+
+.btn-context-menu:hover {
+    background-color: var(--border-color);
+    border-color: var(--primary-color);
+}
+
+/* Context menu itself */
+.context-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    right: 0; /* Align to the right of the container */
+    top: 100%; /* Position below the button */
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    padding: 5px 0;
+    margin-top: 3px;
+    min-width: 120px; /* Adjust as needed */
+    z-index: 1000; /* Ensure it's above other elements */
+    list-style: none;
+    text-align: left;
+}
+
+/* Context menu items (buttons or links) */
+.context-menu button.menu-item,
+.context-menu a.menu-item {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    padding: 6px 12px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9em;
+    white-space: nowrap;
+    text-decoration: none; /* For links */
+    box-sizing: border-box; /* Ensures padding is included in width */
+}
+
+.context-menu button.menu-item:hover,
+.context-menu a.menu-item:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+/* Specific hover for danger items (delete) */
+.context-menu .menu-item-danger:hover {
+    background-color: var(--error-color);
+    color: #ffffff;
+}
+
+/* Optional separator in context menu */
+.context-menu .menu-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 4px 0;
+}
+
+/* Share link input styling */
+.share-link-input {
+    width: 60%;
+    font-size: 0.8em;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+/* Rename input field styling */
+.itemname-input { /* Combined class for file/folder rename inputs */
+    display: none;
+    width: 85%;
+    background-color: var(--text-color); /* Light background for contrast */
+    color: var(--bg-color); /* Dark text */
+    border: 1px solid var(--primary-color);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: inherit; /* Inherit font size from table cell */
+}
+
+#drop-zone {
+border: 2px dashed var(--border-color); /* Make it look like a drop target */
+padding: 30px;
+text-align: center;
+transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transitions */
+}
+
+#drop-zone.drag-over { /* Ensure '#' for ID, '.' for class, no space */
+background-color: #333;
+border-color: var(--primary-color);
+border-style: solid;
+}
+
+/* Optional: Style for upload progress */
+.upload-progress {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: var(--info-color);
+}
+
+/* Add this to static/style.css */
+
+input[type="file"].visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px; /* Avoid causing scroll issues */
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap; /* Prevent wrapping */
+    border: 0;
+}
+
+/* Optional: Style the wrapper instead of using inline styles */
+.file-upload-wrapper {
+    text-align: center;
+    margin-bottom: 10px; /* Or adjust as needed */
+}
+
+/* --- Toast Notification Styles --- */
+#toast-container {
+position: fixed; /* Keep it in view */
+top: 20px;       /* Distance from top */
+right: 20px;      /* Distance from right */
+z-index: 1050;    /* Ensure it's above most other content */
+display: flex;
+flex-direction: column-reverse; /* New toasts appear above old ones */
+align-items: flex-end; /* Align toasts to the right */
+gap: 10px; /* Spacing between toasts */
+}
+
+.toast-message {
+    background-color: var(--secondary-color); /* Dark background */
+    color: var(--text-color);           /* Light text */
+    padding: 12px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    opacity: 0;                         /* Start hidden */
+    transform: translateX(100%);       /* Start off-screen */
+    transition: opacity 0.4s ease, transform 0.4s ease; /* Smooth transition */
+    max-width: 350px;                   /* Prevent very wide toasts */
+    word-wrap: break-word;              /* Wrap long messages */
+    font-size: 0.95em;
+}
+
+.toast-message.toast-show {
+    opacity: 1;
+    transform: translateX(0);           /* Slide in */
+}
+
+/* Type-specific styles */
+.toast-message.toast-success {
+    background-color: #27ae60; /* Green */
+    border-color: #2ecc71;
+    color: #ffffff;
+}
+
+.toast-message.toast-error { /* Renamed from 'danger' for clarity */
+    background-color: #c0392b; /* Red */
+    border-color: #e74c3c;
+    color: #ffffff;
+}
+
+.toast-message.toast-info {
+    background-color: #2980b9; /* Blue */
+    border-color: #3498db;
+    color: #ffffff;
+}
+
+.toast-message.toast-warning { /* Optional: Add a warning style */
+    background-color: #f39c12; /* Orange */
+    border-color: #f1c40f;
+    color: #333; /* Dark text for better contrast on orange */

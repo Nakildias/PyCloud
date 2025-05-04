@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+    <h2>{{ legend }}</h2> {# Use legend passed from route (e.g., 'Create New Note' or 'Edit Note') #}
+
+    <form method="POST" action="" novalidate> {# Action URL is determined by the route rendering it #}
+        {{ form.hidden_tag() }} {# CSRF protection #}
+
+        <div class="form-group">
+            {{ form.title.label }}
+            {{ form.title(class="form-control", size=50) }} {# Add basic class #}
+            {% if form.title.errors %}
+                <ul class="errors">
+                    {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.content.label }}
+            {{ form.content(class="form-control", rows=10) }} {# Add basic class and suggest rows #}
+            {% if form.content.errors %}
+                <ul class="errors">
+                    {% for error in form.content.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+            {{ form.submit(class="btn btn-primary") }}
+            {# Add a cancel button linking back to notes list or specific note #}
+            {% if note_id %}
+                 <a href="{{ url_for('view_note', note_id=note_id) }}" class="btn btn-secondary">Cancel</a>
+            {% else %}
+                 <a href="{{ url_for('list_notes') }}" class="btn btn-secondary">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+
+{% endblock %}

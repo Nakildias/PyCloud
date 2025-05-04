@@ -1,0 +1,839 @@
+{# templates/files.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %} {# Dynamic Title based on current folder #}
+
+{% block content %}
+    {# --- Page Header & Breadcrumbs --- #}
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px; gap: 15px;">
+        <h2 style="margin: 0;">
+             {# Breadcrumbs Navigation #}
+             <nav aria-label="breadcrumb">
+                <ol class="breadcrumb" style="padding: 0; margin: 0; background-color: transparent; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; align-items: center; font-size: 1.1em;">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('list_files') }}">/</a>
+                    </li>
+                    {% for crumb in breadcrumbs %}
+                        <li class="breadcrumb-item" aria-current="page">
+                           <span style="margin: 0 3px;">&raquo;</span> <a href="{{ url_for('list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ol>
+             </nav>
+        </h2>
+        {# Storage Usage Display #}
+        <p style="margin: 0; font-size: 0.9em; color: #ccc;">
+            Usage: {{ usage_mb }} MB / {{ limit_display }} {{ limit_type_indicator }}
+        </p>
+    </div>
+
+    {# --- Action Buttons Area --- #}
+    <div style="margin-bottom: 20px; min-height: 40px; display: flex; gap: 10px; align-items: center;"> {# Reserve space & Use Flex #}
+        <button id="btn-show-create-folder" class="btn btn-secondary btn-sm">New Folder</button>
+        {# PASTE BUTTON - Initially Hidden #}
+        <button id="btn-paste" class="btn btn-primary btn-sm" style="display: none;">Paste</button>
+
+        {# Hidden Form for Creating a New Folder #}
+        <form id="form-create-folder" method="POST" action="{{ url_for('create_folder') }}" style="display: none; background-color: var(--bg-color); padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); max-width: 500px;" novalidate>
+             {{ create_folder_form.hidden_tag() }}
+             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
+             <div style="display: flex; gap: 10px; align-items: center;">
+                 <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+                     {{ create_folder_form.name(class="form-control form-control-sm", placeholder="New folder name...", required=True, autocomplete="off") }}
+                 </div>
+                 {{ create_folder_form.submit(class="btn btn-primary btn-sm") }}
+                 <button type="button" id="btn-cancel-create-folder" class="btn btn-secondary btn-sm">Cancel</button>
+             </div>
+        </form>
+    </div>
+
+
+    {# --- Upload Form Section --- #}
+    <div class="upload-section" id="drop-zone" style="margin-bottom: 30px; padding: 20px;">
+        <h3>Upload New File {{ "to '" + current_folder.name + "'" if current_folder else "to Root" }}</h3>
+            <p>Drag files here or use the button below</p> {# Add guidance text #}
+        <form id="upload-form" method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" novalidate>
+             {{ upload_form.hidden_tag() }}
+             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
+             {# Wrap the custom label and hidden input for centering #}
+             <div class="file-upload-wrapper" style="text-align: center; margin-bottom: 10px;">
+             {{ upload_form.file(id="file-upload-input", class="visually-hidden") }}
+                <label for="file-upload-input" class="btn btn-secondary btn-sm">
+                    Browse Files...
+                </label>
+
+             </div>
+             <div class="form-group" style="text-align: center;">
+                 {% if upload_form.file.errors %}
+                    <ul class="errors" style="text-align: left;">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul> {# Keep errors left-aligned #}
+                 {% endif %}
+                 {# Display the admin-defined limit passed from the route #}
+                 <small>Max size per file: {{ max_upload_mb }} MB</small>
+             </div>
+             <div class="form-group">
+                 {# --- {{ upload_form.file.label }}<br> --- #}
+                 {% if upload_form.file.errors %}
+                    <ul class="errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                 {% endif %}
+                 {% set max_size_mb = (config.MAX_CONTENT_LENGTH / (1024*1024))|int if config.MAX_CONTENT_LENGTH else 'N/A' %}
+                 <small>Max size: {{ max_size_mb }} MB</small>
+             </div>
+        </form>
+    </div>
+
+
+    {# --- Folder & File List Section --- #}
+    {# --- <h3>Contents {{ "of '" + current_folder.name + "'" if current_folder else "of /" }}</h3> --- #}
+    <table id="file-list-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <th style="text-align: left; padding: 8px;">Name</th>
+                <th style="text-align: right; padding: 8px;">Size</th>
+                <th style="text-align: center; padding: 8px;">Modified</th>
+                <th style="text-align: center; padding: 8px; width: 120px;">Actions</th> {# Adjusted width #}
+            </tr>
+        </thead>
+        <tbody>
+            {# List Subfolders #}
+            {% for folder in subfolders %}
+            <tr class="folder-row item-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}"> {# Consolidated data attributes #}
+                <td style="padding: 8px;">
+                    <span style="margin-right: 5px; color: var(--primary-color); font-weight: bold;">📁</span>
+                    <span class="itemname-display" id="foldername-{{ folder.id }}">
+                        <a href="{{ url_for('list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
+                    </span>
+                    <input type="text" class="itemname-input foldername-input" id="foldername-input-{{ folder.id }}" style="display: none; width: 85%; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--primary-color); padding: 2px 4px; border-radius: 3px;" value="{{ folder.name }}">
+                </td>
+                <td style="text-align: right; padding: 8px;">--</td>
+                <td style="text-align: center; padding: 8px;">{{ folder.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="actions-cell"> {# Use the CSS class #}
+                    <div class="context-menu-container">
+                        <button class="btn-context-menu" aria-label="Actions for {{ folder.name }}">...</button>
+                        <div class="context-menu" id="context-menu-folder-{{ folder.id }}">
+                            <button class="menu-item menu-item-copy">Copy</button> {# NEW #}
+                            <button class="menu-item menu-item-cut">Cut</button>   {# NEW #}
+                            <div class="menu-separator"></div>                     {# NEW #}
+                            <button class="menu-item menu-item-rename-folder">Rename</button>
+                            <button class="menu-item menu-item-archive-folder">Archive</button>
+                            <div class="menu-separator"></div>
+                            <button class="menu-item menu-item-delete-folder menu-item-danger">Delete</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+
+            {# List Files #}
+            {% for file in files %}
+            {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
+            {% set file_ext = file.original_filename.split('.')[-1]|lower %}
+            {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
+
+            <tr class="file-row item-row" data-item-id="{{ file.id }}" data-item-type="file" data-item-name="{{ file.original_filename|escape }}" data-is-public="{{ 'true' if file.is_public else 'false' }}" data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}" data-public-id="{{ file.public_id }}" data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}" data-is-editable="{{ 'true' if file.is_editable else 'false' }}"> {# ADDED data-is-editable HERE #}
+                <td style="padding: 8px;">
+                            <span style="margin-right: 5px; opacity: 0.7;">
+                                 {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %} {# Add/remove as needed #}
+                                 {% set audio_extensions = ['mp3', 'ogg', 'wav'] %} {# Add/remove as needed #}
+                                 {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %} {# Add/remove as needed #}
+                                 {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %} {# Add/remove as needed #}
+                                 {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %} {# Add/remove as needed #}
+                                 {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %} {# Add/remove as needed #}
+                                 {% if file_ext in video_extensions %}<span title="Video">🎬</span>
+                                 {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
+                                 {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
+                                 {% elif file_ext in package_extensions %}<span title="Package">📦</span>
+                                 {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
+                                 {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
+                                 {% elif file_ext in script_extensions %}<span title="Script">📜</span>
+                                 {% elif file.is_editable %}<span title="Editable">📝</span>
+                                 {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
+                                 {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
+                                 {% elif is_viewable %}<span title="Viewable">📺</span>  {# Corrected from if to elif #}
+                                 {% elif is_extractable %}<span title="Extractable">📚</span>
+                                 {% else %}[&nbsp;]
+                                 {% endif %}
+                            </span>
+                    <span class="itemname-display" id="filename-{{ file.id }}">
+                        {% if is_viewable %}
+                            <a href="{{ url_for('view_file', file_id=file.id) }}" target="_blank" title="View File">{{ file.original_filename }}</a>
+                        {% else %}
+                            {{ file.original_filename }}
+                        {% endif %}
+                    </span>
+                    <input type="text" class="itemname-input filename-input" id="filename-input-{{ file.id }}" style="display: none; width: 85%; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--primary-color); padding: 2px 4px; border-radius: 3px;" value="{{ file.original_filename }}">
+                </td>
+                <td style="text-align: right; padding: 8px;">
+                    {% if file.filesize == 0 %} 0 B
+                    {% elif file.filesize < 1024 %} {{ file.filesize }} B
+                    {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
+                    {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
+                    {% endif %}
+                </td>
+                <td style="text-align: center; padding: 8px;">
+                    {{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td class="actions-cell"> {# Use the CSS class #}
+                    <div class="context-menu-container">
+                        <button class="btn-context-menu" aria-label="Actions for {{ file.original_filename }}">...</button>
+                        <div class="context-menu" id="context-menu-file-{{ file.id }}">
+                            {% if file.is_editable %}
+                            <button class="menu-item menu-item-edit">Edit</button>
+                            {% endif %}
+                         <a href="{{ url_for('download_file', file_id=file.id) }}" class="menu-item" download="{{ file.original_filename }}">Download</a>
+                            <button class="menu-item menu-item-copy">Copy</button> {# NEW #}
+                            <button class="menu-item menu-item-cut">Cut</button>   {# NEW #}
+                            <div class="menu-separator"></div>                     {# NEW #}
+                            <button class="menu-item menu-item-rename">Rename</button>
+                            {% if is_extractable %}
+                                <button class="menu-item menu-item-extract">Extract</button>
+                            {% endif %}
+                            <button class="menu-item menu-item-share-toggle">
+                                {% if file.is_public %} Unshare {% if file.public_password_hash %}🔒{% endif %} {% else %} Share {% endif %}
+                            </button>
+                            <div class="menu-separator"></div>
+                            <button class="menu-item menu-item-delete menu-item-danger">Delete</button>
+                        </div>
+                    </div>
+                    {# Share Link display is separate and toggled by JS #}
+                </td>
+             </tr>
+             {# Share Link Display Row (Remains unchanged) #}
+             <tr class="share-link-row" id="share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %} background-color: #2e2e2e;">
+                 <td colspan="4" style="padding: 5px 8px;">
+                     <div class="share-link-display" id="share-link-{{ file.id }}">
+                         {% if file.is_public and file.public_id %}
+                         <label for="share-url-{{ file.id }}" style="font-size: 0.8em; margin-right: 5px;">
+                             Link {% if file.public_password_hash %}🔒{% endif %}:
+                         </label>
+                         <input type="text" id="share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm share-link-input" style="width: 60%; font-size: 0.8em; ..." title="Public share link">
+                         <button class="btn btn-sm btn-copy-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" style="margin-left: 5px;">Copy</button>
+                         {% endif %}
+                     </div>
+                 </td>
+             </tr>
+            {% endfor %}
+
+            {# Empty folder message #}
+            {% if not subfolders and not files %}
+            <tr><td colspan="4" style="text-align: center; padding: 20px; color: #aaa;">This folder is empty.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    <div id="action-status" style="margin-top: 10px; color: var(--info-color); min-height: 1.2em; font-style: italic;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+{# Optional: Add CSS if not in static/style.css #}
+<style>
+    .item-row.cut-item {
+        opacity: 0.6;
+        /* Optional: add specific styling like italic text */
+        /* font-style: italic; */
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // === CSRF Token Setup ===
+    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
+    if (!csrfToken) { console.warn('CSRF token meta tag not found. Actions might fail.'); }
+
+    // === Create Folder Form Toggle Logic ===
+    const btnShowCreateFolder = document.getElementById('btn-show-create-folder');
+    const formCreateFolder = document.getElementById('form-create-folder');
+    const btnCancelCreateFolder = document.getElementById('btn-cancel-create-folder');
+    const inputFolderName = formCreateFolder ? formCreateFolder.querySelector('input[name="name"]') : null;
+    if (btnShowCreateFolder && formCreateFolder && btnCancelCreateFolder && inputFolderName) {
+        btnShowCreateFolder.addEventListener('click', () => { formCreateFolder.style.display = 'block'; btnShowCreateFolder.style.display = 'none'; inputFolderName.value = ''; inputFolderName.focus(); });
+        btnCancelCreateFolder.addEventListener('click', () => { formCreateFolder.style.display = 'none'; btnShowCreateFolder.style.display = ''; });
+    }
+
+    // === Element References ===
+    const fileTable = document.getElementById('file-list-table');
+    const actionStatus = document.getElementById('action-status');
+    const pasteButton = document.getElementById('btn-paste');
+    const currentFolderId = formCreateFolder ? formCreateFolder.querySelector('input[name="parent_folder_id"]').value : null; // Get current folder ID
+
+
+const dropZone = document.getElementById('drop-zone');
+const uploadForm = document.getElementById('upload-form'); // Get the form
+const parentFolderInput = uploadForm ? uploadForm.querySelector('input[name="parent_folder_id"]') : null;
+// Re-use existing actionStatus or create a new one for drag-drop
+const dragDropStatus = document.getElementById('action-status'); // Or a new dedicated element
+
+function showDragDropStatus(message, type = 'info') {
+    if (dragDropStatus) {
+        dragDropStatus.textContent = message;
+        dragDropStatus.style.color = type === 'error' ? 'var(--error-color)' : (type === 'success' ? 'var(--success-color)' : 'var(--info-color)');
+    }
+}
+
+if (dropZone && parentFolderInput && csrfToken) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.add('drag-over');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove('drag-over');
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length === 0) {
+            return;
+        }
+        showDragDropStatus(`Uploading ${files.length} file(s)...`, 'info');
+        handleFiles(files);
+    }, false);
+
+} else {
+     if (!dropZone) console.error("Drop zone element not found.");
+     if (!parentFolderInput) console.error("Parent folder input not found.");
+     if (!csrfToken) console.error("CSRF token not found for drag/drop.");
+}
+
+function handleFiles(files) {
+    const parentFolderId = parentFolderInput.value;
+    let uploadPromises = []; // To track all uploads
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file); // Key 'file' must match Flask route's expectation
+        formData.append('parent_folder_id', parentFolderId);
+
+        const uploadPromise = fetch("{{ url_for('upload_file') }}", { // Use the same upload URL
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken, // Send CSRF token
+                'Accept': 'application/json' // Tell backend we prefer JSON response
+            },
+            body: formData
+        })
+        .then(response => {
+             // Check if response is JSON, otherwise treat as potential redirect/HTML error
+             const contentType = response.headers.get("content-type");
+             if (contentType && contentType.indexOf("application/json") !== -1) {
+                 return response.json().then(data => {
+                     if (!response.ok) {
+                         // Throw an error with the message from JSON if available
+                         throw new Error(data.message || `Upload failed for ${file.name} with status ${response.status}`);
+                     }
+                     return { success: true, file: file.name, message: data.message };
+                 });
+             } else {
+                 // Handle non-JSON responses (could be redirects on success or HTML errors)
+                 if (response.ok) {
+                     // Assume success if status is OK but not JSON (maybe backend redirected)
+                     return { success: true, file: file.name, message: `${file.name} uploaded (non-JSON response).` };
+                 } else {
+                     // Generic error for non-JSON error responses
+                     throw new Error(`Upload failed for ${file.name}. Server returned status ${response.status}.`);
+                 }
+             }
+        })
+        .catch(error => {
+             console.error(`Error uploading ${file.name}:`, error);
+             return { success: false, file: file.name, message: error.message }; // Return error object
+        });
+        uploadPromises.push(uploadPromise);
+    }
+
+    // Wait for all uploads to complete
+    Promise.allSettled(uploadPromises)
+        .then(results => {
+            let successfulUploads = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            let failedUploads = results.length - successfulUploads;
+
+            if (failedUploads > 0) {
+                 const firstError = results.find(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+                 const errorMsg = firstError ? (firstError.reason ? firstError.reason.message : firstError.value.message) : 'Unknown error';
+                 showDragDropStatus(`Finished: ${successfulUploads} succeeded, ${failedUploads} failed. Error: ${errorMsg}`, 'error');
+            } else {
+                 showDragDropStatus(`All ${successfulUploads} files uploaded successfully! Reloading...`, 'success');
+            }
+            // Reload after a short delay to show message and let user see result
+            setTimeout(() => { location.reload(); }, failedUploads > 0 ? 5000 : 2000);
+        });
+}
+
+    // === Auto-Upload via Browse Button ===
+    const fileUploadInput = document.getElementById('file-upload-input'); // Get the hidden file input
+
+    if (fileUploadInput) {
+        fileUploadInput.addEventListener('change', function(event) {
+            // Get the selected file(s)
+            const files = event.target.files;
+
+            if (files && files.length > 0) {
+                 // Optional: Show immediate feedback
+                 showDragDropStatus(`Uploading ${files.length} file(s) via browse...`, 'info');
+
+                 // Use the *exact same function* as drag-and-drop to handle the upload
+                 handleFiles(files);
+
+                 // IMPORTANT: Reset the input value.
+                 // This allows the 'change' event to fire again if the user
+                 // selects the *same* file immediately after.
+                 event.target.value = null;
+            }
+        });
+    } else {
+        console.error("File input element #file-upload-input not found.");
+    }
+    // === End Auto-Upload Logic ===
+
+    // === Clipboard State ===
+    // *** MODIFIED: Initialize from backend session data passed via template ***
+    let clipboardData = {{ clipboard_json | safe }}; // Use 'safe' filter as it's already JSON
+    console.log("Initial clipboard data from session:", clipboardData); // Debugging
+    // *** END MODIFICATION ***
+
+    // --- Helper Functions ---
+    function showActionStatus(message, type = 'info', duration = 3500) {
+        if (actionStatus) {
+            actionStatus.textContent = message;
+            actionStatus.style.color = type === 'error' ? 'var(--error-color)' : (type === 'success' ? 'var(--success-color)' : 'var(--info-color)');
+            if (type !== 'error') { setTimeout(() => { if (actionStatus && actionStatus.textContent === message) actionStatus.textContent = ''; }, duration); }
+        }
+    }
+    function handleFetchErrors(response) {
+        if (!response.ok) {
+            return response.json().then(errData => { throw new Error(errData.message || `Request failed with status ${response.status}`); }).catch(() => { throw new Error(`Request failed with status ${response.status}: ${response.statusText}`); });
+        } return response.json();
+    }
+    async function copyToClipboard(text, buttonElement) {
+        try {
+            await navigator.clipboard.writeText(text);
+            const originalText = buttonElement.textContent; buttonElement.textContent = 'Copied!'; buttonElement.disabled = true;
+            setTimeout(() => { buttonElement.textContent = originalText; buttonElement.disabled = false; }, 1500);
+        } catch (err) { console.error('Failed to copy text: ', err); showActionStatus('Failed to copy link.', 'error'); }
+    }
+
+    // --- Update Paste Button Visibility ---
+    function updatePasteButtonVisibility() {
+        if (pasteButton) {
+            pasteButton.style.display = clipboardData ? 'inline-block' : 'none';
+        }
+    }
+
+    // --- Visual Cue for Cut Items ---
+    function updateCutItemVisuals() {
+        // Remove 'cut-item' class from all rows first
+        fileTable.querySelectorAll('.item-row').forEach(row => row.classList.remove('cut-item'));
+
+        // Add 'cut-item' class if clipboard operation is 'cut'
+        if (clipboardData && clipboardData.operation === 'cut') {
+            clipboardData.items.forEach(item => {
+                const row = fileTable.querySelector(`.item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
+                if (row) {
+                    row.classList.add('cut-item');
+                }
+            });
+        }
+    }
+
+    // --- Clipboard Actions ---
+    function setClipboard(items, operation) {
+        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
+        showActionStatus('Sending to clipboard...', 'info');
+
+        fetch(`/api/files/clipboard/set`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ items: items, operation: operation })
+        })
+        .then(handleFetchErrors)
+        .then(data => {
+            if (data.status === 'success') {
+                clipboardData = { items: items, operation: operation }; // Update local state
+                showActionStatus(data.message || `${items.length} item(s) ${operation === 'cut' ? 'cut' : 'copied'} to clipboard.`, 'success');
+                updatePasteButtonVisibility();
+                updateCutItemVisuals(); // Update visual cues
+            } else {
+                throw new Error(data.message || `Failed to ${operation} items.`);
+            }
+        })
+        .catch(error => {
+            console.error(`Error setting clipboard for ${operation}:`, error);
+            showActionStatus(`Clipboard Error: ${error.message}`, 'error');
+            clipboardData = null; // Clear local state on error
+            updatePasteButtonVisibility();
+            updateCutItemVisuals();
+        });
+    }
+
+    function handlePaste() {
+        if (!clipboardData) {
+            showActionStatus('Clipboard is empty.', 'info');
+            return;
+        }
+        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
+
+        const operation = clipboardData.operation; // Store operation before potentially clearing clipboard
+        showActionStatus(`Pasting ${clipboardData.items.length} item(s)...`, 'info');
+
+        // *** IMPORTANT: We rely on the backend session's clipboard data for the actual paste ***
+        // The local `clipboardData` is mainly for UI state (paste button, cut visuals).
+        // The backend paste route reads directly from `session['clipboard']`.
+
+        fetch(`/api/files/clipboard/paste`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ target_folder_id: currentFolderId }) // Send current folder ID as target
+        })
+        .then(handleFetchErrors)
+        .then(data => {
+            console.log('Paste response:', data);
+            // Backend paste route clears the session clipboard on success/failure.
+            clipboardData = null; // Clear local state regardless of outcome now.
+            updatePasteButtonVisibility();
+            updateCutItemVisuals(); // Remove cut visuals
+
+            if (data.status === 'success') {
+                showActionStatus(data.message || 'Paste successful! Reloading...', 'success');
+                setTimeout(() => { location.reload(); }, 1500); // Reload to see changes
+            } else {
+                // Handle partial/full failure messages from backend
+                if (data.errors && Array.isArray(data.errors)) {
+                    let errorMsg = `Paste failed for some items: ${data.errors.join(', ')}`;
+                    showActionStatus(errorMsg, 'error');
+                } else {
+                    showActionStatus(data.message || 'Paste operation failed.', 'error');
+                }
+            }
+        })
+        .catch(error => {
+            // Network or other fetch errors
+            console.error('Error during paste operation:', error);
+            showActionStatus(`Paste Error: ${error.message}`, 'error');
+            // Clear local state on fetch error too? Yes, probably safest.
+            clipboardData = null;
+            updatePasteButtonVisibility();
+            updateCutItemVisuals();
+        });
+    }
+
+
+    // --- Rename Functions ---
+    function handleRenameButtonClick(menuItemOrButton, itemType) {
+        const row = menuItemOrButton.closest('.item-row'); // Use shared class
+        const id = row.dataset.itemId;
+        const currentName = row.dataset.itemName; // Use shared attribute
+        const prefix = itemType === 'file' ? 'filename' : 'foldername'; // Still need type for IDs
+        const displayElement = row.querySelector('.itemname-display'); // Use shared class
+        const inputField = row.querySelector('.itemname-input'); // Use shared class
+
+        if (displayElement && inputField) {
+            closeAllContextMenus();
+            fileTable.querySelectorAll('.itemname-input').forEach(inp => {
+                 if (inp !== inputField && inp.style.display !== 'none') { resetRenameInput(inp); }
+            });
+            inputField.value = currentName;
+            displayElement.style.display = 'none';
+            inputField.style.display = 'inline-block';
+            inputField.focus();
+            inputField.select();
+        } else { console.error("Rename elements not found for ID:", id); }
+    }
+    function handleRenameInputBlurOrEnter(inputField) {
+        if (inputField.style.display === 'none') return;
+        const row = inputField.closest('.item-row');
+        const itemType = row.dataset.itemType;
+        const id = row.dataset.itemId;
+        const originalName = row.dataset.itemName;
+        const newName = inputField.value.trim();
+
+        resetRenameInput(inputField); // Hide input, show display span
+
+        if (newName && newName !== originalName) {
+            const displayElement = row.querySelector('.itemname-display');
+            saveNewName(itemType, id, newName, displayElement, row);
+        } else if (!newName) {
+            showActionStatus('Name cannot be empty.', 'error');
+            resetRenameInput(inputField);
+        }
+    }
+    function resetRenameInput(inputField) {
+        const row = inputField.closest('.item-row');
+        if (!row) return;
+        const displayElement = row.querySelector('.itemname-display');
+        if (displayElement) displayElement.style.display = '';
+        inputField.style.display = 'none';
+        // Optionally reset value to original name if needed, though saveNewName handles rollback display
+        // inputField.value = row.dataset.itemName || '';
+    }
+    function saveNewName(itemType, id, newName, displayElement, rowElement) {
+        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
+        showActionStatus(`Renaming to "${newName}"...`, 'info');
+        let url = itemType === 'folder' ? `/files/folder/rename/${id}` : `/files/rename/${id}`;
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ new_name: newName })
+        })
+        .then(handleFetchErrors)
+        .then(data => {
+            if (data.status === 'success' && data.new_name) {
+                showActionStatus(data.message || `Rename successful!`, 'success');
+                const nameContainer = (itemType === 'folder' && displayElement) ? displayElement.querySelector('a') : displayElement;
+                if(nameContainer) nameContainer.textContent = data.new_name;
+                if(rowElement) rowElement.dataset.itemName = data.new_name; // Update the main data attribute
+            } else { throw new Error(data.message || 'Operation failed.'); }
+          })
+          .catch(error => {
+             console.error(`Error renaming ${itemType}:`, error);
+             showActionStatus(`Error: ${error.message}`, 'error');
+             if (displayElement && rowElement) {
+                 const originalName = rowElement.dataset.itemName; // Get original name back from data attribute
+                 const nameContainer = (itemType === 'folder') ? displayElement.querySelector('a') : displayElement;
+                 if(nameContainer && originalName) nameContainer.textContent = originalName;
+             }
+          });
+    }
+
+
+    // --- Share/Unshare Functions (Unchanged from previous version) ---
+    function handleShareFile(fileId, shareToggleButton) {
+        console.log(`Attempting to share file ID: ${fileId}`);
+        showActionStatus(`Sharing file...`, 'info');
+        const addPassword = confirm("Protect this share link with a password?");
+        let password = null;
+        if (addPassword) {
+            password = prompt("Enter password (leave blank for none):");
+            if (password === null) { console.log('Password prompt cancelled.'); return; }
+        }
+        const payload = {};
+        if (password !== null && password !== "") { payload.password = password; }
+
+        fetch(`/files/share/${fileId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(handleFetchErrors)
+        .then(data => {
+             if (data.status === 'success') {
+                 showActionStatus(data.message || 'File shared!', 'success');
+                 updateShareUI(fileId, true, data.share_url, data.password_protected, shareToggleButton);
+             } else { throw new Error(data.message || 'Failed to share file.'); }
+         })
+         .catch(error => { console.error('Error during share fetch:', error); showActionStatus(`Error: ${error.message}`, 'error'); });
+    }
+    function handleUnshareFile(fileId, shareToggleButton) {
+        console.log(`Attempting to unshare file ID: ${fileId}`);
+        showActionStatus(`Unsharing file...`, 'info');
+        fetch(`/files/unshare/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
+        .then(handleFetchErrors)
+        .then(data => {
+             if (data.status === 'success') {
+                 showActionStatus(data.message || 'Sharing disabled.', 'success');
+                 updateShareUI(fileId, false, null, false, shareToggleButton);
+             } else { throw new Error(data.message || 'Failed to unshare file.'); }
+         })
+         .catch(error => { console.error('Error during unshare fetch:', error); showActionStatus(`Error: ${error.message}`, 'error'); });
+    }
+    function updateShareUI(fileId, isShared, shareUrl, passwordProtected, shareToggleButton) {
+        const linkRow = document.getElementById(`share-link-row-${fileId}`);
+        const linkDisplayDiv = linkRow ? linkRow.querySelector('.share-link-display') : null;
+        const row = document.querySelector(`.item-row[data-item-id="${fileId}"][data-item-type="file"]`);
+
+        if (shareToggleButton) { shareToggleButton.innerHTML = isShared ? `Unshare ${passwordProtected ? '&#128274;' : ''}` : 'Share'; }
+        if(row){ row.dataset.isPublic = isShared ? 'true' : 'false'; row.dataset.isPasswordProtected = passwordProtected ? 'true' : 'false'; row.dataset.shareUrl = shareUrl || ''; }
+        if (linkDisplayDiv) linkDisplayDiv.innerHTML = '';
+        if (linkRow) linkRow.style.display = 'none';
+
+        if (isShared && linkRow && linkDisplayDiv && shareUrl) {
+            const label = document.createElement('label'); label.htmlFor = `share-url-${fileId}`; label.style.fontSize = '0.8em'; label.style.marginRight = '5px'; label.innerHTML = 'Link ' + (passwordProtected ? '&#128274;' : '') + ':';
+            const input = document.createElement('input'); input.type = 'text'; input.readOnly = true; input.value = shareUrl; input.id = `share-url-${fileId}`; input.className = 'form-control-sm share-link-input'; input.style.width = '60%'; input.style.fontSize = '0.8em'; input.style.backgroundColor = 'var(--bg-color)'; input.style.color = 'var(--text-color)'; input.style.border = '1px solid var(--border-color)'; input.title = 'Public share link'; input.setAttribute('aria-label', 'Share Link');
+            const copyBtn = document.createElement('button'); copyBtn.className = 'btn btn-sm btn-copy-link'; copyBtn.dataset.link = shareUrl; copyBtn.textContent = 'Copy'; copyBtn.style.marginLeft = '5px';
+            linkDisplayDiv.appendChild(label); linkDisplayDiv.appendChild(input); linkDisplayDiv.appendChild(copyBtn);
+            linkRow.style.display = '';
+        }
+    }
+
+    // --- Archive/Extract Functions (Unchanged) ---
+    function handleArchiveFolder(folderId, folderName) {
+        if (!confirm(`Archive the folder "${folderName}"? This might take a while.`)) return;
+        console.log(`Attempting to archive folder ID: ${folderId}`);
+        showActionStatus('Archiving folder... (this may take a moment)', 'info');
+        fetch(`/files/folder/archive/${folderId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
+        .then(handleFetchErrors)
+        .then(data => { if (data.status === 'success') { showActionStatus(data.message || 'Folder archived! Reloading...', 'success'); setTimeout(() => { location.reload(); }, 1500); } else { throw new Error(data.message || 'Failed to archive folder.'); } })
+        .catch(error => { console.error('Error archiving folder:', error); showActionStatus(`Archive Error: ${error.message}`, 'error'); });
+    }
+    function handleExtractFile(fileId, fileName) {
+        if (!confirm(`Extract the archive "${fileName}" here? Existing files might be overwritten.`)) return;
+        console.log(`Attempting to extract file ID: ${fileId}`);
+        showActionStatus('Extracting archive... (this may take a moment)', 'info');
+        fetch(`/files/extract/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
+        .then(handleFetchErrors)
+        .then(data => { if (data.status === 'success') { showActionStatus(data.message || 'Archive extracted! Reloading...', 'success'); setTimeout(() => { location.reload(); }, 1500); } else { throw new Error(data.message || 'Failed to extract archive.'); } })
+        .catch(error => { console.error('Error extracting archive:', error); showActionStatus(`Extract Error: ${error.message}`, 'error'); });
+    }
+
+    // --- Delete Functions (Unchanged) ---
+    function handleDeleteFile(fileId, fileName, menuItem) {
+         if (!confirm(`Are you sure you want to permanently delete '${fileName}'?`)) return;
+         console.log(`Attempting to delete file ID: ${fileId}`);
+         showActionStatus('Deleting file...', 'info');
+         fetch(`/files/delete/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
+         .then(handleFetchErrors)
+         .then(data => {
+             if (data.status === 'success') {
+                 showActionStatus(data.message || 'File deleted!', 'success');
+                 menuItem.closest('tr').remove();
+                 const shareRow = document.getElementById(`share-link-row-${fileId}`); if(shareRow) shareRow.remove();
+             } else { throw new Error(data.message || 'Failed to delete file.'); }
+         })
+         .catch(error => { console.error('Error deleting file:', error); showActionStatus(`Delete Error: ${error.message}`, 'error'); });
+     }
+    function handleDeleteFolder(folderId, folderName, menuItem) {
+        if (!confirm(`WARNING: This will permanently delete the folder '${folderName}' and ALL its contents (files and subfolders). Are you absolutely sure?`)) return;
+        console.log(`Attempting to delete folder ID: ${folderId}`);
+        showActionStatus('Deleting folder...', 'info');
+        fetch(`/files/folder/delete/${folderId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
+        .then(handleFetchErrors) // Changed here
+        .then(data => {
+             if (data.status === 'success') {
+                 showActionStatus(data.message || 'Folder deleted!', 'success');
+                 menuItem.closest('tr').remove();
+             } else { throw new Error(data.message || 'Failed to delete folder.'); }
+        })
+        .catch(error => { console.error('Error deleting folder:', error); showActionStatus(`Delete Error: ${error.message}`, 'error'); });
+    }
+
+    // --- Context Menu Logic ---
+    function closeAllContextMenus(exceptMenu = null) {
+        document.querySelectorAll('.context-menu').forEach(menu => { if (menu !== exceptMenu) { menu.style.display = 'none'; } });
+    }
+
+    // --- Main Event Listener Setup ---
+    if (fileTable) {
+        const tableBody = fileTable.querySelector('tbody');
+        if (tableBody) {
+            // --- Event Delegation for Clicks ---
+            tableBody.addEventListener('click', function(event) {
+                const target = event.target;
+                const row = target.closest('.item-row'); // Get the row for context
+                const isContextMenuButton = target.classList.contains('btn-context-menu');
+                const isMenuItem = target.classList.contains('menu-item');
+                const isCopyLinkButton = target.classList.contains('btn-copy-link');
+
+                // Close menus if clicking outside specific interactive elements
+                if (!isMenuItem && !isContextMenuButton && !isCopyLinkButton && !target.closest('.context-menu-container') && !target.classList.contains('itemname-input')) {
+                     closeAllContextMenus();
+                }
+
+                // Handle Hamburger Button Click
+                if (isContextMenuButton) {
+                    const menu = target.nextElementSibling;
+                    if (menu && menu.classList.contains('context-menu')) {
+                        const isVisible = menu.style.display === 'block';
+                        closeAllContextMenus(); // Close others first
+                        menu.style.display = isVisible ? 'none' : 'block';
+                    }
+                    event.stopPropagation();
+                }
+                // Handle Menu Item Clicks
+                else if (isMenuItem && row) { // Ensure we have row context
+                    const itemId = row.dataset.itemId;
+                    const itemType = row.dataset.itemType;
+                    const itemName = row.dataset.itemName;
+                    const isPublic = row.dataset.isPublic === 'true';
+                    const isEditableAttributeValue_Dataset = row.dataset.isEditable; // Read via dataset
+                    const isEditableAttributeValue_GetAttr = row.getAttribute('data-is-editable'); // Read via getAttribute
+                    const isEditableComparisonResult_Dataset = isEditableAttributeValue_Dataset === 'true';
+                    const isEditableComparisonResult_GetAttr = isEditableAttributeValue_GetAttr === 'true'; // Compare getAttribute result
+
+                    // Use the result of the comparison from getAttribute for robustness
+                    const isEditable = isEditableComparisonResult_GetAttr;
+
+                    // Copy Action
+                    if (target.classList.contains('menu-item-copy')) {
+                        setClipboard([{ id: itemId, type: itemType }], 'copy');
+                    }
+                    // Cut Action
+                    else if (target.classList.contains('menu-item-cut')) {
+                        setClipboard([{ id: itemId, type: itemType }], 'cut');
+                    }
+                // Handle Edit Action
+                else if (target.classList.contains('menu-item-edit')) {
+                    // Use the 'isEditable' variable derived from getAttribute comparison
+                    if (itemType === 'file' && isEditable) { // This condition should pass
+                        window.location.href = `/files/edit/${itemId}`;
+                    } else {
+                        showActionStatus('This item cannot be edited.', 'info');
+                    }
+                }
+                // --- END Edit Action Handling ---
+                    // File Actions
+                    else if (itemType === 'file') {
+                        if (target.classList.contains('menu-item-rename')) { handleRenameButtonClick(target, 'file'); }
+                        else if (target.classList.contains('menu-item-extract')) { handleExtractFile(itemId, itemName); }
+                        else if (target.classList.contains('menu-item-share-toggle')) { if(isPublic) { handleUnshareFile(itemId, target); } else { handleShareFile(itemId, target); } }
+                        else if (target.classList.contains('menu-item-delete')) { handleDeleteFile(itemId, itemName, target); }
+                    }
+                    // Folder Actions
+                    else if (itemType === 'folder') {
+                         if (target.classList.contains('menu-item-rename-folder')) { handleRenameButtonClick(target, 'folder'); }
+                         else if (target.classList.contains('menu-item-archive-folder')) { handleArchiveFolder(itemId, itemName); }
+                         else if (target.classList.contains('menu-item-delete-folder')) { handleDeleteFolder(itemId, itemName, target); }
+                    }
+
+                    closeAllContextMenus(); // Close menu after action
+                }
+                 // Handle Copy Link Button
+                 else if (isCopyLinkButton) {
+                     copyToClipboard(target.dataset.link, target);
+                 }
+            }); // End tableBody click listener
+
+            // --- Event Delegation for Rename Input Actions ---
+            tableBody.addEventListener('focusout', function(event) {
+                 if (event.target.classList.contains('itemname-input')) {
+                     setTimeout(() => { if (document.activeElement !== event.target) { handleRenameInputBlurOrEnter(event.target); } }, 150);
+                 }
+            });
+            tableBody.addEventListener('keydown', function(event) {
+                 if (event.target.classList.contains('itemname-input')) {
+                    if (event.key === 'Enter') { event.preventDefault(); handleRenameInputBlurOrEnter(event.target); }
+                    else if (event.key === 'Escape') { resetRenameInput(event.target); }
+                 }
+            });
+
+        } else { console.error("Could not find tbody within #file-list-table"); }
+    } else { console.error("Could not find #file-list-table element"); }
+
+     // Global listener to close menus when clicking outside
+     document.addEventListener('click', function(event) {
+         if (!event.target.closest('.context-menu-container') && !event.target.classList.contains('btn-context-menu')) {
+             closeAllContextMenus();
+         }
+     });
+
+     // Listener for the main Paste button
+     if (pasteButton) {
+         pasteButton.addEventListener('click', handlePaste);
+     }
+
+     // Initial setup for paste button visibility and cut item styling
+     updatePasteButtonVisibility(); // Check if backend already put something in session? (Unlikely setup here, but good practice)
+     updateCutItemVisuals();
+
+}); // End DOMContentLoaded
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+    <h2>{{ title }}</h2>
+
+    {% if users_with_storage %}
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                    <th style="padding: 8px;">Username</th>
+                    <th style="padding: 8px;">Email</th>
+                    <th style="padding: 8px;">Admin?</th>
+                    <th style="padding: 8px; text-align: right;">Usage</th>
+                    <th style="padding: 8px; text-align: right;">Limit</th>
+                    <th style="padding: 8px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in users_with_storage %}
+                {% set user = item.user %}
+                {% set storage = item.storage %}
+                <tr style="border-bottom: 1px dashed var(--border-color);">
+                    <td style="padding: 8px;">{{ user.username }}</td>
+                    <td style="padding: 8px;">{{ user.email }}</td>
+                    <td style="padding: 8px;">{{ 'Yes' if user.is_admin else 'No' }}</td>
+                    <td style="padding: 8px; text-align: right;">
+                        {{ (storage.usage_bytes / (1024*1024)) | round(2) }} MB
+                    </td>
+                    <td style="padding: 8px; text-align: right;">
+                        {% if storage.limit_mb is none %}
+                            Unlimited
+                        {% else %}
+                            {{ storage.limit_mb }} MB
+                        {% endif %}
+                        <span style="font-size: 0.8em; color: #aaa;">({{ storage.limit_type | capitalize }})</span>
+                    </td>
+                    <td style="padding: 8px; text-align: center;">
+                        <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        {# Add Delete button later if needed #}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No users found.</p>
+    {% endif %}
+
+{% endblock %}
