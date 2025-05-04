@@ -163,7 +163,7 @@ deactivate # Good practice to deactivate after use in script
 
 info "Copying application files into virtual environment..."
 mkdir -p "${APP_INSTALL_DIR}" || error "Failed to create app directory in venv: ${APP_INSTALL_DIR}"
-cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/app.py" "${APP_INSTALL_DIR}/" || error "Failed to copy app.py"
+cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/main.py" "${APP_INSTALL_DIR}/" || error "Failed to copy main.py"
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/static" "${APP_INSTALL_DIR}/" || error "Failed to copy static directory"
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/templates" "${APP_INSTALL_DIR}/" || error "Failed to copy templates directory"
 # Add copy for default manager_settings.json if needed
@@ -205,7 +205,7 @@ if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
         info " Executable: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
         info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME}"
         info "            you run the '${MAIN_EXECUTABLE_NAME}' command."
-        info "            Alternatively, edit '${APP_INSTALL_DIR}/app.py' to set an absolute path."
+        info "            Alternatively, edit '${APP_INSTALL_DIR}/main.py' to set an absolute path."
         info " If the command isn't found immediately, try opening a new terminal session."
         info "-------------------------------------------"
     else
