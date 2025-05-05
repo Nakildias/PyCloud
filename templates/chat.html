@@ -1,0 +1,251 @@
+{# templates/chat.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+    <h2>Chat with Ollama</h2>
+
+    {# Display Chat History - Keep this structure #}
+    <div id="chat-history" style="height: 400px; overflow-y: scroll; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; background-color: var(--bg-color); border-radius: 5px;">
+        {% if chat_history %}
+            {% for message in chat_history %}
+                 <div class="chat-message {{ message.role }}" style="margin-bottom: 10px; padding: 8px; border-radius: 5px; background-color: {% if message.role == 'user' %}var(--primary-color){% else %}var(--secondary-color){% endif %}; color: {% if message.role == 'user' %}#fff{% else %}var(--text-color){% endif %};">
+                    <strong>{{ message.role|capitalize }}:</strong>
+                    {# Use white-space: pre-wrap to respect newlines and wrap long lines #}
+                    <div style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p id="empty-history-msg" style="color: #aaa;">Chat history is empty. Start by sending a message.</p>
+        {% endif %}
+         {# Placeholder for the "thinking" indicator - added dynamically by JS #}
+    </div>
+
+    {# Input Form - Ensure IDs are correct #}
+    {# Use action="#" or remove action as JS handles it, but keep method="POST" conceptually #}
+    <form id="chat-form" method="POST" action="#" novalidate>
+        {{ form.hidden_tag() }} {# Keep for CSRF token #}
+        <div class="form-group">
+            {# Remove label if not needed, or keep it #}
+            {# {{ form.message.label }} #}
+            {# Textarea needs id="message" #}
+            {{ form.message(class="form-control", rows=3, placeholder="Type your message here (Shift+Enter for new line)...", id="message") }}
+            {% if form.message.errors %} {# Errors from previous full-page loads if any #}
+                <ul class="errors">
+                    {% for error in form.message.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+             {# Submit button needs id="send-button" #}
+            {{ form.submit(class="btn btn-primary", id="send-button", value="Send") }}
+            <a href="{{ url_for('clear_chat_history') }}" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to clear the entire chat history? This cannot be undone.');">Clear History</a>
+        </div>
+    </form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatHistoryDiv = document.getElementById('chat-history');
+    const messageTextarea = document.getElementById('message');
+    const chatForm = document.getElementById('chat-form');
+    const sendButton = document.getElementById('send-button');
+    const emptyHistoryMsg = document.getElementById('empty-history-msg');
+    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
+
+    // Function to scroll chat history to the bottom
+    function scrollChatToBottom() {
+        chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+    }
+
+    // Initial scroll
+    scrollChatToBottom();
+
+    // Function to add a message to the chat history div
+    function addMessageToHistory(role, content, elementId = null) {
+        // Remove "empty history" message if it exists
+        if (emptyHistoryMsg) {
+            emptyHistoryMsg.remove();
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-message', role); // Add role as class
+        messageDiv.style.marginBottom = '10px';
+        messageDiv.style.padding = '8px';
+        messageDiv.style.borderRadius = '5px';
+
+        if (role === 'user') {
+            messageDiv.style.backgroundColor = 'var(--primary-color)';
+            messageDiv.style.color = '#fff';
+        } else { // assistant or thinking/error
+            messageDiv.style.backgroundColor = 'var(--secondary-color)';
+            messageDiv.style.color = 'var(--text-color)';
+        }
+
+        // Add specific styling for thinking indicator
+        if (role === 'thinking') {
+             messageDiv.style.fontStyle = 'italic';
+             messageDiv.style.opacity = '0.8';
+        }
+        // Add specific styling for error indicator
+        if (role === 'error') {
+            messageDiv.style.backgroundColor = 'var(--error-color)'; // Or a lighter red
+            messageDiv.style.color = '#fff'; // White text on red
+            messageDiv.style.border = '1px solid #c0392b';
+        }
+
+
+        const roleStrong = document.createElement('strong');
+        // Capitalize role, handle 'thinking' specifically
+        roleStrong.textContent = (role === 'thinking' || role === 'error') ? 'System:' : (role.charAt(0).toUpperCase() + role.slice(1) + ':');
+
+        const contentDiv = document.createElement('div');
+        contentDiv.style.whiteSpace = 'pre-wrap'; // Preserve formatting
+        contentDiv.style.wordWrap = 'break-word';
+        contentDiv.textContent = content; // Use textContent to prevent HTML injection
+
+        messageDiv.appendChild(roleStrong);
+        messageDiv.appendChild(contentDiv);
+
+        // Assign ID if provided (for the thinking indicator)
+        if (elementId) {
+            messageDiv.id = elementId;
+        }
+
+        chatHistoryDiv.appendChild(messageDiv);
+        scrollChatToBottom();
+        return messageDiv; // Return the created element
+    }
+
+    // Handle form submission
+    async function handleFormSubmit(event) {
+        event.preventDefault(); // Prevent default page reload
+
+        if (!csrfToken) {
+            addMessageToHistory('error', 'Security token missing. Cannot send message.');
+            return;
+        }
+
+        const userMessage = messageTextarea.value.trim();
+        if (!userMessage) {
+            return; // Don't send empty messages
+        }
+
+        // 1. Disable form elements
+        messageTextarea.disabled = true;
+        sendButton.disabled = true;
+        sendButton.value = "Sending..."; // Change button text
+
+        // 2. Immediately display user message
+        addMessageToHistory('user', userMessage);
+
+        // 3. Clear the input field
+        messageTextarea.value = '';
+
+        // 4. Display "thinking" indicator
+        const thinkingIndicatorId = `thinking-${Date.now()}`; // Unique ID
+        const thinkingDiv = addMessageToHistory('thinking', 'Ollama is thinking...', thinkingIndicatorId);
+
+        // 5. Send message to backend API
+        try {
+            const response = await fetch("{{ url_for('api_chat_send') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ message: userMessage })
+            });
+
+            const data = await response.json();
+
+            // 6. Handle response
+            const indicatorElement = document.getElementById(thinkingIndicatorId);
+            if (!indicatorElement) {
+                 console.error("Thinking indicator not found!");
+                 // Maybe add a new error message if indicator is gone?
+                 addMessageToHistory('error', 'UI Error: Could not find placeholder for AI response.');
+                 return; // Exit here, something went wrong with the UI
+            }
+
+
+            if (response.ok && data.status === 'success') {
+                // Update the indicator div with the AI response
+                indicatorElement.classList.remove('thinking');
+                indicatorElement.classList.add('assistant'); // Change class
+                indicatorElement.style.fontStyle = 'normal'; // Reset style
+                indicatorElement.style.opacity = '1';
+                indicatorElement.style.backgroundColor = 'var(--secondary-color)'; // Ensure assistant style
+                indicatorElement.style.color = 'var(--text-color)';
+                indicatorElement.querySelector('strong').textContent = 'Assistant:'; // Update role display
+                indicatorElement.querySelector('div').textContent = data.ai_message; // Update content
+
+            } else {
+                 // Update the indicator div with the error message
+                 indicatorElement.classList.remove('thinking');
+                 indicatorElement.classList.add('error'); // Change class
+                 indicatorElement.style.fontStyle = 'normal'; // Reset style
+                 indicatorElement.style.opacity = '1';
+                 indicatorElement.style.backgroundColor = 'var(--error-color)'; // Ensure error style
+                 indicatorElement.style.color = '#fff';
+                 indicatorElement.querySelector('strong').textContent = 'Error:'; // Update role display
+                 indicatorElement.querySelector('div').textContent = data.message || 'An unknown error occurred.';
+            }
+             scrollChatToBottom(); // Scroll again after updating content
+
+
+        } catch (error) {
+            console.error("Fetch error:", error);
+             const indicatorElement = document.getElementById(thinkingIndicatorId);
+             if (indicatorElement) {
+                // Update the indicator div with the fetch error
+                indicatorElement.classList.remove('thinking');
+                indicatorElement.classList.add('error'); // Change class
+                 indicatorElement.style.fontStyle = 'normal'; // Reset style
+                 indicatorElement.style.opacity = '1';
+                 indicatorElement.style.backgroundColor = 'var(--error-color)'; // Ensure error style
+                 indicatorElement.style.color = '#fff';
+                indicatorElement.querySelector('strong').textContent = 'Error:'; // Update role display
+                indicatorElement.querySelector('div').textContent = `Network or connection error: ${error.message}`;
+             } else {
+                 // If even the indicator vanished somehow, add a new error message
+                 addMessageToHistory('error', `Network or connection error: ${error.message}`);
+             }
+        } finally {
+            // 7. Re-enable form elements
+            messageTextarea.disabled = false;
+            sendButton.disabled = false;
+            sendButton.value = "Send"; // Restore button text
+            messageTextarea.focus(); // Put focus back on input
+        }
+    }
+
+    // Attach submit listener
+    if (chatForm) {
+        chatForm.addEventListener('submit', handleFormSubmit);
+    }
+
+    // Attach keydown listener for Shift+Enter
+    if (messageTextarea) {
+        messageTextarea.addEventListener('keydown', function(event) {
+            // Check if Enter is pressed WITHOUT Shift key
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevent default Enter behavior (new line)
+                // Trigger form submission manually
+                // Ensure button isn't already disabled from a previous request
+                if (!sendButton.disabled) {
+                     chatForm.requestSubmit(sendButton); // Use requestSubmit for compatibility
+                }
+            }
+            // If Enter + Shift is pressed, the default behavior (new line) is allowed
+        });
+    }
+
+});
+</script>
+{% endblock %}
