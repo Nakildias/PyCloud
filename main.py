@@ -267,10 +267,20 @@ def inject_settings():
         settings_dict['allow_registration'] = (Setting.get('allow_registration', 'true') == 'true')
         # Add other settings as needed:
         # settings_dict['site_name'] = Setting.get('site_name', 'My Web Service')
+
+        # --- Add Ollama Enabled Check ---
+        ollama_url = Setting.get('ollama_api_url', '') # Get URL, default to empty string
+        ollama_model = Setting.get('ollama_model', '') # Get model, default to empty string
+        # Consider enabled only if both URL and Model have non-empty values
+        settings_dict['ollama_enabled'] = bool(ollama_url and ollama_model)
+        # --- End Ollama Check ---
+
     except Exception as e:
         # Handle cases where DB might not be ready yet during initial setup/errors
         app.logger.error(f"Error injecting settings into context: {e}")
         settings_dict['allow_registration'] = True # Default fallback
+        settings_dict['allow_registration'] = True # Default fallback
+        settings_dict['ollama_enabled'] = False # Default fallback for Ollama
 
     return dict(settings=settings_dict)
 
@@ -538,6 +548,16 @@ class AdminSettingsForm(FlaskForm):
             # NumberRange(min=1, max=2048, message='Maximum upload size must be between 1 and 2048 MB.')
         ],
         description="Maximum size allowed for a single file upload."
+    )
+    ollama_api_url = URLField(
+        'Ollama API Base URL',
+        validators=[Optional(), URL(message='Please enter a valid URL.')],
+        description="URL for your Ollama instance (e.g., http://localhost:11434). Leave blank to disable Ollama integration."
+    )
+    ollama_model = StringField(
+        'Ollama Model Name',
+        validators=[Optional(), Length(min=1, max=100)],
+        description="The name of the Ollama model to use (e.g., 'llama3', 'mistral'). Required if URL is set."
     )
     # --- END ADD ---
     submit = SubmitField('Save Settings')
@@ -839,30 +859,48 @@ def admin_settings():
     form = AdminSettingsForm()
     DEFAULT_MAX_UPLOAD_MB = 100 # Default if setting is missing
 
+    # --- MOVE THESE DEFINITIONS HERE ---
+    DEFAULT_OLLAMA_URL = '' # Default to disabled
+    DEFAULT_OLLAMA_MODEL = 'llama3' # Or your preferred default
+    # --- END MOVE ---
+
     if form.validate_on_submit():
         # --- POST Request ---
         try:
+            # Fetch existing setting values
             allow_reg_val = str(form.allow_registration.data).lower()
             limit_val = str(form.default_storage_limit_mb.data)
             max_upload_val_from_form = form.max_upload_size_mb.data # Get integer from form
+            max_upload_val_to_save = str(max_upload_val_from_form) # Convert to string for saving
 
-            # --- Logging before save ---
-            app.logger.info(f"Admin settings POST: Attempting to save max_upload_size_mb = {max_upload_val_from_form} (Type: {type(max_upload_val_from_form)})")
+            # Fetch Ollama settings from form
+            ollama_url_val = form.ollama_api_url.data or '' # Store empty string if None/empty
+            ollama_model_val = form.ollama_model.data or '' # Store empty string if None/empty
 
-            # Convert to string for saving
-            max_upload_val_to_save = str(max_upload_val_from_form)
+            # Basic validation: if URL is provided, model should also be provided
+            if ollama_url_val and not ollama_model_val:
+                flash('Ollama Model Name is required if Ollama API URL is provided.', 'warning')
+                # Re-render form with the current (unsaved) data
+                # Note: No need to re-fetch from DB here, form holds the submitted values
+                return render_template('admin_settings.html', title='Admin Settings', form=form)
+
+            # Save settings to DB
             Setting.set('allow_registration', allow_reg_val)
             Setting.set('default_storage_limit_mb', limit_val)
-            Setting.set('max_upload_size_mb', max_upload_val_to_save) # Save as string
+            Setting.set('max_upload_size_mb', max_upload_val_to_save)
+            Setting.set('ollama_api_url', ollama_url_val)
+            Setting.set('ollama_model', ollama_model_val)
 
             db.session.commit()
             flash('Settings updated successfully!', 'success')
-            app.logger.info(f"Admin settings saved successfully by {current_user.username}. max_upload now set to '{max_upload_val_to_save}' in DB.")
-            return redirect(url_for('admin_settings'))
+            app.logger.info(f"Admin settings saved by {current_user.username}. Ollama URL: '{ollama_url_val}', Model: '{ollama_model_val}'")
+            return redirect(url_for('admin_settings')) # Redirect after successful POST
+
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error updating settings by {current_user.username}: {e}", exc_info=True)
             flash('Failed to update settings.', 'danger')
+        # If POST fails after validation (e.g., DB error), fall through to render template
 
     elif request.method == 'GET':
         # --- GET Request ---
@@ -870,32 +908,27 @@ def admin_settings():
         allow_reg_current = Setting.get('allow_registration', 'true')
         form.allow_registration.data = (allow_reg_current == 'true')
 
-        # Populate default_storage_limit_mb
+        # Populate default_storage_limit_mb (with error handling)
         try:
             default_limit_current_str = Setting.get('default_storage_limit_mb', '1024')
             form.default_storage_limit_mb.data = int(default_limit_current_str)
         except (ValueError, TypeError):
-             app.logger.warning(f"Invalid default_storage_limit_mb value in settings: '{default_limit_current_str}'. Setting form field to 1024.")
-             form.default_storage_limit_mb.data = 1024
+            app.logger.warning(f"Invalid default_storage_limit_mb value in settings: '{default_limit_current_str}'. Setting form field to 1024.")
+            form.default_storage_limit_mb.data = 1024
 
-        # Populate max_upload_size_mb
+        # Populate max_upload_size_mb (with error handling)
         try:
-            # --- Logging before reading ---
-            max_upload_current_str = Setting.get('max_upload_size_mb') # Try reading without default first
-            app.logger.info(f"Admin settings GET: Reading 'max_upload_size_mb' from DB. Raw value = '{max_upload_current_str}' (Type: {type(max_upload_current_str)})")
-
-            if max_upload_current_str is None:
-                 app.logger.info(f"Admin settings GET: 'max_upload_size_mb' not found in DB. Using default {DEFAULT_MAX_UPLOAD_MB}.")
-                 form.max_upload_size_mb.data = DEFAULT_MAX_UPLOAD_MB
-            else:
-                 form.max_upload_size_mb.data = int(max_upload_current_str) # Convert DB string value to int for form
-                 app.logger.info(f"Admin settings GET: Populating form with {form.max_upload_size_mb.data} from DB value '{max_upload_current_str}'.")
-
+            max_upload_current_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB))
+            form.max_upload_size_mb.data = int(max_upload_current_str)
         except (ValueError, TypeError):
-             app.logger.warning(f"Invalid max_upload_size_mb value '{max_upload_current_str}' found in settings. Setting form field to default {DEFAULT_MAX_UPLOAD_MB}.")
-             form.max_upload_size_mb.data = DEFAULT_MAX_UPLOAD_MB # Fallback for display on error
+            app.logger.warning(f"Invalid max_upload_size_mb value '{max_upload_current_str}' found in settings. Setting form field to default {DEFAULT_MAX_UPLOAD_MB}.")
+            form.max_upload_size_mb.data = DEFAULT_MAX_UPLOAD_MB
 
-    # Render the template
+        # Populate Ollama fields - DEFAULT_OLLAMA_URL/MODEL are now defined
+        form.ollama_api_url.data = Setting.get('ollama_api_url', DEFAULT_OLLAMA_URL)
+        form.ollama_model.data = Setting.get('ollama_model', DEFAULT_OLLAMA_MODEL)
+
+    # Render the template for GET requests or if POST had errors before redirect
     return render_template('admin_settings.html', title='Admin Settings', form=form)
 
 @app.route('/admin/users')
@@ -2087,6 +2120,163 @@ def view_file(file_id):
         # Return a generic error page or message
         return "Error serving file.", 500
 
+# Add this new route function
+@app.route('/chat', methods=['GET', 'POST'])
+@login_required
+def chat():
+    form = ChatForm()
+    error_message = None
+    history_for_template = [] # History to display
+
+    # --- Fetch existing history from DB for the current user ---
+    try:
+        # Fetch messages ordered by time, convert to list of dicts
+        db_messages = current_user.chat_messages.order_by(ChatMessage.timestamp).all()
+        # Convert to the list format needed by Ollama and template
+        # Use the to_dict helper method we added to the model
+        history_for_ollama = [msg.to_dict() for msg in db_messages]
+        history_for_template = list(history_for_ollama) # Use the same for display initially
+    except Exception as e:
+        app.logger.error(f"Error fetching chat history for user {current_user.id}: {e}", exc_info=True)
+        flash("Could not load chat history.", "danger")
+        history_for_ollama = [] # Start fresh if history load fails
+        history_for_template = []
+
+
+    if form.validate_on_submit():
+        user_message_content = form.message.data
+        form.message.data = '' # Clear input field
+
+        # --- Call Ollama with DB history ---
+        # history_for_ollama holds the current conversation state [{role:'...', content:'...'}, ...]
+        ai_response_content, error_message = send_message_to_ollama(
+            user_message_content,
+            history_for_ollama
+        )
+
+        if error_message:
+            flash(error_message, 'danger')
+            # Don't save anything if Ollama failed
+        elif ai_response_content:
+            # --- Save user message and AI response to DB ---
+            try:
+                user_msg_db = ChatMessage(
+                    user_id=current_user.id,
+                    role='user',
+                    content=user_message_content
+                )
+                ai_msg_db = ChatMessage(
+                    user_id=current_user.id,
+                    role='assistant',
+                    content=ai_response_content
+                 )
+                db.session.add(user_msg_db)
+                db.session.add(ai_msg_db)
+                db.session.commit()
+                app.logger.info(f"Saved user/AI chat messages for user {current_user.id}")
+
+                # --- Update history for display ---
+                # Append the newly saved messages (as dicts) to the list for the template
+                history_for_template.append(user_msg_db.to_dict())
+                history_for_template.append(ai_msg_db.to_dict())
+
+            except Exception as e:
+                 db.session.rollback()
+                 app.logger.error(f"Error saving chat messages for user {current_user.id}: {e}", exc_info=True)
+                 flash("Failed to save chat message.", "danger")
+        else:
+            # Handle case where Ollama returns None content without error (shouldn't happen now)
+            flash("Received no response from the AI.", "warning")
+
+    # Pass the potentially updated history_for_template list
+    return render_template('chat.html',
+                           title='Chat',
+                           form=form,
+                           chat_history=history_for_template) # Pass DB history
+
+@app.route('/chat/clear', methods=['GET']) # Or POST if preferred
+@login_required
+def clear_chat_history():
+    try:
+        # Delete all ChatMessage records for the current user
+        num_deleted = ChatMessage.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        flash(f'Chat history cleared ({num_deleted} messages removed).', 'info')
+        app.logger.info(f"Cleared {num_deleted} chat messages for user {current_user.id}")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error clearing chat history for user {current_user.id}: {e}", exc_info=True)
+        flash('Failed to clear chat history.', 'danger')
+
+    return redirect(url_for('chat'))
+
+@app.route('/api/chat/send', methods=['POST'])
+@login_required
+def api_chat_send():
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({"status": "error", "message": "Missing message content."}), 400
+
+    user_message_content = data['message'].strip()
+    if not user_message_content:
+        return jsonify({"status": "error", "message": "Message cannot be empty."}), 400
+
+    # --- Fetch CURRENT history from DB before sending ---
+    history_for_ollama = []
+    try:
+        db_messages = current_user.chat_messages.order_by(ChatMessage.timestamp).all()
+        history_for_ollama = [msg.to_dict() for msg in db_messages]
+    except Exception as e:
+        app.logger.error(f"API: Error fetching chat history for user {current_user.id}: {e}", exc_info=True)
+        # Decide if you want to proceed with empty history or return error
+        # Let's return an error for consistency
+        return jsonify({"status": "error", "message": "Could not retrieve chat history context."}), 500
+
+    # --- Call Ollama ---
+    ai_response_content, error_message = send_message_to_ollama(
+        user_message_content,
+        history_for_ollama
+    )
+
+    if error_message:
+        # Don't save if Ollama failed
+        app.logger.error(f"Ollama error for user {current_user.id}: {error_message}")
+        return jsonify({"status": "error", "message": error_message}), 500 # 500 for server-side/API issues
+
+    elif ai_response_content:
+        # --- Save BOTH user message and AI response to DB ---
+        try:
+            user_msg_db = ChatMessage(
+                user_id=current_user.id,
+                role='user',
+                content=user_message_content
+            )
+            ai_msg_db = ChatMessage(
+                user_id=current_user.id,
+                role='assistant',
+                content=ai_response_content
+             )
+            # Add user message first, then AI response
+            db.session.add(user_msg_db)
+            db.session.add(ai_msg_db)
+            db.session.commit()
+            app.logger.info(f"API: Saved user/AI chat messages for user {current_user.id}")
+
+            # --- Return success with AI response ---
+            return jsonify({
+                "status": "success",
+                "ai_message": ai_response_content
+            })
+
+        except Exception as e:
+             db.session.rollback()
+             app.logger.error(f"API: Error saving chat messages for user {current_user.id}: {e}", exc_info=True)
+             return jsonify({"status": "error", "message": "Failed to save chat messages to database."}), 500
+    else:
+        # Handle unexpected case where Ollama returns no content and no error
+        app.logger.warning(f"API: Ollama returned no content and no error for user {current_user.id}")
+        return jsonify({"status": "error", "message": "Received no response content from the AI."}), 500
+
 # --- Public Sharing Route ---
 
 # Use '/s/' for short shared links
@@ -2305,6 +2495,8 @@ def delete_note(note_id):
 def create_db(app_instance):
     """Creates instance folder, upload folder, DB tables, and seeds settings."""
     DEFAULT_STORAGE_LIMIT_MB = 1024 # 1 GB
+    DEFAULT_OLLAMA_URL = ''
+    DEFAULT_OLLAMA_MODEL = 'llama3' # Or your preferred default
 
     with app_instance.app_context():
         # --- Ensure Instance and Upload Folders Exist ---
@@ -2342,13 +2534,44 @@ def create_db(app_instance):
                 if not Setting.query.filter_by(key='default_storage_limit_mb').first():
                     settings_to_add.append(Setting(key='default_storage_limit_mb', value=str(DEFAULT_STORAGE_LIMIT_MB)))
 
+
+                # Check and add Ollama settings
+                if not Setting.query.filter_by(key='ollama_api_url').first():
+                    settings_to_add.append(Setting(key='ollama_api_url', value=DEFAULT_OLLAMA_URL))
+                if not Setting.query.filter_by(key='ollama_model').first():
+                    settings_to_add.append(Setting(key='ollama_model', value=DEFAULT_OLLAMA_MODEL))
+
+
                 if settings_to_add:
                     db.session.add_all(settings_to_add)
                     db.session.commit()
                     app.logger.info(f"Initial settings seeded: {[s.key for s in settings_to_add]}")
                 else:
                     app.logger.info("Essential settings already exist, skipping initial seed.")
-                    db.session.rollback()
+
+                # --- Database structure checks ---
+                try:
+                     # ... (inspector setup) ...
+                     # Ensure Ollama settings are checked/added if DB exists but settings are missing
+                     settings_to_commit = False
+                     # ... (check allow_registration, default_storage_limit_mb, max_upload_size_mb) ...
+                     if Setting.get('ollama_api_url') is None:
+                          app.logger.warning("Setting 'ollama_api_url' missing. Seeding default.")
+                          Setting.set('ollama_api_url', DEFAULT_OLLAMA_URL)
+                          settings_to_commit = True
+                     if Setting.get('ollama_model') is None:
+                          app.logger.warning("Setting 'ollama_model' missing. Seeding default.")
+                          Setting.set('ollama_model', DEFAULT_OLLAMA_MODEL)
+                          settings_to_commit = True
+
+                     if settings_to_commit:
+                         db.session.commit()
+
+                     app.logger.info("Database structure and settings checks complete.")
+                except Exception as e:
+                     db.session.rollback()
+                     app.logger.error(f"Error inspecting database or ensuring settings: {e}", exc_info=True)
+
 
             except Exception as e:
                 db.session.rollback()
@@ -2365,6 +2588,7 @@ def create_db(app_instance):
                     Note.__tablename__: [],
                     Folder.__tablename__: ['parent_folder_id'], # Check new Folder table
                     File.__tablename__: ['parent_folder_id', 'is_public', 'public_id', 'public_password_hash'], # <-- Check new column
+                    ChatMessage.__tablename__: ['user_id', 'role', 'content', 'timestamp'],
                 }
 
                 # Check for missing tables
@@ -2393,6 +2617,12 @@ def create_db(app_instance):
                      app.logger.warning(f"Setting 'default_storage_limit_mb' missing. Seeding default ('{DEFAULT_STORAGE_LIMIT_MB}').")
                      Setting.set('default_storage_limit_mb', str(DEFAULT_STORAGE_LIMIT_MB))
                      settings_to_commit = True
+                if ChatMessage.__tablename__ in all_tables:
+                    columns = [c['name'] for c in inspector.get_columns(ChatMessage.__tablename__)]
+                    for req_col in required_tables[ChatMessage.__tablename__]:
+                         if req_col not in columns:
+                              app.logger.critical(f"CRITICAL: Column '{req_col}' missing from '{ChatMessage.__tablename__}'.")
+                              # Add migration/alert logic as before
 
                 if settings_to_commit:
                     db.session.commit()
@@ -2403,6 +2633,86 @@ def create_db(app_instance):
                 db.session.rollback()
                 app.logger.error(f"Error inspecting database or ensuring settings: {e}", exc_info=True)
 
+class ChatMessage(db.Model):
+    """Model for storing individual chat messages per user."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    role = db.Column(db.String(10), nullable=False) # 'user' or 'assistant'
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Add relationship back to User (optional but useful)
+    # The backref allows accessing messages via user.chat_messages
+    user = db.relationship('User', backref=db.backref('chat_messages', lazy='dynamic', order_by='ChatMessage.timestamp', cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f'<ChatMessage {self.id} (User: {self.user_id}, Role: {self.role})>'
+
+    # Helper to convert DB object to the dictionary format Ollama/template expects
+    def to_dict(self):
+        return {"role": self.role, "content": self.content}
+
+class ChatForm(FlaskForm):
+    message = TextAreaField('You: ', validators=[DataRequired(), Length(max=4000)])
+    submit = SubmitField('Send')
+
+def send_message_to_ollama(prompt, history_list):
+    """
+    Sends a prompt and history list to the configured Ollama API.
+    Returns the AI response content string or None if error, plus an error message string or None.
+    """
+    ollama_url = Setting.get('ollama_api_url')
+    ollama_model = Setting.get('ollama_model')
+
+    if not ollama_url or not ollama_model:
+        app.logger.warning("Ollama URL or model not configured in settings.")
+        return None, "Ollama integration is not configured in Admin Settings." # Correct: 2 values
+
+    api_endpoint = ollama_url.rstrip('/') + '/api/chat'
+    messages = list(history_list)
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": ollama_model,
+        "messages": messages,
+        "stream": False
+    }
+
+    try:
+        response = requests.post(api_endpoint, json=payload, timeout=60)
+        response.raise_for_status()
+        response_data = response.json()
+
+        if response_data and 'message' in response_data and 'content' in response_data['message']:
+             ai_response_content = response_data['message']['content']
+             return ai_response_content, None # Correct: 2 values (content, no error)
+        else:
+             app.logger.error(f"Unexpected Ollama response format: {response_data}")
+             return None, "Received an unexpected response format from Ollama." # Correct: 2 values
+
+    except requests.exceptions.ConnectionError as e:
+        app.logger.error(f"Ollama connection error: {e}", exc_info=True)
+        # FIX HERE: Return only 2 values
+        return None, f"Could not connect to Ollama API at {ollama_url}. Is it running?"
+    except requests.exceptions.Timeout:
+         app.logger.error(f"Ollama request timed out to {api_endpoint}")
+         # FIX HERE: Return only 2 values
+         return None, "The request to Ollama timed out."
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Ollama request failed: {e}", exc_info=True)
+        error_detail = f"Error: {e}."
+        if e.response is not None:
+             try:
+                 error_detail += f" Response: {e.response.text}"
+             except Exception:
+                 pass
+        # FIX HERE: Return only 2 values
+        return None, f"Failed to communicate with Ollama API. {error_detail}"
+    except Exception as e:
+        app.logger.error(f"Unexpected error calling Ollama: {e}", exc_info=True)
+        # FIX HERE: Return only 2 values
+        return None, "An unexpected error occurred while contacting the AI."
+
 # --- Update URI config *after* create_db definition ---
 # This ensures the app object uses the correct path when create_db is called below
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(INSTANCE_FOLDER_PATH, DB_NAME)}'
@@ -2411,4 +2721,4 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(INSTANCE_FOLDE
 # --- Run Application ---
 if __name__ == '__main__':
     create_db(app)
-    app.run(debug=False, host='127.0.0.1', port=8080)
+    app.run(debug=True, host='0.0.0.0', port=8080)
