@@ -220,7 +220,7 @@ nav ul li a:hover {
 
 /* --- Notes Specific Styling --- */
 textarea { /* Basic textarea styling was added in forms */
-    min-height: 150px; /* Give textarea a decent default height */
+    min-height: 66px; /* Give textarea a decent default height */
     resize: vertical; /* Allow vertical resizing */
 }
 
@@ -484,3 +484,4 @@ gap: 10px; /* Spacing between toasts */
     background-color: #f39c12; /* Orange */
     border-color: #f1c40f;
     color: #333; /* Dark text for better contrast on orange */
+
