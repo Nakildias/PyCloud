@@ -61,6 +61,44 @@
             </div>
         </fieldset>
 
+        {# --- NEW: Ollama Settings Fieldset --- #}
+        <fieldset style="margin-bottom: 20px;">
+            <legend>Ollama Integration (AI Chat)</legend>
+
+            {# Ollama API URL Field #}
+            <div class="form-group">
+                 {{ form.ollama_api_url.label }}
+                 {{ form.ollama_api_url(class="form-control", placeholder="e.g., http://localhost:11434") }}
+                 <small class="form-text text-muted">
+                    {% if form.ollama_api_url.description %}
+                        {{ form.ollama_api_url.description }}
+                    {% endif %}
+                 </small>
+                {% if form.ollama_api_url.errors %}
+                    <ul class="errors">
+                        {% for error in form.ollama_api_url.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            {# Ollama Model Name Field #}
+            <div class="form-group">
+                 {{ form.ollama_model.label }}
+                 {{ form.ollama_model(class="form-control", placeholder="e.g., llama3") }}
+                 <small class="form-text text-muted">
+                    {% if form.ollama_model.description %}
+                        {{ form.ollama_model.description }}
+                    {% endif %}
+                 </small>
+                {% if form.ollama_model.errors %}
+                    <ul class="errors">
+                        {% for error in form.ollama_model.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </fieldset>
+        {# --- END: Ollama Settings Fieldset --- #}
+
 
         <div class="form-group" style="margin-top: 20px;">
             {{ form.submit(class="btn btn-primary") }}
