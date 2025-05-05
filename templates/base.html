@@ -15,6 +15,11 @@
                 <li><a href="{{ url_for('list_files') }}">Files</a></li>
                 {# Notes Link #}
                 <li><a href="{{ url_for('list_notes') }}">Notes</a></li>
+                {# --- Conditionally display Chat link --- #}
+                {% if settings.ollama_enabled %}
+                    <li><a href="{{ url_for('chat') }}">Ollama</a></li>
+                {% endif %}
+                {# --- End conditional display --- #}
                  {% if current_user.is_admin %}
                     <li><a href="{{ url_for('admin_settings') }}">Admin Settings</a></li>
                  {% endif %}
