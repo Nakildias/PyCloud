@@ -1436,28 +1436,41 @@ def upload_file():
 @app.route('/files/download/<int:file_id>')
 @login_required
 def download_file(file_id):
-    """Handles downloading a specific file."""
     file_record = File.query.get_or_404(file_id)
 
-    # Verify ownership
-    if file_record.owner != current_user:
-        app.logger.warning(f"User {current_user.id} attempted download of file {file_id} owned by {file_record.user_id}")
-        abort(403) # Forbidden
+    # --- MODIFIED PERMISSION CHECK ---
+    can_access = False
+    # 1. Check if current user is the owner
+    if file_record.owner == current_user:
+        can_access = True
+    else:
+        # 2. Check if the file is referenced in any GroupChatMessage.
+        #    If yes, any authenticated user in the group chat can access it.
+        if GroupChatMessage.query.filter_by(file_id=file_record.id).first():
+            can_access = True # Authenticated users can access files shared in the global group chat
+    # --- END MODIFIED PERMISSION CHECK ---
 
-    user_upload_path = get_user_upload_path(current_user.id)
+    if not can_access:
+        app.logger.warning(f"Access denied: User {current_user.id} attempted download of file {file_id}. Owner: {file_record.user_id}. Not shared in chat or user is not owner.")
+        abort(403)  # Forbidden
+
+    # IMPORTANT: Use the actual file owner's ID to construct the path
+    user_upload_path = get_user_upload_path(file_record.user_id)
 
     try:
         return send_from_directory(user_upload_path,
                                    file_record.stored_filename,
                                    as_attachment=True,
-                                   download_name=file_record.original_filename) # Send with original name
+                                   download_name=file_record.original_filename)
     except FileNotFoundError:
         app.logger.error(f"File not found on disk for record {file_id}: {file_record.stored_filename} in {user_upload_path}")
-        abort(404) # Or flash an error and redirect
+        abort(404)
     except Exception as e:
         app.logger.error(f"Error downloading file {file_id} for user {current_user.id}: {e}", exc_info=True)
         flash("An error occurred while trying to download the file.", "danger")
-        return redirect(url_for('list_files'))
+        # Redirect to a sensible page, maybe where the link originated if possible,
+        # or to the main files page. For chat, redirecting to chat might be best.
+        return redirect(url_for('group_chat'))
 
 @app.route('/files/delete/<int:file_id>', methods=['POST'])
 @login_required
@@ -2063,38 +2076,40 @@ def rename_file(file_id):
 @app.route('/files/view/<int:file_id>')
 @login_required
 def view_file(file_id):
-    """Serves a file for inline viewing if possible."""
     file_record = File.query.get_or_404(file_id)
 
-    # 1. Verify Ownership
-    if file_record.owner != current_user:
-        app.logger.warning(f"User {current_user.id} attempted unauthorized view of file {file_id} owned by {file_record.user_id}")
-        abort(403) # Forbidden
+    can_access = False
+    # 1. Check if current user is the owner
+    if file_record.owner == current_user:
+        can_access = True
+    else:
+        # 2. Check if the file is referenced in any GroupChatMessage.
+        if GroupChatMessage.query.filter_by(file_id=file_record.id).first():
+            can_access = True # Authenticated users can access files shared in the global group chat
 
-    # 2. Get path info
-    user_upload_path = get_user_upload_path(current_user.id)
+    if not can_access:
+        app.logger.warning(f"Access denied: User {current_user.id} attempted view of file {file_id}. Owner: {file_record.user_id}. Not shared in chat or user is not owner.")
+        abort(403)  # Forbidden
+
+    # IMPORTANT: Use the actual file owner's ID to construct the path
+    user_upload_path = get_user_upload_path(file_record.user_id)
     stored_filename = file_record.stored_filename
-    mime_type = file_record.mime_type or 'application/octet-stream' # Default if missing
+    mime_type = file_record.mime_type or 'application/octet-stream'
 
-    # Check if file exists physically
     full_file_path = os.path.join(user_upload_path, stored_filename)
     if not os.path.exists(full_file_path):
          app.logger.error(f"File not found on disk for viewing record {file_id}: {stored_filename} in {user_upload_path}")
          abort(404)
 
     try:
-        # 3. Serve the file inline
-        # as_attachment=False is the default, but be explicit.
-        # conditional=True allows caching and 304 Not Modified responses.
-        # explicitly providing mimetype ensures browser handles it correctly.
         return send_from_directory(user_upload_path,
                                    stored_filename,
                                    mimetype=mime_type,
-                                   as_attachment=False,
-                                   conditional=True)
+                                   as_attachment=False, # Serve inline for viewing
+                                   conditional=True)    # Enable browser caching
     except Exception as e:
         app.logger.error(f"Error serving file {file_id} for viewing by user {current_user.id}: {e}", exc_info=True)
-        # Return a generic error page or message
+        # You might want a more user-friendly error page than just text
         return "Error serving file.", 500
 
 # Add this new route function
@@ -2249,6 +2264,415 @@ def api_ollama_chat_send():
         # Handle unexpected case where Ollama returns no content and no error
         app.logger.warning(f"API: Ollama returned no content and no error for user {current_user.id}")
         return jsonify({"status": "error", "message": "Received no response content from the AI."}), 500
+
+@app.route('/group_chat')
+@login_required
+def group_chat():
+    """Displays the main group chat interface."""
+    form = GroupChatForm()
+    # Fetch all messages for simplicity initially. Consider pagination for large histories.
+    try:
+        # Eager load sender and file info to optimize
+        messages = GroupChatMessage.query.options(
+                db.joinedload(GroupChatMessage.sender),
+                db.joinedload(GroupChatMessage.shared_file) # Ensure File model is joinedloadable
+            ).order_by(GroupChatMessage.timestamp.asc()).all()
+
+        # Convert messages to dicts for easier handling in template/JS
+        # Use the to_dict method defined in the model
+        message_dicts = [msg.to_dict() for msg in messages]
+
+    except Exception as e:
+        app.logger.error(f"Error fetching group chat messages: {e}", exc_info=True)
+        flash("Could not load chat history.", "danger")
+        message_dicts = []
+
+    # --- Fetch Max Upload Size Setting (Used by template's dropzone/input hints) ---
+    try:
+        max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+        max_upload_mb = int(max_upload_mb_str)
+    except (ValueError, TypeError):
+        max_upload_mb = DEFAULT_MAX_UPLOAD_MB_FALLBACK
+        app.logger.warning(f"Invalid max_upload_size_mb setting '{max_upload_mb_str}'. Using fallback {max_upload_mb}MB for display.")
+    # --- End Fetch ---
+
+    return render_template('group_chat.html', # Ensure this template exists later
+                           title="Group Chat",
+                           form=form,
+                           chat_history=message_dicts, # Pass the processed list of dicts
+                           max_upload_mb=max_upload_mb)
+
+
+@app.route('/api/group_chat/send', methods=['POST'])
+@login_required
+def api_group_chat_send():
+    """Handles sending new messages (text or file) to the group chat via API."""
+    content = request.form.get('content', '').strip()
+    file = request.files.get('file')
+    new_file_record = None
+    error_message = None
+    status_code = 200
+    file_path = None # Define file_path here for broader scope in error handling
+
+    # Validate: Must have content or a file
+    if not content and (not file or file.filename == ''): # Check if file exists and has a name
+        return jsonify({"status": "error", "message": "Message content or file attachment required."}), 400
+
+    # --- Handle File Upload (if present) ---
+    if file and file.filename != '':
+        original_filename = secure_filename(file.filename)
+        app.logger.info(f"Processing chat file upload: {original_filename}")
+
+        # --- Determine File Size ---
+        uploaded_filesize = None
+        try:
+            # Try reading stream size first
+            current_pos = file.tell()
+            file.seek(0, os.SEEK_END)
+            uploaded_filesize = file.tell()
+            file.seek(current_pos) # Reset to original position
+            if uploaded_filesize is None: raise ValueError("Stream tell() returned None.")
+        except Exception as e:
+            app.logger.warning(f"Could not determine file size using stream: {e}. Trying Content-Length.")
+            uploaded_filesize = request.content_length # Fallback
+
+        if uploaded_filesize is None:
+            return jsonify({"status": "error", "message": "Could not determine file size."}), 400
+
+        # --- File Size Checks ---
+        # 1. Server Limit (MAX_CONTENT_LENGTH)
+        hard_limit_bytes = current_app.config.get('MAX_CONTENT_LENGTH')
+        if hard_limit_bytes and uploaded_filesize > hard_limit_bytes:
+             limit_mb = hard_limit_bytes // (1024 * 1024)
+             error_message = f'Upload failed: File size ({uploaded_filesize / (1024*1024):.1f} MB) exceeds server limit ({limit_mb} MB).'
+             status_code = 413
+
+        # 2. Admin Max Upload Limit (From Settings)
+        if not error_message:
+            try:
+                max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+                admin_limit_bytes = int(max_upload_mb_str) * 1024 * 1024
+                if uploaded_filesize > admin_limit_bytes:
+                    error_message = f'Upload failed: File size exceeds the maximum allowed ({max_upload_mb_str} MB).'
+                    status_code = 413
+            except (ValueError, TypeError) as e:
+                 app.logger.error(f"Admin setting error for max_upload_size_mb: {e}", exc_info=True)
+                 error_message = "Server configuration error reading upload limit."
+                 status_code = 500
+
+        # 3. User Storage Limit
+        if not error_message:
+            storage_info = get_user_storage_info(current_user)
+            # Handle infinite limit correctly
+            available_bytes = float('inf') if storage_info['limit_bytes'] == float('inf') else storage_info['limit_bytes'] - storage_info['usage_bytes']
+
+            if uploaded_filesize > available_bytes:
+                 limit_mb_display = f"{storage_info['limit_mb']} MB" if storage_info['limit_mb'] is not None else 'Unlimited'
+                 usage_mb = round(storage_info['usage_bytes'] / (1024*1024), 1)
+                 required_mb = round(uploaded_filesize / (1024*1024), 1)
+                 available_mb_display = f"{available_bytes / (1024*1024):.1f}" if available_bytes != float('inf') else 'unlimited'
+                 error_message = f'Upload failed: Insufficient storage. Requires {required_mb} MB, {available_mb_display} free (Usage: {usage_mb} MB, Limit: {limit_mb_display}).'
+                 status_code = 413
+
+        # --- If Checks Pass, Prepare to Save File ---
+        if not error_message:
+            try:
+                _, ext = os.path.splitext(original_filename)
+                stored_filename = str(uuid.uuid4()) + ext
+                user_upload_path = get_user_upload_path(current_user.id)
+                os.makedirs(user_upload_path, exist_ok=True)
+                file_path = os.path.join(user_upload_path, stored_filename) # Assign here
+
+                # Save the file physically FIRST
+                file.save(file_path)
+                app.logger.info(f"Chat file saved physically: {file_path}")
+
+                mime_type, _ = mimetypes.guess_type(file_path)
+                mime_type = mime_type or 'application/octet-stream'
+
+                # Create File DB record, but DO NOT commit yet
+                new_file_record = File(
+                    original_filename=original_filename,
+                    stored_filename=stored_filename,
+                    filesize=uploaded_filesize,
+                    mime_type=mime_type,
+                    owner=current_user, # Link to the user who uploaded it
+                    parent_folder_id=None # Chat uploads are not in a specific "folder"
+                )
+                db.session.add(new_file_record)
+                db.session.flush() # Assigns an ID to new_file_record
+                app.logger.info(f"Chat File record created (ID: {new_file_record.id}), pending commit.")
+
+            except OSError as e:
+                db.session.rollback()
+                app.logger.error(f"OSError saving chat file {original_filename} to {file_path}: {e}", exc_info=True)
+                error_message = "Error saving uploaded file to storage."
+                status_code = 500
+                # No need to clean up file here, as save likely failed before file existed fully
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Unexpected error preparing chat file record for {original_filename}: {e}", exc_info=True)
+                error_message = "An unexpected error occurred during file processing."
+                status_code = 500
+                # Clean up physical file if save succeeded but DB ops failed
+                if file_path and os.path.exists(file_path):
+                     try: os.remove(file_path); app.logger.info(f"Cleaned up orphaned chat file: {file_path}")
+                     except OSError: pass
+
+    # --- Return error response if file upload failed ---
+    if error_message:
+        return jsonify({"status": "error", "message": error_message}), status_code
+
+    # --- Save Chat Message Record (linking file if needed) ---
+    try:
+        new_message = GroupChatMessage(
+            user_id=current_user.id,
+            content=content if content else None, # Store text content (or None if file-only)
+            file_id=new_file_record.id if new_file_record else None # Link File record ID
+        )
+        db.session.add(new_message)
+        db.session.commit() # Commit message record (and file record if applicable)
+        app.logger.info(f"Group chat message saved (ID: {new_message.id}, FileID: {new_message.file_id}) by user {current_user.id}")
+
+        # Send back the newly created message data, formatted for the client
+        # Need to refresh to load relationships properly after commit
+        db.session.refresh(new_message)
+        if new_file_record: # Also refresh file if it was just added
+            db.session.refresh(new_file_record)
+
+        message_data = new_message.to_dict() # Use the helper
+
+        return jsonify({"status": "success", "message": message_data}), 201 # 201 Created
+
+    except Exception as e:
+        db.session.rollback() # Rollback message and file records
+        app.logger.error(f"Error saving group chat message DB record for user {current_user.id}: {e}", exc_info=True)
+        # Clean up the physical file if it was part of this failed transaction
+        if file_path and os.path.exists(file_path):
+            try: os.remove(file_path); app.logger.info(f"Cleaned up chat file after DB error: {file_path}")
+            except OSError as rm_err: app.logger.error(f"Error cleaning up chat file {file_path}: {rm_err}")
+        return jsonify({"status": "error", "message": "Error saving chat message to database."}), 500
+
+@app.route('/api/group_chat/edit/<int:message_id>', methods=['POST'])
+@login_required
+def api_group_chat_edit_message(message_id):
+    """Handles editing an existing group chat message via API."""
+    message = GroupChatMessage.query.get_or_404(message_id)
+
+    # Check if the current user is the sender of the message
+    if message.user_id != current_user.id:
+        app.logger.warning(f"User {current_user.id} attempted to edit message {message_id} not belonging to them.")
+        return jsonify({"status": "error", "message": "Permission denied. You can only edit your own messages."}), 403
+
+    data = request.get_json()
+    new_content = data.get('content', '').strip()
+
+    if not new_content:
+        return jsonify({"status": "error", "message": "New message content cannot be empty."}), 400
+
+    # Prevent editing if the message has a file attachment (for simplicity)
+    # More complex logic would be needed to allow changing text of a message with a file.
+    if message.file_id:
+        return jsonify({"status": "error", "message": "Cannot edit messages with file attachments through this endpoint."}), 400
+
+    try:
+        message.content = new_content
+        message.edited_at = datetime.utcnow()
+        db.session.commit()
+        app.logger.info(f"Group chat message {message_id} edited by user {current_user.id}")
+
+        # Return the updated message data
+        db.session.refresh(message) # Refresh to get any db-generated changes
+        return jsonify({"status": "success", "message": "Message updated successfully.", "updated_message": message.to_dict()})
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error editing group chat message {message_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Failed to update message."}), 500
+
+@app.route('/api/group_chat/delete/<int:message_id>', methods=['POST'])
+@login_required
+def api_group_chat_delete_message(message_id):
+    message = GroupChatMessage.query.get_or_404(message_id)
+    file_to_delete_permanently = None # Variable to hold the File record if we decide to delete it
+
+    # Permission check: User can delete their own message, or an admin can delete any message.
+    if not (message.user_id == current_user.id or current_user.is_admin):
+        app.logger.warning(f"User {current_user.id} attempted to delete message {message_id} without permission.")
+        return jsonify({"status": "error", "message": "Permission denied."}), 403
+
+    try:
+        if message.file_id:
+            # --- New Logic: Prepare to delete the associated file ---
+            file_record = File.query.get(message.file_id)
+            if file_record:
+                # Additional permission check for file deletion:
+                # Only the file owner or an admin should be able to trigger permanent file deletion.
+                # If the message sender is not the file owner, but is an admin, they can delete.
+                # If the message sender is the file owner, they can delete.
+                if file_record.user_id == current_user.id or current_user.is_admin:
+                    file_to_delete_permanently = file_record
+                    app.logger.info(f"Message {message_id} has attachment File ID {file_record.id}. Marked for permanent deletion by User {current_user.id} (Admin: {current_user.is_admin}). File Owner: {file_record.user_id}")
+                else:
+                    # This case means the user deleting the message is the message sender
+                    # but NOT the file owner, AND is NOT an admin.
+                    # In this scenario, we should probably only soft-delete the message
+                    # and leave the file intact.
+                    app.logger.warning(f"User {current_user.id} (message sender) is deleting message {message_id} but does not own attached File ID {file_record.id} and is not admin. File will not be deleted.")
+            else:
+                app.logger.warning(f"Message {message_id} had a file_id {message.file_id} but the File record was not found. Cannot delete file.")
+        # --- End of New Logic for file deletion preparation ---
+
+        # Soft-delete the message itself
+        message.is_deleted = True
+        message.deleted_at = datetime.utcnow()
+        message.edited_at = message.deleted_at # To trigger updates for clients
+
+        # If a file was marked for deletion, proceed with deleting it
+        if file_to_delete_permanently:
+            original_filename_log = file_to_delete_permanently.original_filename
+            stored_filename_log = file_to_delete_permanently.stored_filename
+            file_id_log = file_to_delete_permanently.id
+
+            # Determine the correct user_upload_path based on the file's actual owner
+            user_upload_path = get_user_upload_path(file_to_delete_permanently.user_id)
+            full_file_path = os.path.join(user_upload_path, file_to_delete_permanently.stored_filename)
+
+            # 1. Delete Physical File
+            if os.path.exists(full_file_path):
+                os.remove(full_file_path)
+                app.logger.info(f"Permanently deleted physical file: {full_file_path} (associated with deleted chat message {message_id})")
+            else:
+                app.logger.warning(f"Physical file not found at {full_file_path} during permanent delete for File ID {file_id_log} (associated with chat message {message_id}).")
+
+            # 2. Delete File Database Record
+            # Important: Before deleting the File record, ensure no other GroupChatMessage
+            # still references it (if you decide not to delete files if they are multi-referenced in chat).
+            # For simplicity here, we are deleting if this message deletion triggers it.
+            # A more complex system might check `file_to_delete_permanently.group_chat_shares`
+            # and only delete if the count is 1 (or 0 after this message is unlinked).
+            # However, `ondelete='SET NULL'` on GroupChatMessage.file_id means this message's link
+            # would be nullified first, so we'd always see 0 or more *other* shares.
+
+            # Given ondelete='SET NULL', we must nullify the reference from the message
+            # *before* deleting the File object to avoid foreign key issues if the File
+            # object is deleted first and the message session isn't yet committed.
+            # However, we are deleting the message (soft delete) anyway.
+            # The File model relationship `group_chat_shares` is `lazy='joined'` and `uselist=False` which is odd for a backref typically being a list.
+            # Assuming `file.group_chat_shares` is meant to be a collection or that the ondelete behavior is primary.
+            # Let's ensure message.file_id is cleared if the file is deleted.
+            message.file_id = None # Explicitly unlink before committing File deletion
+
+            db.session.delete(file_to_delete_permanently)
+            app.logger.info(f"Permanently deleted File record ID {file_id_log} ('{original_filename_log}', Stored: '{stored_filename_log}') associated with chat message {message_id}.")
+
+        db.session.commit()
+        app.logger.info(f"Group chat message {message_id} soft-deleted by user {current_user.id} (Admin: {current_user.is_admin}). Associated file action taken if applicable.")
+        return jsonify({"status": "success", "message": "Message deleted successfully."})
+
+    except OSError as e:
+        db.session.rollback()
+        app.logger.error(f"OSError during message/file deletion for message ID {message_id} by user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Error during file system operation while deleting."}), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error soft-deleting group chat message {message_id} or its attachment by user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Failed to delete message or its attachment."}), 500
+
+@app.route('/api/group_chat/history')
+@login_required
+def api_group_chat_history():
+    last_message_id = request.args.get('last_message_id', type=int, default=0)
+    # New parameter: client's latest known edit timestamp (globally for any message)
+    # Client would need to track the max(edited_at) it has seen.
+    client_last_edit_ts_str = request.args.get('last_edit_ts', None)
+    limit = 100 # Example limit
+
+    try:
+        query = GroupChatMessage.query.options(
+            db.joinedload(GroupChatMessage.sender).load_only(User.username),
+            db.joinedload(GroupChatMessage.shared_file)
+        )
+
+        # Conditions for fetching
+        conditions = []
+        if last_message_id > 0:
+            conditions.append(GroupChatMessage.id > last_message_id)
+
+        if client_last_edit_ts_str:
+            try:
+                # Parse the timestamp, assuming ISO format from client
+                client_last_edit_dt = datetime.fromisoformat(client_last_edit_ts_str.replace('Z', '+00:00'))
+                conditions.append(GroupChatMessage.edited_at > client_last_edit_dt)
+            except ValueError:
+                app.logger.warning(f"Invalid last_edit_ts format: {client_last_edit_ts_str}")
+                # Optionally, ignore this condition or return an error
+
+        if conditions:
+            query = query.filter(db.or_(*conditions))
+
+        # Always order by original timestamp for consistency, then perhaps by ID or edited_at
+        messages = query.order_by(GroupChatMessage.timestamp.asc(), GroupChatMessage.id.asc()).limit(limit).all()
+
+        message_dicts = [msg.to_dict() for msg in messages]
+
+        # Server should also send back its current latest edit timestamp so client can update
+        # This would be max(edited_at) from all messages, or just server's current time.
+        # server_latest_edit_ts = datetime.utcnow().isoformat() + 'Z'
+
+        return jsonify({
+            "status": "success",
+            "messages": message_dicts
+            # "latest_server_edit_ts": latest_ts_iso # Include if client uses it
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error fetching group chat history with edit detection: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Could not retrieve chat history."}), 500
+
+@app.route('/admin/group_chat/delete/<int:message_id>', methods=['POST'])
+@login_required
+def admin_delete_group_chat_message(message_id):
+    """Allows admin to delete a specific group chat message."""
+    if not current_user.is_admin:
+        # Check Accept header for AJAX request
+        is_ajax = request.accept_mimetypes.accept_json and \
+                  not request.accept_mimetypes.accept_html
+        if is_ajax:
+             return jsonify({"status": "error", "message": "Permission denied."}), 403
+        else:
+             flash("Permission denied.", "danger")
+             return redirect(request.referrer or url_for('group_chat')) # Redirect back
+
+
+    message = GroupChatMessage.query.get_or_404(message_id)
+    # Note: Associated file record/physical file is NOT deleted here by default.
+    # The File record might be referenced elsewhere or deletion might be undesirable.
+    # If you WANT to delete the associated file, add that logic here carefully.
+
+    try:
+        db.session.delete(message)
+        db.session.commit()
+        app.logger.info(f"Admin {current_user.username} deleted group chat message {message_id}")
+        # Return JSON for AJAX requests, otherwise flash/redirect
+        is_ajax = request.accept_mimetypes.accept_json and \
+                  not request.accept_mimetypes.accept_html
+        if is_ajax:
+            return jsonify({"status": "success", "message": "Message deleted."})
+        else:
+            flash("Message deleted successfully.", "success")
+            return redirect(url_for('group_chat')) # Redirect to chat after deletion
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Admin {current_user.username} failed to delete group chat message {message_id}: {e}", exc_info=True)
+        is_ajax = request.accept_mimetypes.accept_json and \
+                  not request.accept_mimetypes.accept_html
+        if is_ajax:
+            return jsonify({"status": "error", "message": "Failed to delete message."}), 500
+        else:
+            flash("Failed to delete message.", "danger")
+            return redirect(url_for('group_chat'))
 
 # --- Public Sharing Route ---
 
@@ -2562,6 +2986,7 @@ def create_db(app_instance):
                     Folder.__tablename__: ['parent_folder_id'], # Check new Folder table
                     File.__tablename__: ['parent_folder_id', 'is_public', 'public_id', 'public_password_hash'], # <-- Check new column
                     OllamaChatMessage.__tablename__: ['user_id', 'role', 'content', 'timestamp'],
+                    GroupChatMessage.__tablename__: ['user_id', 'content', 'file_id', 'timestamp'],
                 }
 
                 # Check for missing tables
@@ -2623,7 +3048,11 @@ class OllamaChatMessage(db.Model):
 
     # Helper to convert DB object to the dictionary format Ollama/template expects
     def to_dict(self):
-        return {"role": self.role, "content": self.content}
+        return {
+            "role": self.role,
+            "content": self.content,
+            "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None
+        }
 
 class OllamaChatForm(FlaskForm):
     message = TextAreaField('You: ', validators=[DataRequired(), Length(max=4000)])
@@ -2685,6 +3114,99 @@ def send_message_to_ollama(prompt, history_list):
         app.logger.error(f"Unexpected error calling Ollama: {e}", exc_info=True)
         # FIX HERE: Return only 2 values
         return None, "An unexpected error occurred while contacting the AI."
+
+class GroupChatForm(FlaskForm):
+    """Form for sending group chat messages."""
+    content = TextAreaField('Message', validators=[Length(max=4000)]) # Max length, but not strictly required
+    # Add file size validation potentially using custom validator or checking in route
+    file = FileField('Attach File', validators=[Optional()]) # File upload is optional
+    submit = SubmitField('Send')
+
+class GroupChatMessage(db.Model):
+    """Model for storing group chat messages."""
+    __tablename__ = 'group_chat_message' # Explicit table name is good practice
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True) # Added ondelete
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    content = db.Column(db.Text, nullable=True) # Text content of the message
+    file_id = db.Column(db.Integer, db.ForeignKey('file.id', ondelete='SET NULL'), nullable=True, index=True) # Added ondelete, allows keeping file if msg deleted
+    edited_at = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    # Relationships
+    # Use explicit foreign_keys for clarity, especially with multiple FKs to User potentially
+    sender = db.relationship('User',
+                             foreign_keys=[user_id],
+                             backref=db.backref('group_chat_messages',
+                                                lazy='dynamic',
+                                                order_by='GroupChatMessage.timestamp',
+                                                cascade="all, delete-orphan")) # Cascade delete messages if user is deleted
+
+    # Use lazy='joined' to potentially reduce queries when accessing file info often
+    shared_file = db.relationship('File',
+                                  foreign_keys=[file_id],
+                                  backref=db.backref('group_chat_shares',
+                                                     lazy='joined',
+                                                     uselist=False), # One message <-> One file (optional)
+                                  single_parent=True, # Ensures file_id is cleared if message is deleted
+                                  post_update=True) # Helps with ordering updates
+
+    def __repr__(self):
+        file_info = f", FileID: {self.file_id}" if self.file_id else ""
+        return f'<GroupChatMessage {self.id} (User: {self.user_id}{file_info})>'
+
+    def to_dict(self, include_sender=True, include_file=True):
+        """Helper to convert message to dictionary for JSON responses/template."""
+        data = {
+            'id': self.id,
+            'user_id': self.user_id,
+            'timestamp': self.timestamp.isoformat() + 'Z', # ISO format with Z for UTC is standard
+            'content': self.content,
+            'file_id': self.file_id,
+            'sender_username': self.sender.username if include_sender and self.sender else None,
+            'shared_file': None, # Initialize as None
+            'is_edited': bool(self.edited_at),
+            'is_deleted': self.is_deleted,
+            'edited_at': self.edited_at.isoformat() + 'Z' if self.edited_at else None
+        }
+
+        if include_file and self.shared_file:
+            file_data = {
+                'id': self.shared_file.id,
+                'original_filename': self.shared_file.original_filename,
+                'mime_type': self.shared_file.mime_type,
+                'filesize': self.shared_file.filesize,
+                'is_editable': is_file_editable(self.shared_file.original_filename, self.shared_file.mime_type),
+                'view_url': url_for('view_file', file_id=self.shared_file.id, _external=False) if self.shared_file.mime_type in app.config.get('VIEWABLE_MIMES', {}) else None,
+                'download_url': url_for('download_file', file_id=self.shared_file.id, _external=False)
+            }
+
+            # Add text file preview content only if it's a text file
+            if self.shared_file.mime_type == 'text/plain':
+                try:
+                    # Ensure the file owner's ID is used for the path
+                    file_path = os.path.join(get_user_upload_path(self.shared_file.user_id), self.shared_file.stored_filename)
+                    if os.path.exists(file_path):
+                         # Use codecs for reliable encoding handling
+                         with codecs.open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                            # Read a bit more to check if there's content beyond the preview limit
+                            content_plus_one = f.read(501)
+                            preview_content = content_plus_one[:500]
+                            file_data['preview_content'] = preview_content
+                            file_data['has_more_content'] = len(content_plus_one) > 500
+                    else:
+                        app.logger.warning(f"Physical file not found for txt preview: {file_path} (File ID: {self.shared_file.id})")
+                        file_data['preview_content'] = "[Preview unavailable: File missing]"
+                        file_data['has_more_content'] = False
+                except Exception as e:
+                    app.logger.warning(f"Could not read preview for txt file {self.shared_file.id}: {e}")
+                    file_data['preview_content'] = "[Error reading preview]"
+                    file_data['has_more_content'] = False
+
+            data['shared_file'] = file_data # Assign the populated file_data dict
+
+        return data
 
 # --- Update URI config *after* create_db definition ---
 # This ensures the app object uses the correct path when create_db is called below
