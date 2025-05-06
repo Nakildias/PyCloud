@@ -1,4 +1,4 @@
-{# templates/chat.html #}
+{# templates/ollama_chat.html #}
 {% extends "base.html" %}
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
@@ -6,25 +6,25 @@
 {% block content %}
     <h2>Chat with Ollama</h2>
 
-    {# Display Chat History - Keep this structure #}
-    <div id="chat-history" style="height: 400px; overflow-y: scroll; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; background-color: var(--bg-color); border-radius: 5px;">
-        {% if chat_history %}
-            {% for message in chat_history %}
-                 <div class="chat-message {{ message.role }}" style="margin-bottom: 10px; padding: 8px; border-radius: 5px; background-color: {% if message.role == 'user' %}var(--primary-color){% else %}var(--secondary-color){% endif %}; color: {% if message.role == 'user' %}#fff{% else %}var(--text-color){% endif %};">
+    {# Display Ollama Chat History - Keep this structure #}
+    <div id="ollama-chat-history" style="height: 400px; overflow-y: scroll; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; background-color: var(--bg-color); border-radius: 5px;">
+        {% if ollama_chat_history %}
+            {% for message in ollama_chat_history %}
+                 <div class="ollama-chat-message {{ message.role }}" style="margin-bottom: 10px; padding: 8px; border-radius: 5px; background-color: {% if message.role == 'user' %}var(--primary-color){% else %}var(--secondary-color){% endif %}; color: {% if message.role == 'user' %}#fff{% else %}var(--text-color){% endif %};">
                     <strong>{{ message.role|capitalize }}:</strong>
                     {# Use white-space: pre-wrap to respect newlines and wrap long lines #}
                     <div style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</div>
                 </div>
             {% endfor %}
         {% else %}
-            <p id="empty-history-msg" style="color: #aaa;">Chat history is empty. Start by sending a message.</p>
+            <p id="empty-history-msg" style="color: #aaa;">Ollama chat history is empty. Start by sending a message.</p>
         {% endif %}
          {# Placeholder for the "thinking" indicator - added dynamically by JS #}
     </div>
 
     {# Input Form - Ensure IDs are correct #}
     {# Use action="#" or remove action as JS handles it, but keep method="POST" conceptually #}
-    <form id="chat-form" method="POST" action="#" novalidate>
+    <form id="ollama-chat-form" method="POST" action="#" novalidate>
         {{ form.hidden_tag() }} {# Keep for CSRF token #}
         <div class="form-group">
             {# Remove label if not needed, or keep it #}
@@ -40,7 +40,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
              {# Submit button needs id="send-button" #}
             {{ form.submit(class="btn btn-primary", id="send-button", value="Send") }}
-            <a href="{{ url_for('clear_chat_history') }}" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to clear the entire chat history? This cannot be undone.');">Clear History</a>
+            <a href="{{ url_for('clear_ollama_chat_history') }}" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to clear the entire ollama chat history? This cannot be undone.');">Clear History</a>
         </div>
     </form>
 
@@ -49,23 +49,23 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const chatHistoryDiv = document.getElementById('chat-history');
+    const ollamaChatHistoryDiv = document.getElementById('ollama-chat-history');
     const messageTextarea = document.getElementById('message');
-    const chatForm = document.getElementById('chat-form');
+    const ollamaChatForm = document.getElementById('ollama-chat-form');
     const sendButton = document.getElementById('send-button');
     const emptyHistoryMsg = document.getElementById('empty-history-msg');
     const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
 
-    // Function to scroll chat history to the bottom
-    function scrollChatToBottom() {
-        chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+    // Function to scroll ollama chat history to the bottom
+    function scrollOllamaChatToBottom() {
+        ollamaChatHistoryDiv.scrollTop = ollamaChatHistoryDiv.scrollHeight;
     }
 
     // Initial scroll
-    scrollChatToBottom();
+    scrollOllamaChatToBottom();
 
-    // Function to add a message to the chat history div
+    // Function to add a message to the ollama chat history div
     function addMessageToHistory(role, content, elementId = null) {
         // Remove "empty history" message if it exists
         if (emptyHistoryMsg) {
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('chat-message', role); // Add role as class
+        messageDiv.classList.add('ollama-chat-message', role); // Add role as class
         messageDiv.style.marginBottom = '10px';
         messageDiv.style.padding = '8px';
         messageDiv.style.borderRadius = '5px';
@@ -116,8 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
             messageDiv.id = elementId;
         }
 
-        chatHistoryDiv.appendChild(messageDiv);
-        scrollChatToBottom();
+        ollamaChatHistoryDiv.appendChild(messageDiv);
+        scrollOllamaChatToBottom();
         return messageDiv; // Return the created element
     }
 
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 5. Send message to backend API
         try {
-            const response = await fetch("{{ url_for('api_chat_send') }}", {
+            const response = await fetch("{{ url_for('api_ollama_chat_send') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  indicatorElement.querySelector('strong').textContent = 'Error:'; // Update role display
                  indicatorElement.querySelector('div').textContent = data.message || 'An unknown error occurred.';
             }
-             scrollChatToBottom(); // Scroll again after updating content
+             scrollOllamaChatToBottom(); // Scroll again after updating content
 
 
         } catch (error) {
@@ -226,8 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Attach submit listener
-    if (chatForm) {
-        chatForm.addEventListener('submit', handleFormSubmit);
+    if (ollamaChatForm) {
+        ollamaChatForm.addEventListener('submit', handleFormSubmit);
     }
 
     // Attach keydown listener for Shift+Enter
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Trigger form submission manually
                 // Ensure button isn't already disabled from a previous request
                 if (!sendButton.disabled) {
-                     chatForm.requestSubmit(sendButton); // Use requestSubmit for compatibility
+                     ollamaChatForm.requestSubmit(sendButton); // Use requestSubmit for compatibility
                 }
             }
             // If Enter + Shift is pressed, the default behavior (new line) is allowed
