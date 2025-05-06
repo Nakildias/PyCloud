@@ -4,4 +4,5 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### File Storage
 ### Notes
 ### AI Chat (Ollama)
+### General Group Chat
 ### Admin Settings
