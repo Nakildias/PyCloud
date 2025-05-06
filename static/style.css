@@ -432,7 +432,7 @@ input[type="file"].visually-hidden {
 /* --- Toast Notification Styles --- */
 #toast-container {
 position: fixed; /* Keep it in view */
-top: 20px;       /* Distance from top */
+top: 50px;       /* Distance from top */
 right: 20px;      /* Distance from right */
 z-index: 1050;    /* Ensure it's above most other content */
 display: flex;
