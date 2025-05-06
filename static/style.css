@@ -1,14 +1,23 @@
 /* static/style.css */
 
+/* ==========================================================================
+ 1 . Global Variables & Basic Styles                          *
+ ========================================================================== */
+
 :root {
-    --bg-color: #1a1a1a; /* Dark background */
-    --text-color: #e0e0e0; /* Light text */
-    --primary-color: #4a90e2; /* A blue accent color */
-    --secondary-color: #2a2a2a; /* Slightly lighter dark for elements */
-    --border-color: #444;
-    --error-color: #e74c3c; /* Red for errors */
-    --success-color: #2ecc71; /* Green for success */
-    --info-color: #3498db; /* Blue for info */
+    /* Color Palette */
+    --bg-color: #1a1a1a;        /* Dark background */
+    --text-color: #e0e0e0;      /* Light text */
+    --primary-color: #4a90e2;   /* Blue accent (links, buttons, user chat) */
+    --secondary-color: #2a2a2a; /* Slightly lighter dark (UI elements, received chat, input bar) */
+    --border-color: #444;       /* Borders and separators */
+    --error-color: #e74c3c;      /* Red for errors */
+    --success-color: #2ecc71;    /* Green for success */
+    --info-color: #3498db;       /* Blue for info messages */
+    --placeholder-color: #888;  /* Placeholder text color */
+
+    /* Define input bar height for padding calculations */
+    --input-bar-height: 90px;   /* Adjust this based on the final visual height */
 }
 
 body {
@@ -20,468 +29,654 @@ body {
     line-height: 1.6;
 }
 
+/* Apply Flex layout ONLY to chat pages */
+body.chat-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* Padding for fixed input is now handled by chat history div */
+    box-sizing: border-box;
+}
+
+/* Main content container (non-chat pages) */
 .container {
-    max-width: 800px;
-    margin: 40px auto;
+    max-width: 90%;        /* Use percentage for wider screens */
+    width: 1200px;         /* Fallback width */
+    margin: 40px auto;     /* Center container */
     padding: 20px;
     background-color: var(--secondary-color);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
+/* Override container styles ONLY on chat pages for full-width layout */
+body.chat-page .container {
+    flex-grow: 1; /* Allow container to fill vertical space */
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0; /* Padding handled by inner elements */
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent; /* Let body background show */
+    overflow: hidden;
+}
+
+
+/* Headings */
 h1, h2, h3 {
     color: var(--primary-color);
+    margin-top: 0;
     margin-bottom: 1rem;
 }
+h3 { font-size: 1.2em; color: var(--text-color); }
 
-h3 { /* General h3 styling, removed dashboard-specific border/padding */
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 1.2em;
-    color: var(--text-color); /* Make header stand out a bit */
-}
+/* Links */
+a { color: var(--primary-color); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
-
-a {
-    color: var(--primary-color);
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* --- Forms --- */
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Spacing between form elements */
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-label {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="password"],
-textarea { /* Added textarea for notes */
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 10px;
-    font-size: 1rem;
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5); /* Subtle focus ring */
-}
-
-/* Specific styling for smaller inputs/buttons (e.g., file list actions) */
-.form-control-sm {
-    padding: 6px 8px; /* Smaller padding */
-    font-size: 0.9em;
-}
-.btn-sm { /* Smaller button */
-    padding: 6px 12px;
-    font-size: 0.9em;
-}
-
-.form-check { /* For checkboxes */
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-input[type="checkbox"] {
-    width: auto;
-    margin-right: 5px;
-}
-
-/* Error messages from WTForms */
-.invalid-feedback { /* Bootstrap class sometimes used */
-    color: var(--error-color);
-    font-size: 0.9em;
-    margin-top: 4px;
-}
-ul.errors { /* WTForms default error list style */
-    list-style: none;
-    padding: 0;
-    margin: 5px 0 0 0; /* Adjusted margin */
-    color: var(--error-color);
-    font-size: 0.9em;
-}
-
-
-/* --- Buttons --- */
-.btn {
-    display: inline-block;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    text-align: center;
-    transition: background-color 0.2s ease;
-}
-
-.btn-primary {
-    background-color: var(--primary-color);
-    color: #ffffff;
-}
-
-.btn-primary:hover {
-    background-color: #3a7ac0; /* Darker shade on hover */
-}
-
-.btn-secondary {
-    background-color: var(--border-color);
-    color: var(--text-color);
-}
-.btn-secondary:hover {
-    background-color: #555;
-}
-
-.btn-danger {
-    background-color: var(--error-color);
-    color: #ffffff;
-}
-.btn-danger:hover {
-    background-color: #c0392b; /* Darker red */
-}
-
-/* --- Flash Messages --- */
-.flashes {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 20px 0;
-}
-
-.flashes li {
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    border: 1px solid transparent;
-}
-
-.flashes .success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
-}
-
-.flashes .danger {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-}
-
-.flashes .info {
-    color: #0c5460;
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
-}
-
-/* --- Navigation --- */
+/* ==========================================================================
+ 2 . Navigation Bar                                           *
+ ========================================================================== */
 nav {
     background-color: var(--secondary-color);
     padding: 10px 20px;
-    margin-bottom: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    flex-shrink: 0; /* Prevent nav from shrinking in flex layout */
+    position: sticky;   /* Stick to the top when scrolled */
+    top: 0;             /* Position at the top edge */
+    width: 100%;        /* Ensure full width */
+    z-index: 101;       /* Ensure it's above content (and chat input) */
+    box-sizing: border-box; /* Include padding in width calculation */
 }
+/* Adjust nav margin only for non-chat pages */
+body:not(.chat-page) nav {
+    margin-bottom: 20px;
+}
+
 nav ul {
-    list-style: none;
+    list-style: none; padding: 0; margin: 0; display: flex;
+    justify-content: flex-end; gap: 15px;
+}
+nav ul li a { color: var(--text-color); font-weight: bold; }
+nav ul li a:hover { color: var(--primary-color); text-decoration: none; }
+
+/* ==========================================================================
+ 3 . Forms & Buttons (General - Non-Chat Input)               *
+ ========================================================================== */
+/* Exclude chat forms from general styling */
+form:not(#ollama-chat-form):not(#chat-form) {
+    display: flex; flex-direction: column; gap: 15px;
+}
+.form-group { display: flex; flex-direction: column; margin-bottom: 10px; }
+label { margin-bottom: 5px; font-weight: bold; }
+
+/* Exclude chat textareas from general styling */
+input[type="text"], input[type="email"], input[type="password"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea) {
+    background-color: var(--bg-color); color: var(--text-color);
+    border: 1px solid var(--border-color); border-radius: 4px;
+    padding: 10px; font-size: 1rem;
+}
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea) {
+    min-height: 80px; resize: vertical;
+}
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus,
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):focus {
+    outline: none; border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5);
+}
+
+.form-control-sm { padding: 6px 8px; font-size: 0.9em; }
+.form-check { display: flex; align-items: center; gap: 8px; }
+input[type="checkbox"] { width: auto; margin-right: 5px; }
+input[type="file"].visually-hidden {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.invalid-feedback, ul.errors {
+    list-style: none; padding: 0; margin: 5px 0 0 0;
+    color: var(--error-color); font-size: 0.9em;
+}
+.btn {
+    display: inline-block; padding: 10px 20px; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 1rem;
+    text-align: center; transition: background-color 0.2s ease; line-height: 1.4;
+}
+.btn-primary { background-color: var(--primary-color); color: #ffffff; }
+.btn-primary:hover { background-color: #3a7ac0; }
+.btn-secondary { background-color: var(--border-color); color: var(--text-color); }
+.btn-secondary:hover { background-color: #555; }
+.btn-danger { background-color: var(--error-color); color: #ffffff; }
+.btn-danger:hover { background-color: #c0392b; }
+.btn-sm { padding: 6px 12px; font-size: 0.9em; }
+
+/* ==========================================================================
+ 4 . Flash Messages & Toast Notifications                     *
+ ========================================================================== */
+#toast-container {
+position: fixed; top: 60px; right: 20px; z-index: 1050;
+display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px;
+}
+.toast-message {
+    background-color: var(--secondary-color); color: var(--text-color);
+    padding: 12px 20px; border-radius: 6px; border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3); opacity: 0;
+    transform: translateX(100%); transition: opacity 0.4s ease, transform 0.4s ease;
+    max-width: 350px; word-wrap: break-word; font-size: 0.95em;
+}
+.toast-message.toast-show { opacity: 1; transform: translateX(0); }
+.toast-message.toast-success { background-color: #27ae60; border-color: #2ecc71; color: #ffffff; }
+.toast-message.toast-error   { background-color: #c0392b; border-color: #e74c3c; color: #ffffff; }
+.toast-message.toast-info    { background-color: #2980b9; border-color: #3498db; color: #ffffff; }
+.toast-message.toast-warning { background-color: #f39c12; border-color: #f1c40f; color: #333; }
+
+/* ==========================================================================
+ 5 . File Manager Styles                                      *
+ ========================================================================== */
+.breadcrumb { padding: 0; margin: 0 0 15px 0; background-color: transparent; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; align-items: center; font-size: 1.1em; }
+.breadcrumb a { color: var(--primary-color); }
+#drop-zone { border: 2px dashed var(--border-color); padding: 30px; text-align: center; transition: background-color 0.2s ease, border-color 0.2s ease; margin-bottom: 25px; }
+#drop-zone.drag-over { background-color: #333; border-color: var(--primary-color); border-style: solid; }
+.file-upload-wrapper { text-align: center; margin-bottom: 10px; }
+#file-list-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+#file-list-table th, #file-list-table td { padding: 10px 8px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
+#file-list-table th { font-weight: bold; color: #ccc; }
+#file-list-table td:nth-child(2), #file-list-table th:nth-child(2) { text-align: right; } /* Size */
+#file-list-table td:nth-child(3), #file-list-table th:nth-child(3) { text-align: center; } /* Modified */
+#file-list-table td:nth-child(4), #file-list-table th:nth-child(4) { text-align: center; width: 100px; } /* Actions */
+.file-row .itemname-display span[title] { display: inline-block; width: 1.5em; text-align: center; opacity: 0.8; margin-right: 5px; }
+.item-row.cut-item { opacity: 0.6; }
+.itemname-input { display: none; width: 85%; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--primary-color); padding: 3px 5px; border-radius: 3px; font-size: inherit; box-sizing: border-box; }
+.share-link-row td { padding: 5px 8px 8px 35px; background-color: #252525; border-bottom: 1px dashed var(--border-color); }
+.share-link-input { width: 60%; font-size: 0.85em; background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 6px; }
+.share-link-display label { font-size: 0.85em; margin-right: 5px; font-weight: normal; }
+.share-link-display .btn-copy-link { padding: 4px 8px; font-size: 0.85em; }
+.actions-cell { position: relative; white-space: nowrap; }
+.context-menu-container { display: inline-block; position: relative; }
+.btn-context-menu { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 2px 8px; cursor: pointer; border-radius: 3px; font-size: 0.9em; line-height: 1.2; }
+.btn-context-menu:hover { background-color: var(--border-color); border-color: var(--primary-color); }
+.context-menu { display: none; position: absolute; right: 0; top: 100%; background-color: #333; border: 1px solid #555; border-radius: 4px; box-shadow: 0 3px 8px rgba(0,0,0,0.6); padding: 5px 0; margin-top: 3px; min-width: 140px; z-index: 1000; list-style: none; text-align: left; }
+.context-menu button.menu-item, .context-menu a.menu-item { display: block; width: 100%; background: none; border: none; color: var(--text-color); padding: 7px 14px; text-align: left; cursor: pointer; font-size: 0.9em; white-space: nowrap; text-decoration: none; box-sizing: border-box; }
+.context-menu button.menu-item:hover, .context-menu a.menu-item:hover { background-color: var(--primary-color); color: #ffffff; }
+.context-menu .menu-item-danger:hover { background-color: var(--error-color); color: #ffffff; }
+.context-menu .menu-separator { height: 1px; background-color: var(--border-color); margin: 5px 0; }
+
+/* ==========================================================================
+ 6 . Notes Styles                                             *
+ ========================================================================== */
+.notes-list { list-style: none; padding: 0; }
+.notes-list li { background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; margin-bottom: 15px; }
+.notes-list h3 { margin-bottom: 5px; }
+.notes-list h3 a { color: var(--primary-color); }
+.note-content { white-space: pre-wrap; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; margin-top: 15px; font-family: monospace; line-height: 1.5; }
+
+/* ==========================================================================
+ * 7 . Chat Styles (Ollama & Group Chat) - Updated for Fixed Input
+ * ========================================================================== */
+
+/* --- Common Chat History Styles --- */
+#ollama-chat-history,
+#chat-history {
+flex-grow: 1;
+overflow-y: auto;
+height: 0;
+border: none;
+padding: 15px 15px calc(var(--input-bar-height) + 50px) 15px;
+margin-bottom: 0;
+background-color: transparent;
+border-radius: 0;
+width: 100%;
+max-width: 900px;
+margin-left: auto;
+margin-right: auto;
+margin-top: 10px;
+box-sizing: border-box;
+}
+
+/* --- Fixed Chat Input Forms --- */
+#ollama-chat-form,
+#chat-form {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+background-color: rgba(26, 26, 26, 0.9);
+padding: 10px 0;
+width: 100%;
+z-index: 100;
+backdrop-filter: blur(5px);
+border-top: 1px solid var(--border-color);
+box-sizing: border-box;
+}
+
+.chat-input-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: var(--secondary-color);
+    padding: 8px 8px 8px 15px;
+    border-radius: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.chat-input-inner textarea {
+    flex-grow: 1;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    resize: none;
+    outline: none;
+    padding: 8px 0;
+    margin: 0;
+    font-size: 1em;
+    line-height: 1.5;
+    min-height: 24px;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+.chat-input-inner textarea::placeholder {
+    color: var(--placeholder-color);
+}
+
+.chat-input-inner .btn,
+.chat-input-inner label.btn {
+    flex-shrink: 0;
     padding: 0;
     margin: 0;
-    display: flex;
-    justify-content: flex-end; /* Align items to the right */
-    gap: 15px;
+    border-radius: 50%;
+    line-height: 1;
+    background-color: transparent;
+    color: var(--placeholder-color);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
 }
-nav ul li a {
+.chat-input-inner .btn:hover,
+.chat-input-inner label.btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
     color: var(--text-color);
-    font-weight: bold;
 }
-nav ul li a:hover {
+
+.chat-input-inner #send-button {
     color: var(--primary-color);
-    text-decoration: none;
 }
-
-
-/* --- Notes Specific Styling --- */
-textarea { /* Basic textarea styling was added in forms */
-    min-height: 66px; /* Give textarea a decent default height */
-    resize: vertical; /* Allow vertical resizing */
+.chat-input-inner #send-button:hover {
+    background-color: rgba(74, 144, 226, 0.2);
 }
-
-/* Style for note list items */
-.notes-list { /* Added for clarity */
-    list-style: none;
-    padding: 0;
-}
-.notes-list li { /* Style individual note list items */
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    padding: 15px;
-    margin-bottom: 10px;
-}
-
-.notes-list h3 a {
-    color: var(--primary-color); /* Use primary color for note titles */
-}
-.notes-list h3 a:hover {
-    text-decoration: underline;
-}
-
-/* Style for viewing note content */
-.note-content {
-    white-space: pre-wrap;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    padding: 15px;
-    border-radius: 5px;
-}
-
-
-/* --- Files / Context Menu Specific Styling --- */
-
-/* Style for dimmed 'cut' items in file list */
-.item-row.cut-item {
+.chat-input-inner #send-button:disabled {
+    background-color: var(--border-color);
+    cursor: not-allowed;
     opacity: 0.6;
 }
-
-/* Breadcrumb styling */
-.breadcrumb {
-    padding: 0;
-    margin: 0;
-    background-color: transparent;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    list-style: none;
-    align-items: center;
-    font-size: 1.1em;
-}
-.breadcrumb a {
-    color: var(--primary-color);
-}
-.breadcrumb .breadcrumb-item + .breadcrumb-item::before {
-    /* Optional: Add separator via CSS if not using text in HTML */
-    /* content: ">"; */
-    /* padding-right: 0.5rem; */
-    /* color: #6c757d; */
-}
-
-
-/* Action cell and context menu container */
-.actions-cell {
-    position: relative; /* Needed for absolute positioning of menu */
-    text-align: center;
-    white-space: nowrap;
-}
-
-.context-menu-container {
-    display: inline-block; /* Keep button and menu together */
-    position: relative;
-    margin-left: 5px;
-}
-
-/* Context menu button (...) */
-.btn-context-menu {
-    background: none;
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 2px 8px; /* Small padding */
-    cursor: pointer;
-    border-radius: 3px;
-    font-size: 0.9em;
-    line-height: 1.2;
-}
-
-.btn-context-menu:hover {
-    background-color: var(--border-color);
-    border-color: var(--primary-color);
-}
-
-/* Context menu itself */
-.context-menu {
-    display: none; /* Hidden by default */
-    position: absolute;
-    right: 0; /* Align to the right of the container */
-    top: 100%; /* Position below the button */
-    background-color: var(--secondary-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    padding: 5px 0;
-    margin-top: 3px;
-    min-width: 120px; /* Adjust as needed */
-    z-index: 1000; /* Ensure it's above other elements */
-    list-style: none;
-    text-align: left;
-}
-
-/* Context menu items (buttons or links) */
-.context-menu button.menu-item,
-.context-menu a.menu-item {
+.chat-input-inner label.btn img,
+.chat-input-inner #send-button img,
+.chat-input-inner #clear-history-button img {
+    width: 20px;
+    height: 20px;
     display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    color: var(--text-color);
-    padding: 6px 12px;
-    text-align: left;
-    cursor: pointer;
-    font-size: 0.9em;
-    white-space: nowrap;
-    text-decoration: none; /* For links */
-    box-sizing: border-box; /* Ensures padding is included in width */
 }
 
-.context-menu button.menu-item:hover,
-.context-menu a.menu-item:hover {
+#file-name-display {
+display: none;
+}
+#ollama-chat-form .form-group,
+#chat-form .form-group {
+margin-bottom: 0;
+flex-grow: 1;
+}
+
+
+/* --- Ollama Chat Message Styles (Inside History) --- UPDATED LOOK --- */
+.ollama-chat-message {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 18px; /* Rounded bubbles */
+    max-width: 75%;    /* Max width for bubble effect */
+    word-wrap: break-word;
+    line-height: 1.5;
+    box-sizing: border-box;
+
+    /* For snug bubbles with short text */
+    width: -moz-fit-content; /* Firefox */
+    width: -webkit-fit-content; /* Old Chrome/Safari */
+    width: fit-content;    /* Standard */
+
+    clear: both;
+}
+
+.ollama-chat-message.user {
     background-color: var(--primary-color);
     color: #ffffff;
+    margin-left: auto;
+    margin-right: 0;
+    border-bottom-right-radius: 5px; /* Tail effect */
 }
 
-/* Specific hover for danger items (delete) */
-.context-menu .menu-item-danger:hover {
+.ollama-chat-message.assistant,
+.ollama-chat-message.thinking,
+.ollama-chat-message.error {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    margin-right: auto;
+    margin-left: 0;
+    border-bottom-left-radius: 5px; /* Tail effect */
+}
+
+.ollama-chat-message.thinking {
+    font-style: italic;
+    opacity: 0.85;
+}
+
+.ollama-chat-message.error {
     background-color: var(--error-color);
     color: #ffffff;
 }
 
-/* Optional separator in context menu */
-.context-menu .menu-separator {
-    height: 1px;
-    background-color: var(--border-color);
-    margin: 4px 0;
-}
-
-/* Share link input styling */
-.share-link-input {
-    width: 60%;
+/* Header for Sender (Role) and Timestamp - STACKED */
+.ollama-chat-message .message-header {
+    display: flex;
+    flex-direction: column;    /* Stack sender and timestamp vertically */
+    align-items: flex-start;   /* Align them to the left */
     font-size: 0.8em;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    opacity: 0.9;
+    margin-bottom: 5px;
 }
 
-/* Rename input field styling */
-.itemname-input { /* Combined class for file/folder rename inputs */
-    display: none;
-    width: 85%;
-    background-color: var(--text-color); /* Light background for contrast */
-    color: var(--bg-color); /* Dark text */
-    border: 1px solid var(--primary-color);
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: inherit; /* Inherit font size from table cell */
+.ollama-chat-message .message-sender {
+    font-weight: bold;
+    margin-right: 0; /* No longer needed for side-by-side */
+    /* margin-bottom: 1px; /* Optional: tiny space between sender and timestamp */
 }
 
-#drop-zone {
-border: 2px dashed var(--border-color); /* Make it look like a drop target */
-padding: 30px;
-text-align: center;
-transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transitions */
+.ollama-chat-message .message-timestamp {
+    font-size: 0.95em; /* Relative to header's 0.8em */
+    line-height: 1.2; /* Adjust if overlapping with sender */
 }
 
-#drop-zone.drag-over { /* Ensure '#' for ID, '.' for class, no space */
-background-color: #333;
-border-color: var(--primary-color);
-border-style: solid;
+.ollama-chat-message.user .message-sender,
+.ollama-chat-message.user .message-timestamp {
+    color: #e8e8e8;
 }
 
-/* Optional: Style for upload progress */
-.upload-progress {
-    margin-top: 10px;
-    font-size: 0.9em;
-    color: var(--info-color);
+.ollama-chat-message.assistant .message-sender,
+.ollama-chat-message.assistant .message-timestamp,
+.ollama-chat-message.thinking .message-sender,
+.ollama-chat-message.thinking .message-timestamp {
+    color: #b0b0b0;
 }
 
-/* Add this to static/style.css */
-
-input[type="file"].visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px; /* Avoid causing scroll issues */
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap; /* Prevent wrapping */
-    border: 0;
+.ollama-chat-message.error .message-sender,
+.ollama-chat-message.error .message-timestamp {
+    color: #ffffff;
 }
 
-/* Optional: Style the wrapper instead of using inline styles */
-.file-upload-wrapper {
-    text-align: center;
-    margin-bottom: 10px; /* Or adjust as needed */
+.ollama-chat-message .message-content {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
-/* --- Toast Notification Styles --- */
-#toast-container {
-position: fixed; /* Keep it in view */
-top: 50px;       /* Distance from top */
-right: 20px;      /* Distance from right */
-z-index: 1050;    /* Ensure it's above most other content */
+
+/* --- Group Chat Message Styles (Inside History) --- MODIFIED HEADER --- */
+#chat-history .chat-message-wrapper {
 display: flex;
-flex-direction: column-reverse; /* New toasts appear above old ones */
-align-items: flex-end; /* Align toasts to the right */
-gap: 10px; /* Spacing between toasts */
+margin-bottom: 10px;
+}
+#chat-history .chat-message-wrapper.current-user {
+justify-content: flex-end;
+}
+#chat-history .chat-message-wrapper:not(.current-user) {
+justify-content: flex-start;
+}
+#chat-history .chat-message {
+padding: 8px 12px;
+border-radius: 18px;
+max-width: 75%;
+word-wrap: break-word;
+line-height: 1.5;
+position: relative;
+box-sizing: border-box;
+/* width: fit-content; /* Generally not needed here due to flex parent */
+}
+#chat-history .chat-message-wrapper:not(.current-user) .chat-message {
+background-color: var(--secondary-color);
+color: var(--text-color);
+border-bottom-left-radius: 5px;
+}
+#chat-history .chat-message-wrapper.current-user .chat-message {
+background-color: var(--primary-color);
+color: #ffffff;
+border-bottom-right-radius: 5px;
 }
 
-.toast-message {
-    background-color: var(--secondary-color); /* Dark background */
-    color: var(--text-color);           /* Light text */
-    padding: 12px 20px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
-    opacity: 0;                         /* Start hidden */
-    transform: translateX(100%);       /* Start off-screen */
-    transition: opacity 0.4s ease, transform 0.4s ease; /* Smooth transition */
-    max-width: 350px;                   /* Prevent very wide toasts */
-    word-wrap: break-word;              /* Wrap long messages */
-    font-size: 0.95em;
+/* Header for Sender, Timestamp, Edited Marker - STACKED */
+#chat-history .chat-message .message-header {
+display: flex;
+flex-direction: column;    /* Stack items vertically */
+align-items: flex-start;   /* Align them to the left */
+font-size: 0.8em;
+color: inherit;
+opacity: 0.8;
+margin-bottom: 4px;
+}
+#chat-history .chat-message .message-sender {
+font-weight: bold;
+margin-right: 0; /* No longer needed for side-by-side */
+/* margin-bottom: 1px; /* Optional: tiny space between sender and timestamp */
 }
 
-.toast-message.toast-show {
-    opacity: 1;
-    transform: translateX(0);           /* Slide in */
+#chat-history .chat-message-wrapper.current-user .message-timestamp {
+color: #e0e0e0;
+}
+#chat-history .chat-message-wrapper:not(.current-user) .message-timestamp {
+color: #aaa;
+}
+#chat-history .chat-message .message-timestamp { /* General timestamp styling if needed */
+line-height: 1.2; /* Adjust if overlapping */
 }
 
-/* Type-specific styles */
-.toast-message.toast-success {
-    background-color: #27ae60; /* Green */
-    border-color: #2ecc71;
-    color: #ffffff;
+#chat-history .chat-message .message-edited-marker {
+font-size: 0.9em;
+margin-left: 0; /* No longer side-by-side */
+font-style: italic;
+line-height: 1.2; /* Adjust if overlapping */
 }
 
-.toast-message.toast-error { /* Renamed from 'danger' for clarity */
-    background-color: #c0392b; /* Red */
-    border-color: #e74c3c;
-    color: #ffffff;
+#chat-history .chat-message .message-content {
+margin: 0;
+white-space: pre-wrap;
 }
 
-.toast-message.toast-info {
-    background-color: #2980b9; /* Blue */
-    border-color: #3498db;
-    color: #ffffff;
+/* File attachment styles in Group Chat (preserved) */
+#chat-history .chat-message .message-file-attachment {
+margin-top: 8px;
+padding-top: 8px;
+border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+#chat-history .chat-message .file-name {
+font-size: 0.9em;
+margin-bottom: 5px;
+}
+#chat-history .chat-message .file-name a {
+color: inherit;
+text-decoration: underline;
+}
+#chat-history .chat-message .file-name a:hover {
+opacity: 0.9;
+}
+#chat-history .file-preview { margin-top: 5px; }
+#chat-history .file-preview img,
+#chat-history .file-preview video {
+display: block;
+border-radius: 5px;
+max-width: 100%;
+height: auto;
+max-height: 200px;
+}
+#chat-history .text-file-preview {
+background-color: rgba(0, 0, 0, 0.15);
+padding: 5px 8px;
+border-radius: 4px;
+margin-top: 5px;
+max-height: 100px;
+overflow-y: auto;
+border: 1px solid rgba(255, 255, 255, 0.1);
+}
+#chat-history .text-file-preview pre {
+margin: 0;
+font-size: 0.85em;
+white-space: pre-wrap;
+word-wrap: break-word;
+color: inherit;
 }
 
-.toast-message.toast-warning { /* Optional: Add a warning style */
-    background-color: #f39c12; /* Orange */
-    border-color: #f1c40f;
-    color: #333; /* Dark text for better contrast on orange */
+/* Action buttons for Edit/Delete in Group Chat (preserved) */
+#chat-history .chat-message .message-actions {
+position: absolute;
+top: 5px;
+right: 7px;
+display: none;
+gap: 4px;
+background-color: rgba(0,0,0,0.2);
+padding: 3px 5px;
+border-radius: 5px;
+z-index: 10;
+}
+#chat-history .chat-message .message-actions .btn-sm {
+padding: 2px 5px;
+line-height: 1;
+background-color: rgba(255,255,255,0.1);
+border: 1px solid rgba(255,255,255,0.2);
+}
+#chat-history .chat-message .message-actions .btn-sm:hover {
+background-color: rgba(255,255,255,0.2);
+}
+#chat-history .chat-message .message-actions .btn-sm img {
+width: 0.9em;
+height: 0.9em;
+vertical-align: middle;
+}
 
+/* Edit Message Container at the bottom (for Group Chat - preserved) */
+#edit-message-container {
+display: none;
+position: fixed;
+bottom: var(--input-bar-height);
+left: 0;
+right: 0;
+background-color: var(--secondary-color);
+padding: 10px 0;
+z-index: 105;
+border-top: 1px solid var(--border-color);
+box-sizing: border-box;
+}
+#edit-message-container > div {
+max-width: 800px;
+margin: 0 auto;
+display: flex;
+align-items: center;
+gap: 10px;
+padding: 0 15px;
+}
+#edit-message-input {
+flex-grow: 1;
+background-color: var(--bg-color);
+color: var(--text-color);
+border: 1px solid var(--border-color);
+border-radius: 4px;
+padding: 8px 10px;
+font-size: 0.95em;
+}
+#edit-message-input:focus {
+outline: none;
+border-color: var(--primary-color);
+box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+#edit-message-container .btn-sm {
+padding: 7px 12px;
+font-size: 0.9em;
+}
+
+/* --- Audio Player Styling (Group Chat) --- Revised Inverted Colors --- */
+#chat-history .chat-message .file-preview audio {
+width: 100%;
+max-width: 350px;
+height: 40px;
+margin-top: 5px;
+border-radius: 6px;
+background-color: transparent; /* Make player background transparent to show chat bubble bg */
+
+/* Filter Explanation:
+ *      1. invert(1): Inverts all colors (dark to light, light to dark, hues inverted).
+ *      2. sepia(100%): Converts to sepia tones. This helps neutralize inverted colors.
+ *      3. saturate(0%): Removes all color, making it grayscale.
+ *      4. hue-rotate(0deg): This seems redundant with saturate(0) but often included in such filter chains.
+ *         Can be experimented with if colors are off (e.g. 180deg).
+ *      5. brightness(X%): Adjusts overall brightness. Increase to make it whiter/lighter.
+ *      6. contrast(Y%): Adjusts contrast. May need tweaking after brightness.
+ */
+filter: invert(1) sepia(100%) saturate(0%) hue-rotate(0deg) brightness(150%) contrast(100%);
+/* Start with brightness(150%) and contrast(100%).
+ *      If too bright, reduce brightness. If too washed out, increase contrast.
+ *      If too dim, increase brightness further.
+ */
+}
+
+/* Firefox-specific override (put this AFTER the general rule) */
+@-moz-document url-prefix() {
+    #chat-history .chat-message .file-preview audio {
+    /* Try a filter that looks best *in Firefox*, even if different */
+    filter: none; /* Or a very minimal filter, or a different one */
+    /* You could try setting a background for it in Firefox */
+    /* background-color: #333; /* Example */
+    }
+}
+/* The ::-webkit-media-controls-* pseudo-elements are highly browser-specific (Chrome/Safari/Edge).
+ *  The global filter above is the primary method. These are fallbacks or refinements
+ *  that MIGHT have some effect, but often don't override the main appearance set by the browser
+ *  when native controls are used.
+ */
+
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-panel {
+/* Attempt to ensure the panel background itself is also transparent if filter makes it opaque */
+background-color: transparent !important;
+color: inherit !important; /* Try to make icons inherit the filtered (light) color */
+}
+
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-play-button,
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-mute-button {
+/* Individual icons might need specific color overrides if the filter doesn't catch them well.
+ *      However, directly setting 'color' or 'background-color' on these pseudo-elements
+ *      is often ignored by the browser for native controls. The filter is the main tool. */
+}
+
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-timeline,
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-volume-slider-container, /* For volume slider area */
+#chat-history .chat-message .file-preview audio::-webkit-media-controls-volume-slider {
+/* Try to make these transparent or apply a light color if filter results are poor */
+/* background-color: rgba(200, 200, 200, 0.3); /* Example: Light semi-transparent track */
+}
+
+#chat-history .chat-message .file-preview audio::-webkit-media-slider-thumb {
+/* background-color: #ffffff; /* Attempt to make thumb white */
+/* border: 1px solid #cccccc; */
+}
+
+
+/* ==========================================================================
+ 8 . Admin Page Styles                                        *
+ ========================================================================== */
+/* No changes needed here, they inherit the wider .container */
