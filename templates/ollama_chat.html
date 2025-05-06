@@ -4,248 +4,234 @@
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
 {% block content %}
-    <h2>Chat with Ollama</h2>
-
-    {# Display Ollama Chat History - Keep this structure #}
-    <div id="ollama-chat-history" style="height: 400px; overflow-y: scroll; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; background-color: var(--bg-color); border-radius: 5px;">
+    <div id="ollama-chat-history">
         {% if ollama_chat_history %}
             {% for message in ollama_chat_history %}
-                 <div class="ollama-chat-message {{ message.role }}" style="margin-bottom: 10px; padding: 8px; border-radius: 5px; background-color: {% if message.role == 'user' %}var(--primary-color){% else %}var(--secondary-color){% endif %}; color: {% if message.role == 'user' %}#fff{% else %}var(--text-color){% endif %};">
-                    <strong>{{ message.role|capitalize }}:</strong>
-                    {# Use white-space: pre-wrap to respect newlines and wrap long lines #}
-                    <div style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</div>
+                 {# Updated structure for initial messages #}
+                 <div class="ollama-chat-message {{ message.role }}">
+                    <div class="message-header">
+                        <strong class="message-sender">{{ message.role|capitalize }}:</strong>
+                        {% if message.timestamp %}
+                            <span class="message-timestamp" data-timestamp="{{ message.timestamp }}"></span> {# JS will format #}
+                        {% endif %}
+                    </div>
+                    <div class="message-content" style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</div>
                 </div>
             {% endfor %}
         {% else %}
-            <p id="empty-history-msg" style="color: #aaa;">Ollama chat history is empty. Start by sending a message.</p>
+            <p id="empty-history-msg" style="color: #aaa; text-align: center; margin: auto;">
+                Ollama chat history is empty. Start by sending a message.
+            </p>
         {% endif %}
-         {# Placeholder for the "thinking" indicator - added dynamically by JS #}
     </div>
 
-    {# Input Form - Ensure IDs are correct #}
-    {# Use action="#" or remove action as JS handles it, but keep method="POST" conceptually #}
     <form id="ollama-chat-form" method="POST" action="#" novalidate>
-        {{ form.hidden_tag() }} {# Keep for CSRF token #}
-        <div class="form-group">
-            {# Remove label if not needed, or keep it #}
-            {# {{ form.message.label }} #}
-            {# Textarea needs id="message" #}
-            {{ form.message(class="form-control", rows=3, placeholder="Type your message here (Shift+Enter for new line)...", id="message") }}
-            {% if form.message.errors %} {# Errors from previous full-page loads if any #}
-                <ul class="errors">
-                    {% for error in form.message.errors %}<li>{{ error }}</li>{% endfor %}
-                </ul>
-            {% endif %}
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-             {# Submit button needs id="send-button" #}
-            {{ form.submit(class="btn btn-primary", id="send-button", value="Send") }}
-            <a href="{{ url_for('clear_ollama_chat_history') }}" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to clear the entire ollama chat history? This cannot be undone.');">Clear History</a>
+        {{ form.hidden_tag() }}
+        <div class="chat-input-inner">
+            <button type="button" id="clear-history-button" class="btn" aria-label="Clear chat history">
+                <img src="{{ url_for('static', filename='icons/trash.svg') }}" alt="Clear History" width="20" height="20" style="display: block; margin: auto;">
+            </button>
+            {{ form.message(class="form-control", rows="1", placeholder="Type your message...", id="message") }}
+            <button type="submit" id="send-button" class="btn btn-primary" aria-label="Send message">
+                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" width="20" height="20" style="display: block; margin: auto;">
+            </button>
         </div>
     </form>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Element References (same as before) ---
     const ollamaChatHistoryDiv = document.getElementById('ollama-chat-history');
     const messageTextarea = document.getElementById('message');
     const ollamaChatForm = document.getElementById('ollama-chat-form');
     const sendButton = document.getElementById('send-button');
-    const emptyHistoryMsg = document.getElementById('empty-history-msg');
+    const clearHistoryButton = document.getElementById('clear-history-button');
     const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
 
-    // Function to scroll ollama chat history to the bottom
-    function scrollOllamaChatToBottom() {
-        ollamaChatHistoryDiv.scrollTop = ollamaChatHistoryDiv.scrollHeight;
+    if (!ollamaChatHistoryDiv || !messageTextarea || !ollamaChatForm || !sendButton) {
+        console.error("Ollama Chat Error: Could not find essential chat elements.");
+        if (typeof showToast === 'function') {
+            showToast("Error initializing Ollama chat UI.", "danger", 10000);
+        }
+        return;
     }
 
-    // Initial scroll
-    scrollOllamaChatToBottom();
+    // --- Helper Functions ---
+    function scrollOllamaChatToBottom() {
+        setTimeout(() => {
+            if (ollamaChatHistoryDiv) {
+                ollamaChatHistoryDiv.scrollTop = ollamaChatHistoryDiv.scrollHeight;
+            }
+        }, 1);
+    }
 
-    // Function to add a message to the ollama chat history div
-    function addMessageToHistory(role, content, elementId = null) {
-        // Remove "empty history" message if it exists
-        if (emptyHistoryMsg) {
-            emptyHistoryMsg.remove();
+    function resizeTextarea(textarea) {
+        requestAnimationFrame(() => {
+            textarea.style.height = 'auto';
+            const newScrollHeight = textarea.scrollHeight;
+            textarea.style.height = (newScrollHeight + 2) + 'px';
+        });
+    }
+
+    /**
+     * Formats an ISO timestamp string into a locale-friendly string.
+     * (Copied/adapted from group_chat.js)
+     */
+    function formatTimestamp(isoString) {
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) {
+                console.warn("[Ollama Chat] Invalid timestamp received:", isoString);
+                return 'Invalid Date';
+            }
+            return date.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        } catch (e) {
+            console.error("[Ollama Chat] Error formatting timestamp:", isoString, e);
+            return 'Invalid Date';
+        }
+    }
+
+    /**
+     * Adds a message visually to the chat history div.
+     * Structure now includes a header for role and timestamp.
+     * @param {string} role - 'user', 'assistant', 'thinking', or 'error'.
+     * @param {string} content - The message text content.
+     * @param {string|null} timestampStr - ISO string for the timestamp. Null if no timestamp.
+     * @param {string|null} elementId - Optional ID to assign to the message div.
+     * @returns {HTMLDivElement|null} The created message div or null on error.
+     */
+    function addMessageToHistory(role, content, timestampStr, elementId = null) {
+        if (!ollamaChatHistoryDiv) {
+            console.error("addMessageToHistory: ollamaChatHistoryDiv not found!");
+            return null;
+        }
+        const emptyHistoryMsg = document.getElementById('empty-history-msg');
+        if (emptyHistoryMsg && emptyHistoryMsg.parentNode === ollamaChatHistoryDiv) {
+            ollamaChatHistoryDiv.removeChild(emptyHistoryMsg);
         }
 
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('ollama-chat-message', role); // Add role as class
-        messageDiv.style.marginBottom = '10px';
-        messageDiv.style.padding = '8px';
-        messageDiv.style.borderRadius = '5px';
-
-        if (role === 'user') {
-            messageDiv.style.backgroundColor = 'var(--primary-color)';
-            messageDiv.style.color = '#fff';
-        } else { // assistant or thinking/error
-            messageDiv.style.backgroundColor = 'var(--secondary-color)';
-            messageDiv.style.color = 'var(--text-color)';
-        }
-
-        // Add specific styling for thinking indicator
-        if (role === 'thinking') {
-             messageDiv.style.fontStyle = 'italic';
-             messageDiv.style.opacity = '0.8';
-        }
-        // Add specific styling for error indicator
-        if (role === 'error') {
-            messageDiv.style.backgroundColor = 'var(--error-color)'; // Or a lighter red
-            messageDiv.style.color = '#fff'; // White text on red
-            messageDiv.style.border = '1px solid #c0392b';
-        }
-
-
-        const roleStrong = document.createElement('strong');
-        // Capitalize role, handle 'thinking' specifically
-        roleStrong.textContent = (role === 'thinking' || role === 'error') ? 'System:' : (role.charAt(0).toUpperCase() + role.slice(1) + ':');
-
-        const contentDiv = document.createElement('div');
-        contentDiv.style.whiteSpace = 'pre-wrap'; // Preserve formatting
-        contentDiv.style.wordWrap = 'break-word';
-        contentDiv.textContent = content; // Use textContent to prevent HTML injection
-
-        messageDiv.appendChild(roleStrong);
-        messageDiv.appendChild(contentDiv);
-
-        // Assign ID if provided (for the thinking indicator)
+        messageDiv.classList.add('ollama-chat-message', role); // e.g. ollama-chat-message user
         if (elementId) {
             messageDiv.id = elementId;
         }
 
+        // Header for Role (Sender) and Timestamp
+        const headerDiv = document.createElement('div');
+        headerDiv.classList.add('message-header');
+
+        const roleStrong = document.createElement('strong');
+        roleStrong.classList.add('message-sender'); // Class for styling
+        roleStrong.textContent = (role === 'thinking') ? 'System' : (role.charAt(0).toUpperCase() + role.slice(1));
+        headerDiv.appendChild(roleStrong);
+
+        if (timestampStr) {
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('message-timestamp');
+            timestampSpan.textContent = formatTimestamp(timestampStr);
+            headerDiv.appendChild(timestampSpan);
+        }
+        messageDiv.appendChild(headerDiv);
+
+        // Content
+        const contentDiv = document.createElement('div');
+        contentDiv.classList.add('message-content'); // Class for styling
+        // These styles were previously on the main messageDiv, moving to contentDiv
+        contentDiv.style.whiteSpace = 'pre-wrap';
+        contentDiv.style.wordWrap = 'break-word';
+        contentDiv.textContent = content;
+        messageDiv.appendChild(contentDiv);
+
         ollamaChatHistoryDiv.appendChild(messageDiv);
         scrollOllamaChatToBottom();
-        return messageDiv; // Return the created element
+        return messageDiv;
     }
 
-    // Handle form submission
     async function handleFormSubmit(event) {
-        event.preventDefault(); // Prevent default page reload
-
+        event.preventDefault();
         if (!csrfToken) {
-            addMessageToHistory('error', 'Security token missing. Cannot send message.');
-            return;
+            addMessageToHistory('error', 'Security token missing.', new Date().toISOString()); return;
         }
-
         const userMessage = messageTextarea.value.trim();
-        if (!userMessage) {
-            return; // Don't send empty messages
-        }
+        if (!userMessage) { return; }
 
-        // 1. Disable form elements
         messageTextarea.disabled = true;
         sendButton.disabled = true;
-        sendButton.value = "Sending..."; // Change button text
-
-        // 2. Immediately display user message
-        addMessageToHistory('user', userMessage);
-
-        // 3. Clear the input field
         messageTextarea.value = '';
+        resizeTextarea(messageTextarea);
 
-        // 4. Display "thinking" indicator
-        const thinkingIndicatorId = `thinking-${Date.now()}`; // Unique ID
-        const thinkingDiv = addMessageToHistory('thinking', 'Ollama is thinking...', thinkingIndicatorId);
+        addMessageToHistory('user', userMessage, new Date().toISOString()); // Add user msg with timestamp
+        const thinkingIndicatorId = `thinking-${Date.now()}`;
+        // Add "thinking" message without a timestamp initially, or with a client timestamp
+        let thinkingDiv = addMessageToHistory('thinking', 'Ollama is thinking...', new Date().toISOString(), thinkingIndicatorId);
 
-        // 5. Send message to backend API
+
         try {
             const response = await fetch("{{ url_for('api_ollama_chat_send') }}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
                 body: JSON.stringify({ message: userMessage })
             });
-
             const data = await response.json();
 
-            // 6. Handle response
-            const indicatorElement = document.getElementById(thinkingIndicatorId);
-            if (!indicatorElement) {
-                 console.error("Thinking indicator not found!");
-                 // Maybe add a new error message if indicator is gone?
-                 addMessageToHistory('error', 'UI Error: Could not find placeholder for AI response.');
-                 return; // Exit here, something went wrong with the UI
+            const indicatorToRemove = document.getElementById(thinkingIndicatorId);
+            if (indicatorToRemove) {
+                indicatorToRemove.remove(); // Remove the "thinking" message
             }
-
 
             if (response.ok && data.status === 'success') {
-                // Update the indicator div with the AI response
-                indicatorElement.classList.remove('thinking');
-                indicatorElement.classList.add('assistant'); // Change class
-                indicatorElement.style.fontStyle = 'normal'; // Reset style
-                indicatorElement.style.opacity = '1';
-                indicatorElement.style.backgroundColor = 'var(--secondary-color)'; // Ensure assistant style
-                indicatorElement.style.color = 'var(--text-color)';
-                indicatorElement.querySelector('strong').textContent = 'Assistant:'; // Update role display
-                indicatorElement.querySelector('div').textContent = data.ai_message; // Update content
-
+                addMessageToHistory('assistant', data.ai_message, new Date().toISOString()); // Add AI response with new timestamp
             } else {
-                 // Update the indicator div with the error message
-                 indicatorElement.classList.remove('thinking');
-                 indicatorElement.classList.add('error'); // Change class
-                 indicatorElement.style.fontStyle = 'normal'; // Reset style
-                 indicatorElement.style.opacity = '1';
-                 indicatorElement.style.backgroundColor = 'var(--error-color)'; // Ensure error style
-                 indicatorElement.style.color = '#fff';
-                 indicatorElement.querySelector('strong').textContent = 'Error:'; // Update role display
-                 indicatorElement.querySelector('div').textContent = data.message || 'An unknown error occurred.';
+                 addMessageToHistory('error', data.message || 'Unknown error occurred.', new Date().toISOString());
             }
-             scrollOllamaChatToBottom(); // Scroll again after updating content
-
+            scrollOllamaChatToBottom();
 
         } catch (error) {
             console.error("Fetch error:", error);
-             const indicatorElement = document.getElementById(thinkingIndicatorId);
-             if (indicatorElement) {
-                // Update the indicator div with the fetch error
-                indicatorElement.classList.remove('thinking');
-                indicatorElement.classList.add('error'); // Change class
-                 indicatorElement.style.fontStyle = 'normal'; // Reset style
-                 indicatorElement.style.opacity = '1';
-                 indicatorElement.style.backgroundColor = 'var(--error-color)'; // Ensure error style
-                 indicatorElement.style.color = '#fff';
-                indicatorElement.querySelector('strong').textContent = 'Error:'; // Update role display
-                indicatorElement.querySelector('div').textContent = `Network or connection error: ${error.message}`;
-             } else {
-                 // If even the indicator vanished somehow, add a new error message
-                 addMessageToHistory('error', `Network or connection error: ${error.message}`);
-             }
+            const indicatorToRemove = document.getElementById(thinkingIndicatorId);
+            if (indicatorToRemove) {
+                indicatorToRemove.remove();
+            }
+            const errorMsg = `Network or connection error: ${error.message}`;
+            addMessageToHistory('error', errorMsg, new Date().toISOString());
+            scrollOllamaChatToBottom();
         } finally {
-            // 7. Re-enable form elements
             messageTextarea.disabled = false;
             sendButton.disabled = false;
-            sendButton.value = "Send"; // Restore button text
-            messageTextarea.focus(); // Put focus back on input
+            messageTextarea.focus();
         }
     }
 
-    // Attach submit listener
-    if (ollamaChatForm) {
-        ollamaChatForm.addEventListener('submit', handleFormSubmit);
-    }
+    // --- Initialize Textarea & Attach Listeners (same as before) ---
+    resizeTextarea(messageTextarea);
+    messageTextarea.addEventListener('input', function() { resizeTextarea(this); });
+    messageTextarea.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            if (!sendButton.disabled) ollamaChatForm.requestSubmit(sendButton);
+        }
+        resizeTextarea(this);
+    });
+    ollamaChatForm.addEventListener('submit', handleFormSubmit);
 
-    // Attach keydown listener for Shift+Enter
-    if (messageTextarea) {
-        messageTextarea.addEventListener('keydown', function(event) {
-            // Check if Enter is pressed WITHOUT Shift key
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault(); // Prevent default Enter behavior (new line)
-                // Trigger form submission manually
-                // Ensure button isn't already disabled from a previous request
-                if (!sendButton.disabled) {
-                     ollamaChatForm.requestSubmit(sendButton); // Use requestSubmit for compatibility
-                }
-            }
-            // If Enter + Shift is pressed, the default behavior (new line) is allowed
-        });
-    }
+    clearHistoryButton.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear the entire Ollama chat history? This cannot be undone.')) {
+            window.location.href = "{{ url_for('clear_ollama_chat_history') }}";
+        }
+    });
 
+    // --- Format initial timestamps ---
+    document.querySelectorAll('#ollama-chat-history .message-timestamp').forEach(span => {
+        const isoString = span.dataset.timestamp;
+        if (isoString) {
+            span.textContent = formatTimestamp(isoString);
+        }
+    });
+
+    scrollOllamaChatToBottom();
 });
 </script>
 {% endblock %}
