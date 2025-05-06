@@ -1,0 +1,84 @@
+{# templates/group_chat.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+    {# The main container automatically gets flex properties from body.chat-page .container CSS #}
+
+    {# Chat History Display Area - CSS handles flex-grow and centering #}
+    <div id="chat-history"> {# Removed inline styles, CSS handles layout #}
+        {# Messages will be loaded here by JavaScript #}
+        {% if not chat_history %}
+            <p id="empty-chat-msg" style="color: #aaa; text-align: center; margin: auto;">
+                Chat history is empty. Start the conversation!
+            </p> {# Adjusted margin for flex centering #}
+        {% endif %}
+    </div>
+
+    {# Hidden Edit Input Field - We'll position and show this via JS #}
+    <div id="edit-message-container" style="display: none; position: fixed; bottom: var(--input-bar-height); left: 0; right: 0; background-color: rgba(42, 42, 42, 0.95); padding: 10px; z-index: 105; border-top: 1px solid var(--border-color);">
+        <div style="max-width: 800px; margin: 0 auto; display: flex; gap: 10px;">
+            <input type="text" id="edit-message-input" class="form-control" placeholder="Edit message..." style="flex-grow: 1;">
+            <button id="save-edit-button" class="btn btn-primary btn-sm">Save</button>
+            <button id="cancel-edit-button" class="btn btn-secondary btn-sm">Cancel</button>
+        </div>
+    </div>
+
+
+    {# Message Input Form - Sticky via CSS #}
+    <form id="chat-form" method="POST" action="{{ url_for('api_group_chat_send') }}" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }} {# CSRF token #}
+
+        <div class="chat-input-inner"> {# *** ADDED GEMINI-STYLE INNER WRAPPER *** #}
+
+            {# File Input (Visually hidden, triggered by label styled as button) #}
+            {{ form.file(id="file-input", class="visually-hidden") }}
+             <label for="file-input" class="btn" title="Attach File (Max: {{ max_upload_mb }} MB)">
+                 {# ADD the image tag here #}
+                 <img src="{{ url_for('static', filename='icons/upload.svg') }}" alt="Attach file" >
+                 {# The size is controlled by CSS now #}
+             </label>
+            {# Removed file-name-display span #}
+            {# WTForms file errors should ideally be shown via toast messages #}
+
+            {# Text Area - Now inside the flex wrapper #}
+            {# Removed the outer .form-group div #}
+            {{ form.content(class="form-control", rows="1", placeholder="Type your message...", id="message-input") }} {# Use rows="1", CSS handles height #}
+            {# WTForms content errors should ideally be shown via toast messages #}
+
+            {# Submit Button #}
+            {# Removed the outer flex div #}
+            <button type="submit" id="send-button" class="btn btn-primary" aria-label="Send message">
+                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" width="20" height="20" style="display: block; margin: auto;">
+            </button>
+
+        </div> {# *** CLOSE INNER WRAPPER *** #}
+
+        {# Removed the old #chat-status div - Feedback should use toasts #}
+
+    </form>
+
+{% endblock %}
+
+{% block scripts %}
+{# Link to the dedicated JS file #}
+<script src="{{ url_for('static', filename='group_chat.js') }}"></script>
+
+{# Inline script to pass initial data - Remains the same #}
+<script>
+    const initialChatHistory = {{ chat_history|tojson }};
+    const currentUserId = {{ current_user.id }};
+    const csrfToken = "{{ csrf_token() }}";
+    const historyApiUrl = "{{ url_for('api_group_chat_history') }}";
+    const sendApiUrl = "{{ url_for('api_group_chat_send') }}";
+    // Add new API URLs
+    const editApiUrlBase = "{{ url_for('api_group_chat_edit_message', message_id=0) }}".slice(0, -1); // Remove trailing 0
+    const deleteApiUrlBase = "{{ url_for('api_group_chat_delete_message', message_id=0) }}".slice(0, -1); // Remove trailing 0
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initChat(initialChatHistory, currentUserId, csrfToken, historyApiUrl, sendApiUrl, editApiUrlBase, deleteApiUrlBase);
+    });
+</script>
+{% endblock %}
