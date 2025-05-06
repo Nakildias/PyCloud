@@ -14,6 +14,16 @@ function showToast(message, type = 'info', duration = 5000) {
     if (!toastContainer) {
         toastContainer = document.createElement('div');
         toastContainer.id = containerId;
+        // Apply necessary styles if they weren't globally set,
+        // but it's better to have them in style.css as you already do.
+        // toastContainer.style.position = 'fixed';
+        // toastContainer.style.top = '20px';
+        // toastContainer.style.right = '20px';
+        // toastContainer.style.zIndex = '1050';
+        // toastContainer.style.display = 'flex';
+        // toastContainer.style.flexDirection = 'column-reverse';
+        // toastContainer.style.gap = '10px';
+        // toastContainer.style.alignItems = 'flex-end';
         document.body.appendChild(toastContainer);
     }
 
