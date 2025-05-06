@@ -44,6 +44,8 @@ INSTANCE_FOLDER_PATH = os.path.join(BASE_DIR, 'instance')
 UPLOAD_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'uploads')
 
 
+DEFAULT_MAX_UPLOAD_MB_FALLBACK = 100
+
 # --- Viewable MIME Types ---
 # Common types browsers can typically display directly
 VIEWABLE_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'}
@@ -63,8 +65,6 @@ EDITABLE_EXTENSIONS = {
 }
 
 app = Flask(__name__, instance_path=INSTANCE_FOLDER_PATH) # Tell Flask about the instance folder
-# Increase max content length for uploads (e.g., 100 MB) - adjust as needed
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024 * 1024 # 100 Megabytes
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Store path for reference if needed
 csrf = CSRFProtect(app)
 app.config['SECRET_KEY'] = os.urandom(24) # Replace with a static key for production
@@ -1355,27 +1355,7 @@ def upload_file():
          else: flash(message, 'danger'); return redirect(redirect_url)
 
 
-    # === CHECK 2: Against Admin-Defined Limit (Database Setting) ===
-    admin_limit_mb = 100 # Default fallback
-    try:
-        max_upload_mb_str = Setting.get('max_upload_size_mb', str(admin_limit_mb))
-        admin_limit_mb = int(max_upload_mb_str)
-        if admin_limit_mb <= 0: # Treat 0 or negative as fallback default
-             admin_limit_mb = 100
-             app.logger.warning(f"Invalid admin max_upload_size_mb setting '{max_upload_mb_str}'. Using fallback {admin_limit_mb}MB.")
-
-    except (ValueError, TypeError):
-        app.logger.error(f"Invalid max_upload_size_mb setting '{max_upload_mb_str}'. Using fallback {admin_limit_mb}MB.")
-
-    admin_limit_bytes = admin_limit_mb * 1024 * 1024
-    if uploaded_filesize > admin_limit_bytes:
-        message = f'Upload failed: File size ({uploaded_filesize / (1024*1024):.1f} MB) exceeds the allowed upload limit ({admin_limit_mb} MB).'
-        app.logger.warning(f"Upload rejected for user {current_user.id}: File size {uploaded_filesize} > Admin limit {admin_limit_bytes}")
-        if is_ajax: return jsonify({"status": "error", "message": message}), 413 # Payload Too Large
-        else: flash(message, 'danger'); return redirect(redirect_url)
-
-
-    # === CHECK 3: Against User's Available Storage Space ===
+    # === CHECK 2: Against User's Available Storage Space ===
     storage_info = get_user_storage_info(current_user)
     # Available space calculation must handle potential infinite limit
     if storage_info['limit_bytes'] == float('inf'):
@@ -1919,7 +1899,7 @@ def delete_folder(folder_id):
 
         # *** CHANGED: Return JSON success instead of flash/redirect ***
         app.logger.info(f"Folder '{folder_name}' (ID: {folder_id}) and contents recursively deleted by user {current_user.id}")
-        return jsonify({"status": "success", "message": f"Folder '{folder_name}' and all its contents deleted successfully."})
+        return jsonify({"status": "success", "message": f"Folder '{folder_name}' was deleted successfully."})
 
     except Exception as e:
         # If any error occurred during recursion or commit, rollback everything
@@ -1927,9 +1907,6 @@ def delete_folder(folder_id):
         app.logger.error(f"Failed to delete folder {folder_id} ('{folder_name}') for user {current_user.id}: {e}", exc_info=True)
         # *** CHANGED: Return JSON error ***
         return jsonify({"status": "error", "message": f"Error deleting folder '{folder_name}'."}), 500
-
-    # Removed: flash(...)
-    # Removed: return redirect(...)
 
 @app.route('/files/folder/new', methods=['POST'])
 @login_required
@@ -2121,98 +2098,94 @@ def view_file(file_id):
         return "Error serving file.", 500
 
 # Add this new route function
-@app.route('/chat', methods=['GET', 'POST'])
+@app.route('/ollama_chat', methods=['GET', 'POST'])
 @login_required
-def chat():
-    form = ChatForm()
+def ollama_chat():
+    app.logger.info(f"--- ollama_chat route hit --- METHOD: {request.method}") # Keep logging for now
+    form = OllamaChatForm()
     error_message = None
-    history_for_template = [] # History to display
+    history_for_template = []
 
-    # --- Fetch existing history from DB for the current user ---
+    # --- Fetch history (runs on GET and POST) ---
     try:
-        # Fetch messages ordered by time, convert to list of dicts
-        db_messages = current_user.chat_messages.order_by(ChatMessage.timestamp).all()
-        # Convert to the list format needed by Ollama and template
-        # Use the to_dict helper method we added to the model
+        db_messages = current_user.ollama_chat_messages.order_by(OllamaChatMessage.timestamp).all()
         history_for_ollama = [msg.to_dict() for msg in db_messages]
-        history_for_template = list(history_for_ollama) # Use the same for display initially
+        history_for_template = list(history_for_ollama)
     except Exception as e:
-        app.logger.error(f"Error fetching chat history for user {current_user.id}: {e}", exc_info=True)
-        flash("Could not load chat history.", "danger")
-        history_for_ollama = [] # Start fresh if history load fails
+        app.logger.error(f"Error fetching ollama chat history for user {current_user.id}: {e}", exc_info=True)
+        flash("Could not load ollama chat history.", "danger")
+        history_for_ollama = []
         history_for_template = []
 
+    is_valid_submit = form.validate_on_submit()
+    app.logger.info(f"form.validate_on_submit() returned: {is_valid_submit}") # Keep logging
 
-    if form.validate_on_submit():
+    if is_valid_submit:
+        app.logger.info(f"!!! Processing form submission in ollama_chat route !!!") # Keep logging
         user_message_content = form.message.data
-        form.message.data = '' # Clear input field
+        # Don't clear form.message.data here if redirecting, it won't matter
 
-        # --- Call Ollama with DB history ---
-        # history_for_ollama holds the current conversation state [{role:'...', content:'...'}, ...]
-        ai_response_content, error_message = send_message_to_ollama(
+        ai_response_content, error_message = send_message_to_ollama( # AI Call
             user_message_content,
             history_for_ollama
         )
 
         if error_message:
             flash(error_message, 'danger')
-            # Don't save anything if Ollama failed
+            # Don't redirect on error, just re-render the template below
         elif ai_response_content:
-            # --- Save user message and AI response to DB ---
             try:
-                user_msg_db = ChatMessage(
-                    user_id=current_user.id,
-                    role='user',
-                    content=user_message_content
+                user_msg_db = OllamaChatMessage(
+                    user_id=current_user.id, role='user', content=user_message_content
                 )
-                ai_msg_db = ChatMessage(
-                    user_id=current_user.id,
-                    role='assistant',
-                    content=ai_response_content
-                 )
+                ai_msg_db = OllamaChatMessage(
+                    user_id=current_user.id, role='assistant', content=ai_response_content
+                )
                 db.session.add(user_msg_db)
                 db.session.add(ai_msg_db)
                 db.session.commit()
-                app.logger.info(f"Saved user/AI chat messages for user {current_user.id}")
-
-                # --- Update history for display ---
-                # Append the newly saved messages (as dicts) to the list for the template
-                history_for_template.append(user_msg_db.to_dict())
-                history_for_template.append(ai_msg_db.to_dict())
-
+                app.logger.info(f"Saved user/ollama chat messages for user {current_user.id} via direct POST")
+                # --- ADD REDIRECT HERE ---
+                # After successful processing and commit, redirect back to the chat page via GET
+                return redirect(url_for('ollama_chat'))
+                # -------------------------
             except Exception as e:
                  db.session.rollback()
-                 app.logger.error(f"Error saving chat messages for user {current_user.id}: {e}", exc_info=True)
-                 flash("Failed to save chat message.", "danger")
+                 app.logger.error(f"Error saving ollama chat messages for user {current_user.id} via direct POST: {e}", exc_info=True)
+                 flash("Failed to save ollama chat message.", "danger")
+                 # Don't redirect on error, just re-render the template below
         else:
-            # Handle case where Ollama returns None content without error (shouldn't happen now)
             flash("Received no response from the AI.", "warning")
+            # Don't redirect, just re-render the template below
 
-    # Pass the potentially updated history_for_template list
-    return render_template('chat.html',
-                           title='Chat',
+        # If we reached here due to an error or no AI content, we fall through to render_template
+
+    # --- Render template (runs on GET and POST failures/edge cases) ---
+    app.logger.info(f"Rendering ollama_chat.html template...")
+    return render_template('ollama_chat.html',
+                           title='Ollama Chat',
                            form=form,
-                           chat_history=history_for_template) # Pass DB history
+                           ollama_chat_history=history_for_template)
 
-@app.route('/chat/clear', methods=['GET']) # Or POST if preferred
+@app.route('/ollama_chat/clear', methods=['GET']) # Or POST if preferred
 @login_required
-def clear_chat_history():
+def clear_ollama_chat_history():
     try:
-        # Delete all ChatMessage records for the current user
-        num_deleted = ChatMessage.query.filter_by(user_id=current_user.id).delete()
+        # Delete all ollama ChatMessage records for the current user
+        num_deleted = OllamaChatMessage.query.filter_by(user_id=current_user.id).delete()
         db.session.commit()
-        flash(f'Chat history cleared ({num_deleted} messages removed).', 'info')
-        app.logger.info(f"Cleared {num_deleted} chat messages for user {current_user.id}")
+        flash(f'Ollama chat history cleared ({num_deleted} messages removed).', 'info')
+        app.logger.info(f"Cleared {num_deleted} ollama chat messages for user {current_user.id}")
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error clearing chat history for user {current_user.id}: {e}", exc_info=True)
-        flash('Failed to clear chat history.', 'danger')
+        app.logger.error(f"Error clearing ollama chat history for user {current_user.id}: {e}", exc_info=True)
+        flash('Failed to clear ollama chat history.', 'danger')
 
-    return redirect(url_for('chat'))
+    return redirect(url_for('ollama_chat'))
 
-@app.route('/api/chat/send', methods=['POST'])
+@app.route('/api/ollama_chat/send', methods=['POST'])
 @login_required
-def api_chat_send():
+def api_ollama_chat_send():
     data = request.get_json()
     if not data or 'message' not in data:
         return jsonify({"status": "error", "message": "Missing message content."}), 400
@@ -2224,13 +2197,13 @@ def api_chat_send():
     # --- Fetch CURRENT history from DB before sending ---
     history_for_ollama = []
     try:
-        db_messages = current_user.chat_messages.order_by(ChatMessage.timestamp).all()
+        db_messages = current_user.ollama_chat_messages.order_by(OllamaChatMessage.timestamp).all()
         history_for_ollama = [msg.to_dict() for msg in db_messages]
     except Exception as e:
-        app.logger.error(f"API: Error fetching chat history for user {current_user.id}: {e}", exc_info=True)
+        app.logger.error(f"API: Error fetching ollama chat history for user {current_user.id}: {e}", exc_info=True)
         # Decide if you want to proceed with empty history or return error
         # Let's return an error for consistency
-        return jsonify({"status": "error", "message": "Could not retrieve chat history context."}), 500
+        return jsonify({"status": "error", "message": "Could not retrieve ollama chat history context."}), 500
 
     # --- Call Ollama ---
     ai_response_content, error_message = send_message_to_ollama(
@@ -2246,12 +2219,12 @@ def api_chat_send():
     elif ai_response_content:
         # --- Save BOTH user message and AI response to DB ---
         try:
-            user_msg_db = ChatMessage(
+            user_msg_db = OllamaChatMessage(
                 user_id=current_user.id,
                 role='user',
                 content=user_message_content
             )
-            ai_msg_db = ChatMessage(
+            ai_msg_db = OllamaChatMessage(
                 user_id=current_user.id,
                 role='assistant',
                 content=ai_response_content
@@ -2260,7 +2233,7 @@ def api_chat_send():
             db.session.add(user_msg_db)
             db.session.add(ai_msg_db)
             db.session.commit()
-            app.logger.info(f"API: Saved user/AI chat messages for user {current_user.id}")
+            app.logger.info(f"API: Saved user/ollama chat messages for user {current_user.id}")
 
             # --- Return success with AI response ---
             return jsonify({
@@ -2270,8 +2243,8 @@ def api_chat_send():
 
         except Exception as e:
              db.session.rollback()
-             app.logger.error(f"API: Error saving chat messages for user {current_user.id}: {e}", exc_info=True)
-             return jsonify({"status": "error", "message": "Failed to save chat messages to database."}), 500
+             app.logger.error(f"API: Error saving ollama chat messages for user {current_user.id}: {e}", exc_info=True)
+             return jsonify({"status": "error", "message": "Failed to save ollama chat messages to database."}), 500
     else:
         # Handle unexpected case where Ollama returns no content and no error
         app.logger.warning(f"API: Ollama returned no content and no error for user {current_user.id}")
@@ -2588,7 +2561,7 @@ def create_db(app_instance):
                     Note.__tablename__: [],
                     Folder.__tablename__: ['parent_folder_id'], # Check new Folder table
                     File.__tablename__: ['parent_folder_id', 'is_public', 'public_id', 'public_password_hash'], # <-- Check new column
-                    ChatMessage.__tablename__: ['user_id', 'role', 'content', 'timestamp'],
+                    OllamaChatMessage.__tablename__: ['user_id', 'role', 'content', 'timestamp'],
                 }
 
                 # Check for missing tables
@@ -2617,11 +2590,11 @@ def create_db(app_instance):
                      app.logger.warning(f"Setting 'default_storage_limit_mb' missing. Seeding default ('{DEFAULT_STORAGE_LIMIT_MB}').")
                      Setting.set('default_storage_limit_mb', str(DEFAULT_STORAGE_LIMIT_MB))
                      settings_to_commit = True
-                if ChatMessage.__tablename__ in all_tables:
-                    columns = [c['name'] for c in inspector.get_columns(ChatMessage.__tablename__)]
-                    for req_col in required_tables[ChatMessage.__tablename__]:
+                if OllamaChatMessage.__tablename__ in all_tables:
+                    columns = [c['name'] for c in inspector.get_columns(OllamaChatMessage.__tablename__)]
+                    for req_col in required_tables[OllamaChatMessage.__tablename__]:
                          if req_col not in columns:
-                              app.logger.critical(f"CRITICAL: Column '{req_col}' missing from '{ChatMessage.__tablename__}'.")
+                              app.logger.critical(f"CRITICAL: Column '{req_col}' missing from '{OllamaChatMessage.__tablename__}'.")
                               # Add migration/alert logic as before
 
                 if settings_to_commit:
@@ -2633,8 +2606,8 @@ def create_db(app_instance):
                 db.session.rollback()
                 app.logger.error(f"Error inspecting database or ensuring settings: {e}", exc_info=True)
 
-class ChatMessage(db.Model):
-    """Model for storing individual chat messages per user."""
+class OllamaChatMessage(db.Model):
+    """Model for storing individual ollama chat messages per user."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     role = db.Column(db.String(10), nullable=False) # 'user' or 'assistant'
@@ -2642,17 +2615,17 @@ class ChatMessage(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Add relationship back to User (optional but useful)
-    # The backref allows accessing messages via user.chat_messages
-    user = db.relationship('User', backref=db.backref('chat_messages', lazy='dynamic', order_by='ChatMessage.timestamp', cascade="all, delete-orphan"))
+    # The backref allows accessing messages via user.ollama_chat_messages
+    user = db.relationship('User', backref=db.backref('ollama_chat_messages', lazy='dynamic', order_by='OllamaChatMessage.timestamp', cascade="all, delete-orphan"))
 
     def __repr__(self):
-        return f'<ChatMessage {self.id} (User: {self.user_id}, Role: {self.role})>'
+        return f'<OllamaChatMessage {self.id} (User: {self.user_id}, Role: {self.role})>'
 
     # Helper to convert DB object to the dictionary format Ollama/template expects
     def to_dict(self):
         return {"role": self.role, "content": self.content}
 
-class ChatForm(FlaskForm):
+class OllamaChatForm(FlaskForm):
     message = TextAreaField('You: ', validators=[DataRequired(), Length(max=4000)])
     submit = SubmitField('Send')
 
