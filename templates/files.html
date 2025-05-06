@@ -76,7 +76,6 @@
                     <ul class="errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
                  {% endif %}
                  {% set max_size_mb = (config.MAX_CONTENT_LENGTH / (1024*1024))|int if config.MAX_CONTENT_LENGTH else 'N/A' %}
-                 <small>Max size: {{ max_size_mb }} MB</small>
              </div>
         </form>
     </div>
@@ -238,7 +237,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // === CSRF Token Setup ===
     const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
-    if (!csrfToken) { console.warn('CSRF token meta tag not found. Actions might fail.'); }
+    if (!csrfToken) {
+        console.warn('CSRF token meta tag not found. Actions might fail.');
+        // Show toast immediately if CSRF is missing, as many actions will fail
+        showToast('Critical Error: Missing security token. Page actions may fail.', 'danger', 10000); // Longer duration
+    }
+
+    // === Element References ===
+    const fileTable = document.getElementById('file-list-table');
+    const pasteButton = document.getElementById('btn-paste');
+    const dropZone = document.getElementById('drop-zone');
+    const uploadForm = document.getElementById('upload-form');
+    const parentFolderInput = uploadForm ? uploadForm.querySelector('input[name="parent_folder_id"]') : null;
+    const currentFolderId = parentFolderInput ? parentFolderInput.value : null; // Get current folder ID
+    const fileUploadInput = document.getElementById('file-upload-input');
 
     // === Create Folder Form Toggle Logic ===
     const btnShowCreateFolder = document.getElementById('btn-show-create-folder');
@@ -250,177 +262,42 @@ document.addEventListener('DOMContentLoaded', function() {
         btnCancelCreateFolder.addEventListener('click', () => { formCreateFolder.style.display = 'none'; btnShowCreateFolder.style.display = ''; });
     }
 
-    // === Element References ===
-    const fileTable = document.getElementById('file-list-table');
-    const actionStatus = document.getElementById('action-status');
-    const pasteButton = document.getElementById('btn-paste');
-    const currentFolderId = formCreateFolder ? formCreateFolder.querySelector('input[name="parent_folder_id"]').value : null; // Get current folder ID
-
-
-const dropZone = document.getElementById('drop-zone');
-const uploadForm = document.getElementById('upload-form'); // Get the form
-const parentFolderInput = uploadForm ? uploadForm.querySelector('input[name="parent_folder_id"]') : null;
-// Re-use existing actionStatus or create a new one for drag-drop
-const dragDropStatus = document.getElementById('action-status'); // Or a new dedicated element
-
-function showDragDropStatus(message, type = 'info') {
-    if (dragDropStatus) {
-        dragDropStatus.textContent = message;
-        dragDropStatus.style.color = type === 'error' ? 'var(--error-color)' : (type === 'success' ? 'var(--success-color)' : 'var(--info-color)');
-    }
-}
-
-if (dropZone && parentFolderInput && csrfToken) {
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
-    });
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => {
-            dropZone.classList.add('drag-over');
-        }, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => {
-            dropZone.classList.remove('drag-over');
-        }, false);
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
-        if (files.length === 0) {
-            return;
-        }
-        showDragDropStatus(`Uploading ${files.length} file(s)...`, 'info');
-        handleFiles(files);
-    }, false);
-
-} else {
-     if (!dropZone) console.error("Drop zone element not found.");
-     if (!parentFolderInput) console.error("Parent folder input not found.");
-     if (!csrfToken) console.error("CSRF token not found for drag/drop.");
-}
-
-function handleFiles(files) {
-    const parentFolderId = parentFolderInput.value;
-    let uploadPromises = []; // To track all uploads
-
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file); // Key 'file' must match Flask route's expectation
-        formData.append('parent_folder_id', parentFolderId);
-
-        const uploadPromise = fetch("{{ url_for('upload_file') }}", { // Use the same upload URL
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken, // Send CSRF token
-                'Accept': 'application/json' // Tell backend we prefer JSON response
-            },
-            body: formData
-        })
-        .then(response => {
-             // Check if response is JSON, otherwise treat as potential redirect/HTML error
-             const contentType = response.headers.get("content-type");
-             if (contentType && contentType.indexOf("application/json") !== -1) {
-                 return response.json().then(data => {
-                     if (!response.ok) {
-                         // Throw an error with the message from JSON if available
-                         throw new Error(data.message || `Upload failed for ${file.name} with status ${response.status}`);
-                     }
-                     return { success: true, file: file.name, message: data.message };
-                 });
-             } else {
-                 // Handle non-JSON responses (could be redirects on success or HTML errors)
-                 if (response.ok) {
-                     // Assume success if status is OK but not JSON (maybe backend redirected)
-                     return { success: true, file: file.name, message: `${file.name} uploaded (non-JSON response).` };
-                 } else {
-                     // Generic error for non-JSON error responses
-                     throw new Error(`Upload failed for ${file.name}. Server returned status ${response.status}.`);
-                 }
-             }
-        })
-        .catch(error => {
-             console.error(`Error uploading ${file.name}:`, error);
-             return { success: false, file: file.name, message: error.message }; // Return error object
-        });
-        uploadPromises.push(uploadPromise);
-    }
-
-    // Wait for all uploads to complete
-    Promise.allSettled(uploadPromises)
-        .then(results => {
-            let successfulUploads = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-            let failedUploads = results.length - successfulUploads;
-
-            if (failedUploads > 0) {
-                 const firstError = results.find(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-                 const errorMsg = firstError ? (firstError.reason ? firstError.reason.message : firstError.value.message) : 'Unknown error';
-                 showDragDropStatus(`Finished: ${successfulUploads} succeeded, ${failedUploads} failed. Error: ${errorMsg}`, 'error');
-            } else {
-                 showDragDropStatus(`All ${successfulUploads} files uploaded successfully! Reloading...`, 'success');
-            }
-            // Reload after a short delay to show message and let user see result
-            setTimeout(() => { location.reload(); }, failedUploads > 0 ? 5000 : 2000);
-        });
-}
-
-    // === Auto-Upload via Browse Button ===
-    const fileUploadInput = document.getElementById('file-upload-input'); // Get the hidden file input
-
-    if (fileUploadInput) {
-        fileUploadInput.addEventListener('change', function(event) {
-            // Get the selected file(s)
-            const files = event.target.files;
-
-            if (files && files.length > 0) {
-                 // Optional: Show immediate feedback
-                 showDragDropStatus(`Uploading ${files.length} file(s) via browse...`, 'info');
-
-                 // Use the *exact same function* as drag-and-drop to handle the upload
-                 handleFiles(files);
-
-                 // IMPORTANT: Reset the input value.
-                 // This allows the 'change' event to fire again if the user
-                 // selects the *same* file immediately after.
-                 event.target.value = null;
-            }
-        });
-    } else {
-        console.error("File input element #file-upload-input not found.");
-    }
-    // === End Auto-Upload Logic ===
-
     // === Clipboard State ===
-    // *** MODIFIED: Initialize from backend session data passed via template ***
-    let clipboardData = {{ clipboard_json | safe }}; // Use 'safe' filter as it's already JSON
-    console.log("Initial clipboard data from session:", clipboardData); // Debugging
-    // *** END MODIFICATION ***
+    let clipboardData = {{ clipboard_json | safe }}; // Initialize from backend session
+    console.log("Initial clipboard data from session:", clipboardData);
 
     // --- Helper Functions ---
-    function showActionStatus(message, type = 'info', duration = 3500) {
-        if (actionStatus) {
-            actionStatus.textContent = message;
-            actionStatus.style.color = type === 'error' ? 'var(--error-color)' : (type === 'success' ? 'var(--success-color)' : 'var(--info-color)');
-            if (type !== 'error') { setTimeout(() => { if (actionStatus && actionStatus.textContent === message) actionStatus.textContent = ''; }, duration); }
-        }
-    }
+
+    // Helper to process fetch responses and extract error messages
     function handleFetchErrors(response) {
         if (!response.ok) {
-            return response.json().then(errData => { throw new Error(errData.message || `Request failed with status ${response.status}`); }).catch(() => { throw new Error(`Request failed with status ${response.status}: ${response.statusText}`); });
-        } return response.json();
+            // Try to parse JSON error first
+            return response.json()
+                .then(errData => {
+                    // Throw an error with the message from JSON if available
+                    throw new Error(errData.message || `Request failed with status ${response.status}`);
+                })
+                .catch(() => {
+                    // If JSON parsing fails or no message, use status text
+                    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+                });
+        }
+        // If response is OK, parse JSON
+        return response.json();
     }
+
+    // Helper for copying text to clipboard (uses toasts now)
     async function copyToClipboard(text, buttonElement) {
         try {
             await navigator.clipboard.writeText(text);
-            const originalText = buttonElement.textContent; buttonElement.textContent = 'Copied!'; buttonElement.disabled = true;
-            setTimeout(() => { buttonElement.textContent = originalText; buttonElement.disabled = false; }, 1500);
-        } catch (err) { console.error('Failed to copy text: ', err); showActionStatus('Failed to copy link.', 'error'); }
+            showToast('Link copied to clipboard!', 'success');
+            // Optional: Briefly change button text (less necessary with toast)
+            // const originalText = buttonElement.textContent; buttonElement.textContent = 'Copied!'; buttonElement.disabled = true;
+            // setTimeout(() => { buttonElement.textContent = originalText; buttonElement.disabled = false; }, 1500);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            showToast('Failed to copy link.', 'danger');
+        }
     }
 
     // --- Update Paste Button Visibility ---
@@ -446,30 +323,135 @@ function handleFiles(files) {
         }
     }
 
+    // --- Upload Handling (Drag & Drop / Browse) ---
+    function handleFiles(files) {
+        if (!csrfToken) {
+             showToast('Cannot upload: Missing security token.', 'danger');
+             return;
+        }
+        const parentFolderId = parentFolderInput ? parentFolderInput.value : ''; // Ensure parentFolderInput exists
+        let uploadPromises = [];
+        const totalFiles = files.length;
+        let currentFileIndex = 0;
+
+        // Show initial toast
+        showToast(`Starting upload of ${totalFiles} file(s)...`, 'info', 3000);
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('parent_folder_id', parentFolderId);
+
+            // Optional: Show progress per file (more complex, basic example below)
+            // showToast(`Uploading ${file.name}...`, 'info', 2000);
+
+            const uploadPromise = fetch("{{ url_for('upload_file') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(response => { // Use handleFetchErrors for consistency
+                 return handleFetchErrors(response); // Will throw error if response not ok
+            })
+            .then(data => {
+                 if (data.status === 'success') {
+                     return { success: true, file: file.name, message: data.message };
+                 } else {
+                     // Should be caught by handleFetchErrors, but handle defensively
+                     throw new Error(data.message || `Upload failed for ${file.name}`);
+                 }
+            })
+            .catch(error => {
+                 console.error(`Error uploading ${file.name}:`, error);
+                 // Return an error object for Promise.allSettled
+                 return { success: false, file: file.name, message: error.message };
+            });
+            uploadPromises.push(uploadPromise);
+        }
+
+        // Wait for all uploads to complete
+        Promise.allSettled(uploadPromises)
+            .then(results => {
+                let successfulUploads = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+                let failedUploads = totalFiles - successfulUploads;
+
+                if (failedUploads > 0) {
+                    const firstErrorResult = results.find(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+                    const errorMsg = firstErrorResult ? (firstErrorResult.reason ? firstErrorResult.reason.message : firstErrorResult.value.message) : 'Unknown error';
+                    showToast(`Upload finished: ${successfulUploads} succeeded, ${failedUploads} failed. Error: ${errorMsg}`, 'warning', 7000); // Warning toast
+                } else {
+                    showToast(`All ${successfulUploads} files uploaded successfully! Reloading...`, 'success', 3000);
+                }
+                // Reload after a delay to show message
+                setTimeout(() => { location.reload(); }, failedUploads > 0 ? 5000 : 2500);
+            });
+    }
+
+    // Setup Drag & Drop Listeners
+    if (dropZone && parentFolderInput && csrfToken) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        }, false);
+    } else {
+        if (!dropZone) console.error("Drop zone element not found.");
+        if (!parentFolderInput) console.error("Parent folder input not found in upload form.");
+        // CSRF error already handled at the top
+    }
+
+    // Setup Auto-Upload via Browse Button
+    if (fileUploadInput) {
+        fileUploadInput.addEventListener('change', function(event) {
+            const files = event.target.files;
+            if (files && files.length > 0) {
+                handleFiles(files); // Use the same upload handler
+                event.target.value = null; // Reset input for same-file selection
+            }
+        });
+    } else {
+        console.error("File input element #file-upload-input not found.");
+    }
+
     // --- Clipboard Actions ---
     function setClipboard(items, operation) {
-        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
-        showActionStatus('Sending to clipboard...', 'info');
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
+        // showToast('Updating clipboard...', 'info', 1500); // Optional brief feedback
 
         fetch(`/api/files/clipboard/set`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ items: items, operation: operation })
         })
-        .then(handleFetchErrors)
+        .then(handleFetchErrors) // Use helper
         .then(data => {
             if (data.status === 'success') {
                 clipboardData = { items: items, operation: operation }; // Update local state
-                showActionStatus(data.message || `${items.length} item(s) ${operation === 'cut' ? 'cut' : 'copied'} to clipboard.`, 'success');
+                showToast(data.message || `${items.length} item(s) ${operation === 'cut' ? 'cut' : 'copied'} to clipboard.`, 'success');
                 updatePasteButtonVisibility();
-                updateCutItemVisuals(); // Update visual cues
+                updateCutItemVisuals();
             } else {
+                // Should be caught by handleFetchErrors, but handle defensively
                 throw new Error(data.message || `Failed to ${operation} items.`);
             }
         })
         .catch(error => {
             console.error(`Error setting clipboard for ${operation}:`, error);
-            showActionStatus(`Clipboard Error: ${error.message}`, 'error');
+            showToast(`Clipboard Error: ${error.message}`, 'danger');
             clipboardData = null; // Clear local state on error
             updatePasteButtonVisibility();
             updateCutItemVisuals();
@@ -478,67 +460,59 @@ function handleFiles(files) {
 
     function handlePaste() {
         if (!clipboardData) {
-            showActionStatus('Clipboard is empty.', 'info');
+            showToast('Clipboard is empty.', 'info');
             return;
         }
-        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
 
-        const operation = clipboardData.operation; // Store operation before potentially clearing clipboard
-        showActionStatus(`Pasting ${clipboardData.items.length} item(s)...`, 'info');
-
-        // *** IMPORTANT: We rely on the backend session's clipboard data for the actual paste ***
-        // The local `clipboardData` is mainly for UI state (paste button, cut visuals).
-        // The backend paste route reads directly from `session['clipboard']`.
+        const operation = clipboardData.operation;
+        showToast(`Pasting ${clipboardData.items.length} item(s)...`, 'info', 3000);
 
         fetch(`/api/files/clipboard/paste`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ target_folder_id: currentFolderId }) // Send current folder ID as target
+            body: JSON.stringify({ target_folder_id: currentFolderId })
         })
-        .then(handleFetchErrors)
+        .then(handleFetchErrors) // Use helper
         .then(data => {
-            console.log('Paste response:', data);
-            // Backend paste route clears the session clipboard on success/failure.
-            clipboardData = null; // Clear local state regardless of outcome now.
+            clipboardData = null; // Clear local state after backend call
             updatePasteButtonVisibility();
-            updateCutItemVisuals(); // Remove cut visuals
+            updateCutItemVisuals();
 
             if (data.status === 'success') {
-                showActionStatus(data.message || 'Paste successful! Reloading...', 'success');
-                setTimeout(() => { location.reload(); }, 1500); // Reload to see changes
+                showToast(data.message || 'Paste successful! Reloading...', 'success');
+                setTimeout(() => { location.reload(); }, 1500);
             } else {
                 // Handle partial/full failure messages from backend
-                if (data.errors && Array.isArray(data.errors)) {
-                    let errorMsg = `Paste failed for some items: ${data.errors.join(', ')}`;
-                    showActionStatus(errorMsg, 'error');
-                } else {
-                    showActionStatus(data.message || 'Paste operation failed.', 'error');
+                let errorMsg = data.message || 'Paste operation failed.';
+                if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+                    errorMsg = `Paste failed for some items: ${data.errors.join(', ')}`;
                 }
+                showToast(errorMsg, 'warning'); // Use warning for partial/full failures
+                // No automatic reload on failure
             }
         })
         .catch(error => {
-            // Network or other fetch errors
-            console.error('Error during paste operation:', error);
-            showActionStatus(`Paste Error: ${error.message}`, 'error');
-            // Clear local state on fetch error too? Yes, probably safest.
-            clipboardData = null;
+            clipboardData = null; // Clear local state on error
             updatePasteButtonVisibility();
             updateCutItemVisuals();
+            console.error('Error during paste operation:', error);
+            showToast(`Paste Error: ${error.message}`, 'danger');
         });
     }
 
-
     // --- Rename Functions ---
     function handleRenameButtonClick(menuItemOrButton, itemType) {
-        const row = menuItemOrButton.closest('.item-row'); // Use shared class
+        const row = menuItemOrButton.closest('.item-row');
+        if (!row) return;
         const id = row.dataset.itemId;
-        const currentName = row.dataset.itemName; // Use shared attribute
-        const prefix = itemType === 'file' ? 'filename' : 'foldername'; // Still need type for IDs
-        const displayElement = row.querySelector('.itemname-display'); // Use shared class
-        const inputField = row.querySelector('.itemname-input'); // Use shared class
+        const currentName = row.dataset.itemName;
+        const displayElement = row.querySelector('.itemname-display');
+        const inputField = row.querySelector('.itemname-input');
 
         if (displayElement && inputField) {
             closeAllContextMenus();
+            // Hide other rename inputs
             fileTable.querySelectorAll('.itemname-input').forEach(inp => {
                  if (inp !== inputField && inp.style.display !== 'none') { resetRenameInput(inp); }
             });
@@ -549,9 +523,11 @@ function handleFiles(files) {
             inputField.select();
         } else { console.error("Rename elements not found for ID:", id); }
     }
+
     function handleRenameInputBlurOrEnter(inputField) {
         if (inputField.style.display === 'none') return;
         const row = inputField.closest('.item-row');
+        if (!row) return;
         const itemType = row.dataset.itemType;
         const id = row.dataset.itemId;
         const originalName = row.dataset.itemName;
@@ -563,58 +539,64 @@ function handleFiles(files) {
             const displayElement = row.querySelector('.itemname-display');
             saveNewName(itemType, id, newName, displayElement, row);
         } else if (!newName) {
-            showActionStatus('Name cannot be empty.', 'error');
-            resetRenameInput(inputField);
+            showToast('Name cannot be empty.', 'warning');
+            resetRenameInput(inputField); // Still reset
         }
+        // If newName === originalName, do nothing (already reset)
     }
+
     function resetRenameInput(inputField) {
         const row = inputField.closest('.item-row');
         if (!row) return;
         const displayElement = row.querySelector('.itemname-display');
         if (displayElement) displayElement.style.display = '';
         inputField.style.display = 'none';
-        // Optionally reset value to original name if needed, though saveNewName handles rollback display
-        // inputField.value = row.dataset.itemName || '';
     }
+
     function saveNewName(itemType, id, newName, displayElement, rowElement) {
-        if (!csrfToken) { showActionStatus('Error: Missing security token.', 'error'); return; }
-        showActionStatus(`Renaming to "${newName}"...`, 'info');
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
+        // showToast(`Renaming to "${newName}"...`, 'info', 1500); // Optional brief feedback
         let url = itemType === 'folder' ? `/files/folder/rename/${id}` : `/files/rename/${id}`;
+
         fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ new_name: newName })
         })
-        .then(handleFetchErrors)
+        .then(handleFetchErrors) // Use helper
         .then(data => {
             if (data.status === 'success' && data.new_name) {
-                showActionStatus(data.message || `Rename successful!`, 'success');
+                showToast(data.message || `Rename successful!`, 'success');
                 const nameContainer = (itemType === 'folder' && displayElement) ? displayElement.querySelector('a') : displayElement;
-                if(nameContainer) nameContainer.textContent = data.new_name;
-                if(rowElement) rowElement.dataset.itemName = data.new_name; // Update the main data attribute
-            } else { throw new Error(data.message || 'Operation failed.'); }
+                if (nameContainer) nameContainer.textContent = data.new_name;
+                if (rowElement) rowElement.dataset.itemName = data.new_name; // Update the main data attribute
+            } else {
+                // Should be caught by handleFetchErrors, but handle defensively
+                throw new Error(data.message || 'Rename operation failed.');
+            }
           })
           .catch(error => {
              console.error(`Error renaming ${itemType}:`, error);
-             showActionStatus(`Error: ${error.message}`, 'error');
+             showToast(`Rename Error: ${error.message}`, 'danger');
+             // Revert display name in UI on error
              if (displayElement && rowElement) {
-                 const originalName = rowElement.dataset.itemName; // Get original name back from data attribute
-                 const nameContainer = (itemType === 'folder') ? displayElement.querySelector('a') : displayElement;
-                 if(nameContainer && originalName) nameContainer.textContent = originalName;
+                 const originalName = rowElement.dataset.itemName;
+                 const nameContainer = (itemType === 'folder' && displayElement) ? displayElement.querySelector('a') : displayElement;
+                 if (nameContainer && originalName) nameContainer.textContent = originalName;
              }
           });
     }
 
-
-    // --- Share/Unshare Functions (Unchanged from previous version) ---
+    // --- Share/Unshare Functions ---
     function handleShareFile(fileId, shareToggleButton) {
-        console.log(`Attempting to share file ID: ${fileId}`);
-        showActionStatus(`Sharing file...`, 'info');
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
+        // showToast(`Sharing file...`, 'info', 1500); // Optional feedback
+
         const addPassword = confirm("Protect this share link with a password?");
         let password = null;
         if (addPassword) {
             password = prompt("Enter password (leave blank for none):");
-            if (password === null) { console.log('Password prompt cancelled.'); return; }
+            if (password === null) { showToast('Share cancelled.', 'info'); return; } // User cancelled prompt
         }
         const payload = {};
         if (password !== null && password !== "") { payload.password = password; }
@@ -624,28 +606,45 @@ function handleFiles(files) {
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
             body: JSON.stringify(payload)
         })
-        .then(handleFetchErrors)
+        .then(handleFetchErrors) // Use helper
         .then(data => {
              if (data.status === 'success') {
-                 showActionStatus(data.message || 'File shared!', 'success');
+                 showToast(data.message || 'File shared!', 'success');
                  updateShareUI(fileId, true, data.share_url, data.password_protected, shareToggleButton);
-             } else { throw new Error(data.message || 'Failed to share file.'); }
+             } else {
+                 throw new Error(data.message || 'Failed to share file.');
+             }
          })
-         .catch(error => { console.error('Error during share fetch:', error); showActionStatus(`Error: ${error.message}`, 'error'); });
+         .catch(error => {
+             console.error('Error during share fetch:', error);
+             showToast(`Share Error: ${error.message}`, 'danger');
+         });
     }
+
     function handleUnshareFile(fileId, shareToggleButton) {
-        console.log(`Attempting to unshare file ID: ${fileId}`);
-        showActionStatus(`Unsharing file...`, 'info');
-        fetch(`/files/unshare/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
-        .then(handleFetchErrors)
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
+        // showToast(`Unsharing file...`, 'info', 1500); // Optional feedback
+
+        fetch(`/files/unshare/${fileId}`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(handleFetchErrors) // Use helper
         .then(data => {
              if (data.status === 'success') {
-                 showActionStatus(data.message || 'Sharing disabled.', 'success');
+                 showToast(data.message || 'Sharing disabled.', 'success');
                  updateShareUI(fileId, false, null, false, shareToggleButton);
-             } else { throw new Error(data.message || 'Failed to unshare file.'); }
+             } else {
+                 throw new Error(data.message || 'Failed to unshare file.');
+             }
          })
-         .catch(error => { console.error('Error during unshare fetch:', error); showActionStatus(`Error: ${error.message}`, 'error'); });
+         .catch(error => {
+             console.error('Error during unshare fetch:', error);
+             showToast(`Unshare Error: ${error.message}`, 'danger');
+         });
     }
+
+    // (updateShareUI function remains the same as it only updates the UI)
     function updateShareUI(fileId, isShared, shareUrl, passwordProtected, shareToggleButton) {
         const linkRow = document.getElementById(`share-link-row-${fileId}`);
         const linkDisplayDiv = linkRow ? linkRow.querySelector('.share-link-display') : null;
@@ -665,60 +664,122 @@ function handleFiles(files) {
         }
     }
 
-    // --- Archive/Extract Functions (Unchanged) ---
+
+    // --- Archive/Extract Functions ---
     function handleArchiveFolder(folderId, folderName) {
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
         if (!confirm(`Archive the folder "${folderName}"? This might take a while.`)) return;
-        console.log(`Attempting to archive folder ID: ${folderId}`);
-        showActionStatus('Archiving folder... (this may take a moment)', 'info');
-        fetch(`/files/folder/archive/${folderId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
-        .then(handleFetchErrors)
-        .then(data => { if (data.status === 'success') { showActionStatus(data.message || 'Folder archived! Reloading...', 'success'); setTimeout(() => { location.reload(); }, 1500); } else { throw new Error(data.message || 'Failed to archive folder.'); } })
-        .catch(error => { console.error('Error archiving folder:', error); showActionStatus(`Archive Error: ${error.message}`, 'error'); });
-    }
-    function handleExtractFile(fileId, fileName) {
-        if (!confirm(`Extract the archive "${fileName}" here? Existing files might be overwritten.`)) return;
-        console.log(`Attempting to extract file ID: ${fileId}`);
-        showActionStatus('Extracting archive... (this may take a moment)', 'info');
-        fetch(`/files/extract/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
-        .then(handleFetchErrors)
-        .then(data => { if (data.status === 'success') { showActionStatus(data.message || 'Archive extracted! Reloading...', 'success'); setTimeout(() => { location.reload(); }, 1500); } else { throw new Error(data.message || 'Failed to extract archive.'); } })
-        .catch(error => { console.error('Error extracting archive:', error); showActionStatus(`Extract Error: ${error.message}`, 'error'); });
+
+        showToast('Archiving folder... (this may take a moment)', 'info', 10000); // Longer info toast
+
+        fetch(`/files/folder/archive/${folderId}`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(handleFetchErrors) // Use helper
+        .then(data => {
+            if (data.status === 'success') {
+                showToast(data.message || 'Folder archived! Reloading...', 'success');
+                setTimeout(() => { location.reload(); }, 1500);
+            } else {
+                throw new Error(data.message || 'Failed to archive folder.');
+            }
+        })
+        .catch(error => {
+            console.error('Error archiving folder:', error);
+            showToast(`Archive Error: ${error.message}`, 'danger');
+        });
     }
 
-    // --- Delete Functions (Unchanged) ---
+    function handleExtractFile(fileId, fileName) {
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
+        if (!confirm(`Extract the archive "${fileName}" here? Existing files might be overwritten.`)) return;
+
+        showToast('Extracting archive... (this may take a moment)', 'info', 10000); // Longer info toast
+
+        fetch(`/files/extract/${fileId}`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(handleFetchErrors) // Use helper
+        .then(data => {
+            if (data.status === 'success') {
+                showToast(data.message || 'Archive extracted! Reloading...', 'success');
+                setTimeout(() => { location.reload(); }, 1500);
+            } else {
+                // Handle specific error cases like storage limit from backend
+                if (data.message && data.message.toLowerCase().includes('insufficient storage')) {
+                     showToast(data.message, 'warning', 7000); // Warning for storage limit
+                } else {
+                     throw new Error(data.message || 'Failed to extract archive.');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error extracting archive:', error);
+            showToast(`Extract Error: ${error.message}`, 'danger');
+        });
+    }
+
+    // --- Delete Functions ---
     function handleDeleteFile(fileId, fileName, menuItem) {
+         if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
          if (!confirm(`Are you sure you want to permanently delete '${fileName}'?`)) return;
-         console.log(`Attempting to delete file ID: ${fileId}`);
-         showActionStatus('Deleting file...', 'info');
-         fetch(`/files/delete/${fileId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
-         .then(handleFetchErrors)
+
+         // showToast('Deleting file...', 'info', 1500); // Optional feedback
+
+         fetch(`/files/delete/${fileId}`, {
+             method: 'POST',
+             headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+         })
+         .then(handleFetchErrors) // Use helper
          .then(data => {
              if (data.status === 'success') {
-                 showActionStatus(data.message || 'File deleted!', 'success');
+                 showToast(data.message || `File '${fileName}' deleted!`, 'success');
                  menuItem.closest('tr').remove();
-                 const shareRow = document.getElementById(`share-link-row-${fileId}`); if(shareRow) shareRow.remove();
-             } else { throw new Error(data.message || 'Failed to delete file.'); }
+                 const shareRow = document.getElementById(`share-link-row-${fileId}`);
+                 if(shareRow) shareRow.remove();
+             } else {
+                 throw new Error(data.message || 'Failed to delete file.');
+             }
          })
-         .catch(error => { console.error('Error deleting file:', error); showActionStatus(`Delete Error: ${error.message}`, 'error'); });
+         .catch(error => {
+             console.error('Error deleting file:', error);
+             showToast(`Delete Error: ${error.message}`, 'danger');
+         });
      }
+
     function handleDeleteFolder(folderId, folderName, menuItem) {
+        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
         if (!confirm(`WARNING: This will permanently delete the folder '${folderName}' and ALL its contents (files and subfolders). Are you absolutely sure?`)) return;
-        console.log(`Attempting to delete folder ID: ${folderId}`);
-        showActionStatus('Deleting folder...', 'info');
-        fetch(`/files/folder/delete/${folderId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' } })
-        .then(handleFetchErrors) // Changed here
+
+        // showToast('Deleting folder...', 'info', 3000); // Optional feedback
+
+        fetch(`/files/folder/delete/${folderId}`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(handleFetchErrors) // Use helper
         .then(data => {
              if (data.status === 'success') {
-                 showActionStatus(data.message || 'Folder deleted!', 'success');
+                 showToast(data.message || `Folder '${folderName}' deleted!`, 'success');
                  menuItem.closest('tr').remove();
-             } else { throw new Error(data.message || 'Failed to delete folder.'); }
+             } else {
+                 throw new Error(data.message || 'Failed to delete folder.');
+             }
         })
-        .catch(error => { console.error('Error deleting folder:', error); showActionStatus(`Delete Error: ${error.message}`, 'error'); });
+        .catch(error => {
+            console.error('Error deleting folder:', error);
+            showToast(`Delete Error: ${error.message}`, 'danger');
+        });
     }
+
 
     // --- Context Menu Logic ---
     function closeAllContextMenus(exceptMenu = null) {
-        document.querySelectorAll('.context-menu').forEach(menu => { if (menu !== exceptMenu) { menu.style.display = 'none'; } });
+        document.querySelectorAll('.context-menu').forEach(menu => {
+            if (menu !== exceptMenu) { menu.style.display = 'none'; }
+        });
     }
 
     // --- Main Event Listener Setup ---
@@ -728,7 +789,7 @@ function handleFiles(files) {
             // --- Event Delegation for Clicks ---
             tableBody.addEventListener('click', function(event) {
                 const target = event.target;
-                const row = target.closest('.item-row'); // Get the row for context
+                const row = target.closest('.item-row');
                 const isContextMenuButton = target.classList.contains('btn-context-menu');
                 const isMenuItem = target.classList.contains('menu-item');
                 const isCopyLinkButton = target.classList.contains('btn-copy-link');
@@ -746,21 +807,15 @@ function handleFiles(files) {
                         closeAllContextMenus(); // Close others first
                         menu.style.display = isVisible ? 'none' : 'block';
                     }
-                    event.stopPropagation();
+                    event.stopPropagation(); // Prevent document click listener from closing it immediately
                 }
                 // Handle Menu Item Clicks
-                else if (isMenuItem && row) { // Ensure we have row context
+                else if (isMenuItem && row) {
                     const itemId = row.dataset.itemId;
                     const itemType = row.dataset.itemType;
                     const itemName = row.dataset.itemName;
                     const isPublic = row.dataset.isPublic === 'true';
-                    const isEditableAttributeValue_Dataset = row.dataset.isEditable; // Read via dataset
-                    const isEditableAttributeValue_GetAttr = row.getAttribute('data-is-editable'); // Read via getAttribute
-                    const isEditableComparisonResult_Dataset = isEditableAttributeValue_Dataset === 'true';
-                    const isEditableComparisonResult_GetAttr = isEditableAttributeValue_GetAttr === 'true'; // Compare getAttribute result
-
-                    // Use the result of the comparison from getAttribute for robustness
-                    const isEditable = isEditableComparisonResult_GetAttr;
+                    const isEditable = row.getAttribute('data-is-editable') === 'true'; // Use getAttribute for robustness
 
                     // Copy Action
                     if (target.classList.contains('menu-item-copy')) {
@@ -770,16 +825,14 @@ function handleFiles(files) {
                     else if (target.classList.contains('menu-item-cut')) {
                         setClipboard([{ id: itemId, type: itemType }], 'cut');
                     }
-                // Handle Edit Action
-                else if (target.classList.contains('menu-item-edit')) {
-                    // Use the 'isEditable' variable derived from getAttribute comparison
-                    if (itemType === 'file' && isEditable) { // This condition should pass
-                        window.location.href = `/files/edit/${itemId}`;
-                    } else {
-                        showActionStatus('This item cannot be edited.', 'info');
+                    // Edit Action
+                    else if (target.classList.contains('menu-item-edit')) {
+                        if (itemType === 'file' && isEditable) {
+                            window.location.href = `/files/edit/${itemId}`;
+                        } else {
+                            showToast('This item cannot be edited.', 'info');
+                        }
                     }
-                }
-                // --- END Edit Action Handling ---
                     // File Actions
                     else if (itemType === 'file') {
                         if (target.classList.contains('menu-item-rename')) { handleRenameButtonClick(target, 'file'); }
@@ -794,7 +847,7 @@ function handleFiles(files) {
                          else if (target.classList.contains('menu-item-delete-folder')) { handleDeleteFolder(itemId, itemName, target); }
                     }
 
-                    closeAllContextMenus(); // Close menu after action
+                    closeAllContextMenus(); // Close menu after action selected
                 }
                  // Handle Copy Link Button
                  else if (isCopyLinkButton) {
@@ -805,13 +858,23 @@ function handleFiles(files) {
             // --- Event Delegation for Rename Input Actions ---
             tableBody.addEventListener('focusout', function(event) {
                  if (event.target.classList.contains('itemname-input')) {
-                     setTimeout(() => { if (document.activeElement !== event.target) { handleRenameInputBlurOrEnter(event.target); } }, 150);
+                     // Delay slightly to allow click on another element before blur triggers
+                     setTimeout(() => {
+                         // Check if focus is still within the input (e.g., user clicked inside it)
+                         if (document.activeElement !== event.target) {
+                             handleRenameInputBlurOrEnter(event.target);
+                         }
+                     }, 150);
                  }
             });
             tableBody.addEventListener('keydown', function(event) {
                  if (event.target.classList.contains('itemname-input')) {
-                    if (event.key === 'Enter') { event.preventDefault(); handleRenameInputBlurOrEnter(event.target); }
-                    else if (event.key === 'Escape') { resetRenameInput(event.target); }
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission if inside one
+                        handleRenameInputBlurOrEnter(event.target);
+                    } else if (event.key === 'Escape') {
+                        resetRenameInput(event.target); // Cancel rename on Escape
+                    }
                  }
             });
 
@@ -820,7 +883,8 @@ function handleFiles(files) {
 
      // Global listener to close menus when clicking outside
      document.addEventListener('click', function(event) {
-         if (!event.target.closest('.context-menu-container') && !event.target.classList.contains('btn-context-menu')) {
+         // Close menus if the click is not on a menu button and not inside a menu container
+         if (!event.target.classList.contains('btn-context-menu') && !event.target.closest('.context-menu-container')) {
              closeAllContextMenus();
          }
      });
@@ -831,7 +895,7 @@ function handleFiles(files) {
      }
 
      // Initial setup for paste button visibility and cut item styling
-     updatePasteButtonVisibility(); // Check if backend already put something in session? (Unlikely setup here, but good practice)
+     updatePasteButtonVisibility();
      updateCutItemVisuals();
 
 }); // End DOMContentLoaded
