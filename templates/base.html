@@ -9,7 +9,7 @@
     <style>
     </style>
 </head>
-<body>
+<body {% if request.endpoint in ['ollama_chat', 'group_chat'] %}class="chat-page"{% endif %}>
 <nav>
     <ul>
         {% if current_user.is_authenticated %}
@@ -17,6 +17,7 @@
             <li><a href="{{ url_for('list_files') }}">Files</a></li>
             {# Notes Link #}
             <li><a href="{{ url_for('list_notes') }}">Notes</a></li>
+            <li><a href="{{ url_for('group_chat') }}">Chat</a></li>
             {# --- Conditionally display Chat link --- #}
             {% if settings.ollama_enabled %}
                 <li><a href="{{ url_for('ollama_chat') }}">Ollama</a></li>
