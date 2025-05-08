@@ -33,6 +33,9 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, EmailField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer
+from flask_mail import Mail
+from flask_mail import Message
 
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO) # Log informational messages and above
@@ -43,6 +46,21 @@ DB_NAME = 'database.db'
 INSTANCE_FOLDER_PATH = os.path.join(BASE_DIR, 'instance')
 UPLOAD_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'uploads')
 
+DEFAULT_SETTINGS = {
+    'allow_registration': 'true',
+    'default_storage_limit_mb': '1024',
+    'max_upload_size_mb': '100', # Default max file upload size
+    'ollama_api_url': '',
+    'ollama_model': 'llama3.2:3b',
+    'MAIL_SERVER': 'smtp.gmail.com',
+    'MAIL_PORT': '465',
+    'MAIL_USE_TLS': 'false',
+    'MAIL_USE_SSL': 'true',
+    'MAIL_USERNAME': 'noreply@example.com',
+    'MAIL_PASSWORD': '', # Store sensitive defaults securely if possible (e.g., env vars)
+    'MAIL_DEFAULT_SENDER_NAME': 'PyCloud',
+    'MAIL_DEFAULT_SENDER_EMAIL': 'noreply@example.com'
+}
 
 DEFAULT_MAX_UPLOAD_MB_FALLBACK = 100
 
@@ -73,7 +91,28 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['VIEWABLE_MIMES'] = VIEWABLE_MIMES
 app.config['EDITABLE_EXTENSIONS'] = EDITABLE_EXTENSIONS
+mail = Mail(app)
 
+
+
+def configure_mail_from_db(current_app):
+    with current_app.app_context(): # Ensure DB operations are within context
+        current_app.config.update(
+            MAIL_SERVER = Setting.get('MAIL_SERVER', 'your_smtp_server'),
+            MAIL_PORT = int(Setting.get('MAIL_PORT', 587)),
+            MAIL_USE_TLS = Setting.get('MAIL_USE_TLS', 'true').lower() == 'true',
+            MAIL_USE_SSL = Setting.get('MAIL_USE_SSL', 'false').lower() == 'true',
+            MAIL_USERNAME = Setting.get('MAIL_USERNAME', 'your_email_username'),
+            MAIL_PASSWORD = Setting.get('MAIL_PASSWORD', 'your_email_password')
+            # MAIL_DEFAULT_SENDER = Setting.get('MAIL_DEFAULT_SENDER', ('Your App Name', 'noreply@yourapp.com'))
+        )
+        # Handle MAIL_DEFAULT_SENDER separately as it might be a tuple
+        sender_name_db = Setting.get('MAIL_DEFAULT_SENDER_NAME', 'Your App Name')
+        sender_email_db = Setting.get('MAIL_DEFAULT_SENDER_EMAIL', 'noreply@yourapp.com')
+        if sender_name_db:
+            current_app.config['MAIL_DEFAULT_SENDER'] = (sender_name_db, sender_email_db)
+        else:
+            current_app.config['MAIL_DEFAULT_SENDER'] = sender_email_db
 # --- Helper function to recursively register extracted items ---
 def register_extracted_items(extract_base_dir, user_id, parent_folder_id_in_db, user_upload_root):
 
@@ -317,12 +356,27 @@ class User(db.Model, UserMixin):
                               cascade="all, delete-orphan")
 
     def set_password(self, password):
-        """Hashes and sets the user's password."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Checks if the provided password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
+
+    # --- ADD THESE METHODS ---
+    def get_reset_token(self, expires_sec=1800): # 1800 seconds = 30 minutes
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800): # Match expiration time
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            # Pass max_age to loads() to check expiration
+            data = s.loads(token, max_age=expires_sec)
+            user_id = data.get('user_id')
+        except Exception: # Catches BadSignature, SignatureExpired, etc.
+            return None
+        return User.query.get(user_id)
+    # --- END OF METHODS TO ADD ---
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -560,7 +614,38 @@ class AdminSettingsForm(FlaskForm):
         description="The name of the Ollama model to use (e.g., 'llama3', 'mistral'). Required if URL is set."
     )
     # --- END ADD ---
+
+    # --- NEW SMTP Fields ---
+    mail_server = StringField('SMTP Server Host',
+                              validators=[Optional(), Length(max=100)])
+    mail_port = IntegerField('SMTP Port',
+                             validators=[Optional(), NumberRange(min=1, max=65535)])
+    mail_use_tls = BooleanField('Use TLS')
+    mail_use_ssl = BooleanField('Use SSL')
+    mail_username = StringField('SMTP Username/Email',
+                                validators=[Optional(), Length(max=100)])
+    # For mail_password, use Optional() so it's not required on every form submission
+    # The logic in the route will only update the password if a new value is provided.
+    mail_password = PasswordField('SMTP Password',
+                                  validators=[Optional(), Length(min=1, max=100)]) # Min length if provided
+    mail_default_sender_name = StringField('Default Sender Name',
+                                           validators=[Optional(), Length(max=100)],
+                                           description='The "From" name displayed in emails.')
+    mail_default_sender_email = EmailField('Default Sender Email',
+                                           validators=[Optional(), Email(), Length(max=120)],
+                                           description='The "From" email address.')
+    # --- END NEW SMTP Fields ---
+
     submit = SubmitField('Save Settings')
+
+class ForgotPasswordForm(FlaskForm):
+    email = EmailField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Reset Password')
 
 # --- Routes ---
 @app.route('/')
@@ -854,81 +939,117 @@ def extract_file(file_id):
 def admin_settings():
     if not current_user.is_admin:
         flash('You do not have permission to access this page.', 'danger')
-        return redirect(url_for('list_files'))
+        return redirect(url_for('list_files')) # Or your main page
 
     form = AdminSettingsForm()
-    DEFAULT_MAX_UPLOAD_MB = 100 # Default if setting is missing
+    # Define default values here for clarity, especially for GET requests
+    # These match the DEFAULT_SETTINGS dictionary used in create_db
+    # (It would be good to have DEFAULT_SETTINGS accessible here too, e.g., from a config file or app.config)
+    default_mail_settings = {
+        'MAIL_SERVER': 'smtp.example.com',
+        'MAIL_PORT': 587, # Integer
+        'MAIL_USE_TLS': True, # Boolean
+        'MAIL_USE_SSL': False, # Boolean
+        'MAIL_USERNAME': '',
+        'MAIL_PASSWORD': '', # Password is not pre-filled for security
+        'MAIL_DEFAULT_SENDER_NAME': 'PyCloud',
+        'MAIL_DEFAULT_SENDER_EMAIL': 'noreply@example.com'
+    }
 
-    # --- MOVE THESE DEFINITIONS HERE ---
-    DEFAULT_OLLAMA_URL = '' # Default to disabled
-    DEFAULT_OLLAMA_MODEL = 'llama3' # Or your preferred default
-    # --- END MOVE ---
 
     if form.validate_on_submit():
-        # --- POST Request ---
+        # --- POST Request: Save settings ---
         try:
-            # Fetch existing setting values
-            allow_reg_val = str(form.allow_registration.data).lower()
-            limit_val = str(form.default_storage_limit_mb.data)
-            max_upload_val_from_form = form.max_upload_size_mb.data # Get integer from form
-            max_upload_val_to_save = str(max_upload_val_from_form) # Convert to string for saving
+            # General Settings
+            Setting.set('allow_registration', str(form.allow_registration.data).lower())
+            Setting.set('default_storage_limit_mb', str(form.default_storage_limit_mb.data))
+            Setting.set('max_upload_size_mb', str(form.max_upload_size_mb.data))
 
-            # Fetch Ollama settings from form
-            ollama_url_val = form.ollama_api_url.data or '' # Store empty string if None/empty
-            ollama_model_val = form.ollama_model.data or '' # Store empty string if None/empty
+            # Ollama Settings
+            Setting.set('ollama_api_url', form.ollama_api_url.data or '')
+            Setting.set('ollama_model', form.ollama_model.data or '')
 
-            # Basic validation: if URL is provided, model should also be provided
-            if ollama_url_val and not ollama_model_val:
-                flash('Ollama Model Name is required if Ollama API URL is provided.', 'warning')
-                # Re-render form with the current (unsaved) data
-                # Note: No need to re-fetch from DB here, form holds the submitted values
-                return render_template('admin_settings.html', title='Admin Settings', form=form)
+            # --- SMTP Settings ---
+            Setting.set('MAIL_SERVER', form.mail_server.data or '')
+            Setting.set('MAIL_PORT', str(form.mail_port.data) if form.mail_port.data is not None else str(default_mail_settings['MAIL_PORT']))
+            Setting.set('MAIL_USE_TLS', str(form.mail_use_tls.data).lower())
+            Setting.set('MAIL_USE_SSL', str(form.mail_use_ssl.data).lower())
+            Setting.set('MAIL_USERNAME', form.mail_username.data or '')
 
-            # Save settings to DB
-            Setting.set('allow_registration', allow_reg_val)
-            Setting.set('default_storage_limit_mb', limit_val)
-            Setting.set('max_upload_size_mb', max_upload_val_to_save)
-            Setting.set('ollama_api_url', ollama_url_val)
-            Setting.set('ollama_model', ollama_model_val)
+            # Only update password if a new one is provided
+            if form.mail_password.data:
+                Setting.set('MAIL_PASSWORD', form.mail_password.data)
+            # Else, the existing password in the DB (or empty if never set) remains unchanged
+
+            Setting.set('MAIL_DEFAULT_SENDER_NAME', form.mail_default_sender_name.data or '')
+            Setting.set('MAIL_DEFAULT_SENDER_EMAIL', form.mail_default_sender_email.data or '')
 
             db.session.commit()
             flash('Settings updated successfully!', 'success')
-            app.logger.info(f"Admin settings saved by {current_user.username}. Ollama URL: '{ollama_url_val}', Model: '{ollama_model_val}'")
-            return redirect(url_for('admin_settings')) # Redirect after successful POST
+            app.logger.info(f"Admin settings saved by {current_user.username}.")
+
+            # Reload mail configuration in the app context if settings changed
+            # This is important if your app.config mail settings are loaded at startup
+            # and need to be refreshed without restarting the whole app.
+            with app.app_context():
+                app.config['MAIL_SERVER'] = Setting.get('MAIL_SERVER', default_mail_settings['MAIL_SERVER'])
+                app.config['MAIL_PORT'] = int(Setting.get('MAIL_PORT', default_mail_settings['MAIL_PORT']))
+                app.config['MAIL_USE_TLS'] = Setting.get('MAIL_USE_TLS', 'true').lower() == 'true'
+                app.config['MAIL_USE_SSL'] = Setting.get('MAIL_USE_SSL', 'false').lower() == 'true'
+                app.config['MAIL_USERNAME'] = Setting.get('MAIL_USERNAME', default_mail_settings['MAIL_USERNAME'])
+                # MAIL_PASSWORD is used by Flask-Mail directly from app.config,
+                # but we don't re-set it here from DB to avoid logging it if it's sensitive.
+                # Flask-Mail will pick up the new password if it was updated in the DB and
+                # the mail object is re-initialized or if it reads from app.config dynamically.
+                # For simplicity, assume Flask-Mail re-reads or you handle its re-init elsewhere if needed.
+
+                sender_name_db = Setting.get('MAIL_DEFAULT_SENDER_NAME', default_mail_settings['MAIL_DEFAULT_SENDER_NAME'])
+                sender_email_db = Setting.get('MAIL_DEFAULT_SENDER_EMAIL', default_mail_settings['MAIL_DEFAULT_SENDER_EMAIL'])
+                if sender_name_db:
+                     app.config['MAIL_DEFAULT_SENDER'] = (sender_name_db, sender_email_db)
+                else:
+                     app.config['MAIL_DEFAULT_SENDER'] = sender_email_db
+                app.logger.info("App mail config reloaded from DB settings.")
+
+
+            return redirect(url_for('admin_settings'))
 
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error updating settings by {current_user.username}: {e}", exc_info=True)
             flash('Failed to update settings.', 'danger')
-        # If POST fails after validation (e.g., DB error), fall through to render template
 
     elif request.method == 'GET':
-        # --- GET Request ---
-        # Populate allow_registration
-        allow_reg_current = Setting.get('allow_registration', 'true')
-        form.allow_registration.data = (allow_reg_current == 'true')
-
-        # Populate default_storage_limit_mb (with error handling)
+        # --- GET Request: Populate form with current settings ---
         try:
-            default_limit_current_str = Setting.get('default_storage_limit_mb', '1024')
-            form.default_storage_limit_mb.data = int(default_limit_current_str)
-        except (ValueError, TypeError):
-            app.logger.warning(f"Invalid default_storage_limit_mb value in settings: '{default_limit_current_str}'. Setting form field to 1024.")
-            form.default_storage_limit_mb.data = 1024
+            # General Settings
+            form.allow_registration.data = (Setting.get('allow_registration', 'true') == 'true')
+            form.default_storage_limit_mb.data = int(Setting.get('default_storage_limit_mb', '1024'))
+            form.max_upload_size_mb.data = int(Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))) # Ensure DEFAULT_MAX_UPLOAD_MB_FALLBACK is defined
 
-        # Populate max_upload_size_mb (with error handling)
-        try:
-            max_upload_current_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB))
-            form.max_upload_size_mb.data = int(max_upload_current_str)
-        except (ValueError, TypeError):
-            app.logger.warning(f"Invalid max_upload_size_mb value '{max_upload_current_str}' found in settings. Setting form field to default {DEFAULT_MAX_UPLOAD_MB}.")
-            form.max_upload_size_mb.data = DEFAULT_MAX_UPLOAD_MB
+            # Ollama Settings
+            form.ollama_api_url.data = Setting.get('ollama_api_url', '')
+            form.ollama_model.data = Setting.get('ollama_model', 'llama3')
 
-        # Populate Ollama fields - DEFAULT_OLLAMA_URL/MODEL are now defined
-        form.ollama_api_url.data = Setting.get('ollama_api_url', DEFAULT_OLLAMA_URL)
-        form.ollama_model.data = Setting.get('ollama_model', DEFAULT_OLLAMA_MODEL)
+            # --- SMTP Settings ---
+            form.mail_server.data = Setting.get('MAIL_SERVER', default_mail_settings['MAIL_SERVER'])
+            form.mail_port.data = int(Setting.get('MAIL_PORT', default_mail_settings['MAIL_PORT']))
+            form.mail_use_tls.data = (Setting.get('MAIL_USE_TLS', 'true').lower() == 'true')
+            form.mail_use_ssl.data = (Setting.get('MAIL_USE_SSL', 'false').lower() == 'true')
+            form.mail_username.data = Setting.get('MAIL_USERNAME', default_mail_settings['MAIL_USERNAME'])
+            # Do NOT pre-fill form.mail_password.data for security reasons.
+            # It should always be blank on GET, and only if the admin types something, it gets updated.
+            form.mail_default_sender_name.data = Setting.get('MAIL_DEFAULT_SENDER_NAME', default_mail_settings['MAIL_DEFAULT_SENDER_NAME'])
+            form.mail_default_sender_email.data = Setting.get('MAIL_DEFAULT_SENDER_EMAIL', default_mail_settings['MAIL_DEFAULT_SENDER_EMAIL'])
 
-    # Render the template for GET requests or if POST had errors before redirect
+        except ValueError as ve:
+            app.logger.error(f"ValueError populating admin settings form: {ve}. Check if DB settings are valid integers/booleans where expected.", exc_info=True)
+            flash("Error loading some settings. Values might be corrupted in the database.", "warning")
+        except Exception as e:
+            app.logger.error(f"Unexpected error populating admin_settings form: {e}", exc_info=True)
+            flash("An unexpected error occurred while loading settings.", "danger")
+
+
     return render_template('admin_settings.html', title='Admin Settings', form=form)
 
 @app.route('/admin/users')
@@ -1078,6 +1199,21 @@ def get_user_storage_info(user):
         'limit_mb': limit_mb if limit_mb > 0 else None, # Return None for unlimited MB
         'limit_type': limit_type # ADDED: 'user' or 'default'
     }
+
+# --- Helper Function for Password Reset ---
+def get_reset_token(self, expires_sec=1800): # 1800 seconds = 30 minutes
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return s.dumps({'user_id': self.id})
+
+@staticmethod
+def verify_reset_token(token):
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        data = s.loads(token)
+        user_id = data.get('user_id')
+    except Exception: # Catches BadSignature, SignatureExpired, etc.
+        return None
+    return User.query.get(user_id)
 
 @app.route('/files/edit/<int:file_id>', methods=['GET', 'POST'])
 @login_required
@@ -2887,149 +3023,190 @@ def delete_note(note_id):
 
     return redirect(url_for('list_notes'))
 
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('list_files')) # Or your main authenticated page
+
+    form = ForgotPasswordForm() # Assuming you have this form defined
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = user.get_reset_token() # Assuming get_reset_token method on User model
+            reset_url = url_for('reset_token', token=token, _external=True)
+
+            # --- Prepare Email ---
+            subject = "Password Reset Request"
+
+            # Get sender from app config, provide a fallback
+            # Ensure MAIL_DEFAULT_SENDER_NAME and MAIL_DEFAULT_SENDER_EMAIL are set in admin settings
+            sender_name = Setting.get('MAIL_DEFAULT_SENDER_NAME', 'PyCloud')
+            sender_email = Setting.get('MAIL_DEFAULT_SENDER_EMAIL', 'noreply@example.com')
+
+            actual_sender = (str(sender_name), str(sender_email)) if sender_name else str(sender_email)
+
+            # Plain text body (for email clients that don't support HTML)
+            text_body = f"""Hello {user.username},
+
+We received a request to reset the password for your account.
+To reset your password, please visit the following link:
+{reset_url}
+
+This link is valid for approximately 30 minutes.
+
+If you did not request a password reset, please ignore this email. No changes will be made to your account.
+
+Thank you,
+The {sender_name} Team
+"""
+            # HTML body (rendered from the new template)
+            html_body = render_template(
+                'reset_email.html', # Your new HTML email template
+                subject=subject,
+                username=user.username,
+                reset_url=reset_url,
+                app_name=sender_name, # Use the configured sender name as app_name
+            )
+
+            msg = Message(subject,
+                          sender=actual_sender,
+                          recipients=[user.email])
+            msg.body = text_body # Set the plain text part
+            msg.html = html_body # Set the HTML part
+
+            try:
+                current_app.logger.info(f"Attempting to send password reset email to {user.email} from {actual_sender}")
+                mail.send(msg)
+                flash('An email has been sent with instructions to reset your password.', 'info')
+            except Exception as e:
+                current_app.logger.error(f"Failed to send password reset email to {user.email}: {e}", exc_info=True)
+                flash('There was an error sending the password reset email. Please try again later or contact support.', 'danger')
+        else:
+            # To prevent email enumeration, show the same message whether the user exists or not.
+            flash('If an account with that email exists, an email has been sent with instructions to reset your password.', 'info')
+
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html', title='Forgot Password', form=form)
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('list_files'))
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('That is an invalid or expired token.', 'warning')
+        return redirect(url_for('forgot_password'))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
+        db.session.commit()
+        flash('Your password has been updated! You are now able to log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('reset_password.html', title='Reset Password', form=form, token=token)
+
 
 # --- Utility Function to Create Database ---
 def create_db(app_instance):
-    """Creates instance folder, upload folder, DB tables, and seeds settings."""
-    DEFAULT_STORAGE_LIMIT_MB = 1024 # 1 GB
-    DEFAULT_OLLAMA_URL = ''
-    DEFAULT_OLLAMA_MODEL = 'llama3' # Or your preferred default
-
+    """
+    Creates instance folder, upload folder, database tables, and seeds essential settings.
+    This function is designed to be idempotent.
+    """
     with app_instance.app_context():
-        # --- Ensure Instance and Upload Folders Exist ---
+        # --- 1. Ensure Folders Exist ---
         try:
+            # Instance folder
             if not os.path.exists(app_instance.instance_path):
                 os.makedirs(app_instance.instance_path)
-                app.logger.info(f"Created instance folder: {app_instance.instance_path}")
-            upload_folder_path = app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER) # Get path from config
+                app_instance.logger.info(f"Created instance folder: {app_instance.instance_path}")
+
+            # Upload folder (defined in app.config)
+            upload_folder_path = app_instance.config.get('UPLOAD_FOLDER')
+            if not upload_folder_path:
+                # Fallback if UPLOAD_FOLDER is not in config for some reason during early init
+                upload_folder_path = os.path.join(app_instance.instance_path, 'uploads')
+                app_instance.config['UPLOAD_FOLDER'] = upload_folder_path # Ensure it's set
+                app_instance.logger.warning(f"UPLOAD_FOLDER not in app.config, using default: {upload_folder_path}")
+
             if not os.path.exists(upload_folder_path):
                 os.makedirs(upload_folder_path)
-                app.logger.info(f"Created base upload folder: {upload_folder_path}")
+                app_instance.logger.info(f"Created base upload folder: {upload_folder_path}")
+
         except OSError as e:
-            app.logger.error(f"Error creating instance or upload folders: {e}", exc_info=True)
-            # Consider how critical this is - maybe raise the error?
+            app_instance.logger.error(f"OSError creating instance or upload folders: {e}", exc_info=True)
+            # Depending on severity, you might want to raise the error or exit
+            # For now, we'll log and continue, as DB creation might still be possible
+            # if instance_path itself is writable.
 
-        # --- Database Checks ---
-        db_path = os.path.join(app_instance.instance_path, DB_NAME) # DB should be in instance folder
-        app_instance.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}' # Update URI to use instance path
+        # --- 2. Database URI and Path ---
+        # Ensure the DB is in the instance folder for portability and security
+        db_path_in_instance = os.path.join(app_instance.instance_path, DB_NAME) # DB_NAME should be a global constant
 
-        db_exists = os.path.exists(db_path)
+        # Crucially update the app's config if it's not already pointing to the instance path
+        # This ensures SQLAlchemy uses the correct path, especially if create_db is called early.
+        expected_db_uri = f'sqlite:///{db_path_in_instance}'
+        if app_instance.config.get('SQLALCHEMY_DATABASE_URI') != expected_db_uri:
+            app_instance.config['SQLALCHEMY_DATABASE_URI'] = expected_db_uri
+            app_instance.logger.info(f"Updated SQLALCHEMY_DATABASE_URI to: {expected_db_uri}")
+            # Re-initialize db with the app if it was initialized before this config change
+            # This depends on how `db` is initialized. If `db = SQLAlchemy()` then `db.init_app(app_instance)`
+            # If `db = SQLAlchemy(app_instance)`, this update should be fine.
 
+        db_exists = os.path.exists(db_path_in_instance)
+
+        # --- 3. Create Tables if Database is New ---
         if not db_exists:
-            app.logger.info(f"Database file not found at {db_path}. Creating database and all tables...")
+            app_instance.logger.info(f"Database file not found at {db_path_in_instance}. Creating database and all tables...")
+            try:
+                db.create_all() # `db` is your SQLAlchemy instance
+                app_instance.logger.info("Database and tables created successfully.")
+                # After creating tables, we will proceed to seed all settings.
+            except Exception as e:
+                db.session.rollback()
+                app_instance.logger.error(f"Failed to create database/tables: {e}", exc_info=True)
+                return # Stop if DB creation fails
+        else:
+            app_instance.logger.info(f"Database file found at {db_path_in_instance}. Checking structure and settings...")
+            # If DB exists, still run create_all() - it's safe and creates missing tables.
             try:
                 db.create_all()
-                app.logger.info("Database and tables created successfully.")
-
-                # --- Safer Initial Seeding ---
-                app.logger.info("Seeding initial settings...")
-                settings_to_add = []
-                # Check and add allow_registration
-                if not Setting.query.filter_by(key='allow_registration').first():
-                    settings_to_add.append(Setting(key='allow_registration', value='true'))
-                # Check and add default_storage_limit_mb
-                if not Setting.query.filter_by(key='default_storage_limit_mb').first():
-                    settings_to_add.append(Setting(key='default_storage_limit_mb', value=str(DEFAULT_STORAGE_LIMIT_MB)))
-
-
-                # Check and add Ollama settings
-                if not Setting.query.filter_by(key='ollama_api_url').first():
-                    settings_to_add.append(Setting(key='ollama_api_url', value=DEFAULT_OLLAMA_URL))
-                if not Setting.query.filter_by(key='ollama_model').first():
-                    settings_to_add.append(Setting(key='ollama_model', value=DEFAULT_OLLAMA_MODEL))
-
-
-                if settings_to_add:
-                    db.session.add_all(settings_to_add)
-                    db.session.commit()
-                    app.logger.info(f"Initial settings seeded: {[s.key for s in settings_to_add]}")
-                else:
-                    app.logger.info("Essential settings already exist, skipping initial seed.")
-
-                # --- Database structure checks ---
-                try:
-                     # ... (inspector setup) ...
-                     # Ensure Ollama settings are checked/added if DB exists but settings are missing
-                     settings_to_commit = False
-                     # ... (check allow_registration, default_storage_limit_mb, max_upload_size_mb) ...
-                     if Setting.get('ollama_api_url') is None:
-                          app.logger.warning("Setting 'ollama_api_url' missing. Seeding default.")
-                          Setting.set('ollama_api_url', DEFAULT_OLLAMA_URL)
-                          settings_to_commit = True
-                     if Setting.get('ollama_model') is None:
-                          app.logger.warning("Setting 'ollama_model' missing. Seeding default.")
-                          Setting.set('ollama_model', DEFAULT_OLLAMA_MODEL)
-                          settings_to_commit = True
-
-                     if settings_to_commit:
-                         db.session.commit()
-
-                     app.logger.info("Database structure and settings checks complete.")
-                except Exception as e:
-                     db.session.rollback()
-                     app.logger.error(f"Error inspecting database or ensuring settings: {e}", exc_info=True)
-
-
+                app_instance.logger.info("db.create_all() run on existing database (creates missing tables if any).")
             except Exception as e:
-                db.session.rollback()
-                app.logger.error(f"Failed to create database/tables/seed settings: {e}", exc_info=True)
-        else:
-            # Database exists, check tables and ensure essential settings are present
-            app.logger.info(f"Database file found at {db_path}. Checking structure...")
-            try:
-                inspector = db.inspect(db.engine)
-                all_tables = inspector.get_table_names()
-                required_tables = {
-                    User.__tablename__: ['storage_limit_mb'],
-                    Setting.__tablename__: [],
-                    Note.__tablename__: [],
-                    Folder.__tablename__: ['parent_folder_id'], # Check new Folder table
-                    File.__tablename__: ['parent_folder_id', 'is_public', 'public_id', 'public_password_hash'], # <-- Check new column
-                    OllamaChatMessage.__tablename__: ['user_id', 'role', 'content', 'timestamp'],
-                    GroupChatMessage.__tablename__: ['user_id', 'content', 'file_id', 'timestamp'],
-                }
+                app_instance.logger.error(f"Error running db.create_all() on existing database: {e}", exc_info=True)
+                # Continue to settings check even if this fails, as tables might mostly be okay.
 
-                # Check for missing tables
-                missing_tables = [tbl for tbl in required_tables if tbl not in all_tables]
-                if missing_tables:
-                     app.logger.warning(f"Missing tables found: {missing_tables}. Attempting creation...")
-                     db.create_all() # Try creating only missing tables
+        # --- 4. Seed/Verify Essential Settings ---
+        app_instance.logger.info("Verifying and seeding essential application settings...")
+        settings_changed_in_db = False
+        try:
+            for key, default_value in DEFAULT_SETTINGS.items():
+                # Setting.get() is assumed to work correctly within app_context
+                current_value = Setting.get(key)
+                if current_value is None:
+                    app_instance.logger.info(f"Setting '{key}' not found. Seeding with default: '{default_value}'.")
+                    Setting.set(key, default_value) # Setting.set() handles add/update
+                    settings_changed_in_db = True
 
-                # Check for missing columns in existing tables
-                for table_name, req_columns in required_tables.items():
-                    if table_name in all_tables: # Only check if table exists
-                        columns = [c['name'] for c in inspector.get_columns(table_name)]
-                        for req_col in req_columns:
-                            if req_col not in columns:
-                                app.logger.critical(f"CRITICAL: Column '{req_col}' missing from '{table_name}'.")
-                                app.logger.critical("ALERT: Database schema mismatch. For dev, DELETE '{db_path}' and restart. For prod, use migrations.")
-                                # In a real app, you might raise an error or exit here
+            if settings_changed_in_db:
+                db.session.commit()
+                app_instance.logger.info("Committed new/updated default settings to the database.")
+            else:
+                app_instance.logger.info("All essential settings are already present in the database.")
 
-                # Check and seed essential settings if missing
-                settings_to_commit = False
-                if Setting.get('allow_registration') is None:
-                    app.logger.warning("Setting 'allow_registration' missing. Seeding default ('true').")
-                    Setting.set('allow_registration', 'true')
-                    settings_to_commit = True
-                if Setting.get('default_storage_limit_mb') is None:
-                     app.logger.warning(f"Setting 'default_storage_limit_mb' missing. Seeding default ('{DEFAULT_STORAGE_LIMIT_MB}').")
-                     Setting.set('default_storage_limit_mb', str(DEFAULT_STORAGE_LIMIT_MB))
-                     settings_to_commit = True
-                if OllamaChatMessage.__tablename__ in all_tables:
-                    columns = [c['name'] for c in inspector.get_columns(OllamaChatMessage.__tablename__)]
-                    for req_col in required_tables[OllamaChatMessage.__tablename__]:
-                         if req_col not in columns:
-                              app.logger.critical(f"CRITICAL: Column '{req_col}' missing from '{OllamaChatMessage.__tablename__}'.")
-                              # Add migration/alert logic as before
+        except Exception as e:
+            db.session.rollback()
+            app_instance.logger.error(f"Error verifying/seeding settings: {e}", exc_info=True)
 
-                if settings_to_commit:
-                    db.session.commit()
+        # --- 5. (Optional) Further Schema/Column Checks for Existing DBs ---
+        # This part can be extensive. For now, db.create_all() handles missing tables.
+        # If you need to check for missing columns in *existing* tables,
+        # you'd use SQLAlchemy's inspection tools (inspector.get_columns),
+        # which is more advanced and often handled by migration tools like Alembic in larger apps.
+        # For simplicity in this context, we rely on db.create_all() for table presence
+        # and assume model definitions are the source of truth for columns in new tables.
 
-                app.logger.info("Database structure and settings checks complete.")
-
-            except Exception as e:
-                db.session.rollback()
-                app.logger.error(f"Error inspecting database or ensuring settings: {e}", exc_info=True)
+        app_instance.logger.info("Database initialization and settings check complete.")
 
 class OllamaChatMessage(db.Model):
     """Model for storing individual ollama chat messages per user."""
@@ -3216,4 +3393,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(INSTANCE_FOLDE
 # --- Run Application ---
 if __name__ == '__main__':
     create_db(app)
+    configure_mail_from_db(app)
+    mail.init_app(app)
     app.run(debug=True, host='0.0.0.0', port=8080)
