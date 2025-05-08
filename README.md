@@ -6,3 +6,4 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### AI Chat (Ollama)
 ### General Group Chat
 ### Admin Settings
+### Password reset using smtp
