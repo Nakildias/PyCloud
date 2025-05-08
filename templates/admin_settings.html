@@ -22,7 +22,7 @@
             {% endif %}
         </fieldset>
 
-        <fieldset>
+        <fieldset style="margin-bottom: 20px;">
             <legend>File Storage</legend>
             {# Default Storage Limit #}
             <div class="form-group">
@@ -53,7 +53,7 @@
             </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset style="margin-bottom: 20px;">
             <legend>User Management</legend>
             {# User Management Link #}
             <div class="form-group">
@@ -61,17 +61,18 @@
             </div>
         </fieldset>
 
-        {# --- NEW: Ollama Settings Fieldset --- #}
+        {# --- Ollama Settings Fieldset --- #}
         <fieldset style="margin-bottom: 20px;">
             <legend>Ollama Integration (AI Chat)</legend>
 
-            {# Ollama API URL Field #}
             <div class="form-group">
                  {{ form.ollama_api_url.label }}
                  {{ form.ollama_api_url(class="form-control", placeholder="e.g., http://localhost:11434") }}
                  <small class="form-text text-muted">
                     {% if form.ollama_api_url.description %}
                         {{ form.ollama_api_url.description }}
+                    {% else %}
+                        URL for your Ollama instance. Leave blank to disable Ollama integration.
                     {% endif %}
                  </small>
                 {% if form.ollama_api_url.errors %}
@@ -81,13 +82,14 @@
                 {% endif %}
             </div>
 
-            {# Ollama Model Name Field #}
             <div class="form-group">
                  {{ form.ollama_model.label }}
                  {{ form.ollama_model(class="form-control", placeholder="e.g., llama3") }}
                  <small class="form-text text-muted">
                     {% if form.ollama_model.description %}
                         {{ form.ollama_model.description }}
+                    {% else %}
+                        The name of the Ollama model to use. Required if URL is set.
                     {% endif %}
                  </small>
                 {% if form.ollama_model.errors %}
@@ -97,8 +99,79 @@
                 {% endif %}
             </div>
         </fieldset>
-        {# --- END: Ollama Settings Fieldset --- #}
 
+        {# --- NEW: Email (SMTP) Settings Fieldset --- #}
+        <fieldset style="margin-bottom: 20px;">
+            <legend>Email (SMTP) Settings for Password Resets</legend>
+
+            <div class="form-group">
+                {{ form.mail_server.label }}
+                {{ form.mail_server(class="form-control", placeholder="e.g., smtp.gmail.com") }}
+                {% if form.mail_server.errors %}
+                    <ul class="errors">{% for error in form.mail_server.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.mail_port.label }}
+                {{ form.mail_port(class="form-control", style="max-width: 100px;", placeholder="e.g., 587 or 465") }}
+                {% if form.mail_port.errors %}
+                    <ul class="errors">{% for error in form.mail_port.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-check" style="margin-bottom: 5px;">
+                {{ form.mail_use_tls(class="form-check-input") }}
+                {{ form.mail_use_tls.label(class="form-check-label") }}
+            </div>
+            {% if form.mail_use_tls.errors %}
+                <ul class="errors">{% for error in form.mail_use_tls.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            <div class="form-check" style="margin-bottom: 10px;">
+                {{ form.mail_use_ssl(class="form-check-input") }}
+                {{ form.mail_use_ssl.label(class="form-check-label") }}
+            </div>
+            {% if form.mail_use_ssl.errors %}
+                <ul class="errors">{% for error in form.mail_use_ssl.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            <div class="form-group">
+                {{ form.mail_username.label }}
+                {{ form.mail_username(class="form-control", placeholder="Your SMTP username/email") }}
+                {% if form.mail_username.errors %}
+                    <ul class="errors">{% for error in form.mail_username.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.mail_password.label }}
+                {{ form.mail_password(class="form-control", placeholder="Your SMTP password") }}
+                <small class="form-text text-muted">Leave blank if you do not want to update the password.</small>
+                {% if form.mail_password.errors %}
+                    <ul class="errors">{% for error in form.mail_password.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.mail_default_sender_name.label }}
+                {{ form.mail_default_sender_name(class="form-control", placeholder="e.g., PyCloud Notifications") }}
+                <small class="form-text text-muted">The "From" name displayed in emails.</small>
+                {% if form.mail_default_sender_name.errors %}
+                    <ul class="errors">{% for error in form.mail_default_sender_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.mail_default_sender_email.label }}
+                {{ form.mail_default_sender_email(class="form-control", placeholder="e.g., noreply@yourdomain.com") }}
+                <small class="form-text text-muted">The "From" email address.</small>
+                {% if form.mail_default_sender_email.errors %}
+                    <ul class="errors">{% for error in form.mail_default_sender_email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </fieldset>
+        {# --- END: Email (SMTP) Settings Fieldset --- #}
 
         <div class="form-group" style="margin-top: 20px;">
             {{ form.submit(class="btn btn-primary") }}
