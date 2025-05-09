@@ -7,9 +7,10 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### General Group Chat
 ### Admin Settings
 ### Password reset using smtp
+### User profiles ( Bio, profile picture & more ) *NEW*
+### Social Media Posting *NEW*
+### Changeable email ( For user ) *NEW*
 # Upcoming features
-### User profiles ( Bio, profile picture & more )
-### Changeable email ( For user )
 ### Email verification
 ### Rate limiting password reset
 ### Separated Upload Limit for group chat
