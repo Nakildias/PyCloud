@@ -13,22 +13,19 @@
 <nav>
     <ul>
         {% if current_user.is_authenticated %}
-            {# Files Link #}
             <li><a href="{{ url_for('list_files') }}">Files</a></li>
-            {# Notes Link #}
+            <li><a href="{{ url_for('post_feed') }}">Feed</a></li> {# NEW LINK TO POST FEED #}
             <li><a href="{{ url_for('list_notes') }}">Notes</a></li>
             <li><a href="{{ url_for('group_chat') }}">Chat</a></li>
-            {# --- Conditionally display Chat link --- #}
             {% if settings.ollama_enabled %}
                 <li><a href="{{ url_for('ollama_chat') }}">Ollama</a></li>
             {% endif %}
-            {# --- End conditional display --- #}
              {% if current_user.is_admin %}
                 <li><a href="{{ url_for('admin_settings') }}">Admin Settings</a></li>
              {% endif %}
+            <li><a href="{{ url_for('user_profile', username=current_user.username) }}">My Profile</a></li>
             <li><a href="{{ url_for('logout') }}">Logout ({{ current_user.username }})</a></li>
         {% else %}
-             {# ... (logged-out links) ... #}
              <li><a href="{{ url_for('login') }}">Login</a></li>
              {% if settings.allow_registration %}
                  <li><a href="{{ url_for('register') }}">Register</a></li>
@@ -38,31 +35,20 @@
 </nav>
 
 <div class="container">
-
-
     {% block content %}
     {% endblock %}
 </div>
 
 <div id="toast-container"></div>
 
-{# --- Scripts --- #}
-{# Include the new toast.js script #}
 <script src="{{ url_for('static', filename='toast.js') }}"></script>
-
-{# Add inline script to process Flask flashed messages #}
 <script>
-    // Use Flask's get_flashed_messages and safely convert to JSON for JS
     const flashedMessages = {{ get_flashed_messages(with_categories=true)|tojson }};
-
-    // Wait for the DOM to be fully loaded before showing toasts
     document.addEventListener('DOMContentLoaded', function() {
         if (flashedMessages && flashedMessages.length > 0) {
             flashedMessages.forEach(function(flash) {
-                // flash is an array: [category, message]
                 const category = flash[0];
                 const message = flash[1];
-                // Call the showToast function from toast.js
                 showToast(message, category);
             });
         }
@@ -70,7 +56,6 @@
 </script>
 
 {% block scripts %}{% endblock %}
-{# --- End Scripts --- #}
 
 </body>
 </html>
