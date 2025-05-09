@@ -103,6 +103,22 @@ function renderMessage(msg, isInitialLoad = false) {
         messageWrapper.classList.add('current-user');
     }
 
+    const pfpDiv = document.createElement('div');
+    pfpDiv.classList.add('chat-message-pfp-container');
+
+    const pfpImg = document.createElement('img');
+    pfpImg.classList.add('chat-message-pfp');
+    if (msg.sender_profile_picture_filename) {
+        // Construct the URL assuming pics are in static/uploads/profile_pics/
+        pfpImg.src = `/static/uploads/profile_pics/${msg.sender_profile_picture_filename}`;
+        pfpImg.alt = `${msg.sender_username}'s profile picture`;
+    } else {
+        // Fallback to a default image or placeholder if needed
+        pfpImg.src = '/static/icons/default-pfp.png'; // CREATE a default image or remove this line
+        pfpImg.alt = 'Default profile picture';
+    }
+    pfpDiv.appendChild(pfpImg);
+
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('chat-message');
     messageDiv.style.position = 'relative'; // For absolute positioning of actions
@@ -110,9 +126,13 @@ function renderMessage(msg, isInitialLoad = false) {
     // Header
     const headerDiv = document.createElement('div');
     headerDiv.classList.add('message-header');
+    const senderLink = document.createElement('a'); // Create an anchor tag
+    senderLink.href = `/user/${msg.sender_username}`; // Link to the user's profile
+    senderLink.classList.add('message-sender');
+    senderLink.textContent = msg.sender_username || `User ${msg.user_id}`;
+    headerDiv.appendChild(senderLink);
     const senderSpan = document.createElement('span');
     senderSpan.classList.add('message-sender');
-    senderSpan.textContent = msg.sender_username || `User ${msg.user_id}`;
     const timestampSpan = document.createElement('span');
     timestampSpan.classList.add('message-timestamp');
     timestampSpan.textContent = formatTimestamp(msg.timestamp);
@@ -228,7 +248,13 @@ function renderMessage(msg, isInitialLoad = false) {
         }
     }
 
+    if (msg.user_id !== currentUserIdGlobal) {
+        messageWrapper.appendChild(pfpDiv); // PFP first for received messages
+    }
     messageWrapper.appendChild(messageDiv);
+    if (msg.user_id === currentUserIdGlobal) {
+        messageWrapper.appendChild(pfpDiv); // PFP last for sent messages
+    }
     chatHistoryDiv.appendChild(messageWrapper);
 
     // Update clientMaxKnownEditTimestamp when rendering/updating any message that has an edit timestamp
