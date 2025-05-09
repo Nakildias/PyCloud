@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_post_macros.html" import display_post %} {# Import the macro #}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="single-post-container" style="max-width: 700px; margin: 20px auto;"> {# Optional container for centering #}
+    {#
+        Check if 'post' variable is available.
+        In your route, you pass 'post=post' to render_template.
+    #}
+    {% if post %}
+        {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+    {% else %}
+        <p>Post not found or unable to display.</p>
+    {% endif %}
+
+    {# Optional: Add a link to go back to the feed or user's profile #}
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="{{ request.referrer or url_for('post_feed') }}" class="btn btn-secondary">&laquo; Go Back</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# Include scripts from base.html #}
+    <script src="{{ url_for('static', filename='posts.js') }}"></script> {# Link to posts.js for like/comment functionality #}
+{% endblock %}
