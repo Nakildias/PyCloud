@@ -1,0 +1,73 @@
+{# templates/create_post.html #}
+{% extends "base.html" %}
+
+{% block title %}Create New Post - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="create-post-container">
+    <h2>Create New Post</h2>
+    <form method="POST" action="{{ url_for('create_post') }}" enctype="multipart/form-data" novalidate class="create-post-form">
+        {{ form.hidden_tag() }} {# CSRF token #}
+
+        <div class="form-group">
+            {{ form.text_content.label(class="form-label") }}
+            {{ form.text_content(class="form-control text-content-area", rows="5", placeholder="Share your thoughts, a photo, or a video...") }}
+            {% if form.text_content.errors %}
+                <ul class="errors">
+                    {% for error in form.text_content.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group file-upload-group">
+            {{ form.photo.label(class="form-label") }}
+            {{ form.photo(class="form-control-file") }}
+            <small class="form-text text-muted">Allowed image types: jpg, png, jpeg, gif, webp. Max size: {{ max_photo_upload_mb }}MB</small>
+            {% if form.photo.errors %}
+                <ul class="errors">
+                    {% for error in form.photo.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group file-upload-group">
+            {{ form.video.label(class="form-label") }}
+            {{ form.video(class="form-control-file") }}
+            <small class="form-text text-muted">Allowed video types: mp4, webm, ogg, mov. Max size: {{ max_video_upload_mb }}MB</small>
+            {% if form.video.errors %}
+                <ul class="errors">
+                    {% for error in form.video.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group submit-group">
+            {{ form.submit(class="btn btn-primary btn-create-post") }}
+            <a href="{{ request.referrer or url_for('user_profile', username=current_user.username) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Optional: Add JS for live preview of images/videos if desired
+document.addEventListener('DOMContentLoaded', function() {
+    const photoInput = document.getElementById('photo'); // Assuming your form field has id="photo"
+    const videoInput = document.getElementById('video'); // Assuming your form field has id="video"
+
+    if (photoInput) {
+        photoInput.addEventListener('change', function(event) {
+            // You could add a preview here
+            // console.log("Photo selected:", event.target.files[0]);
+        });
+    }
+    if (videoInput) {
+        videoInput.addEventListener('change', function(event) {
+            // You could add a preview here
+            // console.log("Video selected:", event.target.files[0]);
+        });
+    }
+});
+</script>
+{% endblock %}
