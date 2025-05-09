@@ -6,10 +6,10 @@ import logging
 import sqlalchemy as sa
 from wtforms import BooleanField
 from datetime import datetime
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, aliased
 from wtforms import TextAreaField
 from flask import abort
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from flask_wtf.file import FileField, FileAllowed, FileRequired
@@ -25,7 +25,7 @@ import zipfile
 import mimetypes
 import codecs
 from sqlalchemy.exc import IntegrityError
-from wtforms.validators import Optional
+from wtforms.validators import Optional, InputRequired
 from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app)
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (LoginManager, UserMixin, login_user, logout_user, login_required, current_user)
@@ -36,6 +36,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from flask_mail import Mail
 from flask_mail import Message
+from PIL import Image, ImageSequence
 
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO) # Log informational messages and above
@@ -45,6 +46,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = 'database.db'
 INSTANCE_FOLDER_PATH = os.path.join(BASE_DIR, 'instance')
 UPLOAD_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'uploads')
+POST_MEDIA_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'uploads', 'post_media')
 
 DEFAULT_SETTINGS = {
     'allow_registration': 'true',
@@ -63,6 +65,9 @@ DEFAULT_SETTINGS = {
 }
 
 DEFAULT_MAX_UPLOAD_MB_FALLBACK = 100
+# --- ADDED: Define defaults for post media limits ---
+DEFAULT_MAX_PHOTO_MB = 10
+DEFAULT_MAX_VIDEO_MB = 50
 
 # --- Viewable MIME Types ---
 # Common types browsers can typically display directly
@@ -93,7 +98,21 @@ app.config['VIEWABLE_MIMES'] = VIEWABLE_MIMES
 app.config['EDITABLE_EXTENSIONS'] = EDITABLE_EXTENSIONS
 mail = Mail(app)
 
-
+# Helper to get post media upload path
+def get_post_media_path():
+    """Helper function to get the upload path for post media INSIDE static folder."""
+    # Use app.root_path to get project root, then navigate to static/uploads/post_media
+    path = os.path.join(app.root_path, 'static', 'uploads', 'post_media')
+    # Ensure the directory exists
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError as e:
+         # Log error if directory creation fails
+         app.logger.error(f"Could not create post media directory: {path} - Error: {e}", exc_info=True)
+         # Depending on desired behavior, you might raise the error
+         # or return None to indicate failure, which should be handled in create_post
+         raise  # Re-raise the error to prevent saving if directory fails
+    return path
 
 def configure_mail_from_db(current_app):
     with current_app.app_context(): # Ensure DB operations are within context
@@ -339,6 +358,10 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 # --- Database Models ---
+followers = db.Table('followers',
+    db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
+)
 class User(db.Model, UserMixin):
     """User model for storing user details."""
     id = db.Column(db.Integer, primary_key=True)
@@ -349,11 +372,32 @@ class User(db.Model, UserMixin):
     storage_limit_mb = db.Column(db.Integer, nullable=True) # NULL means use default
     files = db.relationship('File', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
     notes = db.relationship('Note', backref='author', lazy=True, cascade="all, delete-orphan")
+    bio = db.Column(db.String(2500), nullable=True)
+    profile_picture_filename = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # --- Link Fields ---
+    github_url = db.Column(db.String(255), nullable=True)
+    spotify_url = db.Column(db.String(255), nullable=True)
+    youtube_url = db.Column(db.String(255), nullable=True)
+    twitter_url = db.Column(db.String(255), nullable=True)
+    steam_url = db.Column(db.String(255), nullable=True)
+    twitch_url = db.Column(db.String(255), nullable=True)
+    discord_server_url = db.Column(db.String(255), nullable=True)
+    reddit_url = db.Column(db.String(255), nullable=True)
+    # --- End Link Fields ---
     folders = db.relationship('Folder',
                               foreign_keys='Folder.user_id', # Specify FK for user relationship
                               backref='owner',
                               lazy='dynamic',
                               cascade="all, delete-orphan")
+
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), # Users who follow this user
+        lazy='dynamic'
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -378,6 +422,20 @@ class User(db.Model, UserMixin):
         return User.query.get(user_id)
     # --- END OF METHODS TO ADD ---
 
+    # Helper methods for following
+    def follow(self, user):
+        if not self.is_following(user):
+            self.followed.append(user)
+            return self
+
+    def unfollow(self, user):
+        if self.is_following(user):
+            self.followed.remove(user)
+            return self
+
+    def is_following(self, user):
+        return self.followed.filter(followers.c.followed_id == user.id).count() > 0
+
     def __repr__(self):
         return f'<User {self.username}>'
 
@@ -390,6 +448,13 @@ class CreateFolderForm(FlaskForm):
         # We'll add custom validation in the route for illegal characters/duplicates
     ])
     submit = SubmitField('Create Folder')
+
+class UserLink(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    platform_name = db.Column(db.String(50), nullable=False) # e.g., "GitHub", "Spotify"
+    url = db.Column(db.String(500), nullable=False)
+    user = db.relationship('User', backref=db.backref('links', lazy='dynamic', cascade="all, delete-orphan"))
 
 class EditFileForm(FlaskForm):
     """Form for editing file content."""
@@ -429,6 +494,44 @@ class EditUserForm(FlaskForm):
                 raise ValidationError('That username is already taken. Please choose another.')
 
     # Custom validator to check if email already exists (ignoring the current user)
+    def validate_email(self, email):
+        if email.data != self.original_email:
+            user = User.query.filter_by(email=email.data).first()
+            if user:
+                raise ValidationError('That email is already registered. Please use another.')
+
+class EditProfileForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
+    email = EmailField('Email', validators=[DataRequired(), Email()])
+    bio = TextAreaField('Bio', validators=[Optional(), Length(max=2500)])
+    profile_picture = FileField('Profile Picture', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'png', 'jpeg', 'gif'], 'Images only!')
+    ])
+    # Add fields for links here (see section 3)
+    github_url = URLField('GitHub URL', validators=[Optional(), URL()])
+    spotify_url = URLField('Spotify URL', validators=[Optional(), URL()])
+    youtube_url = URLField('YouTube URL', validators=[Optional(), URL()])
+    twitter_url = URLField('X (Twitter) URL', validators=[Optional(), URL()])
+    steam_url = URLField('Steam URL', validators=[Optional(), URL()])
+    twitch_url = URLField('Twitch URL', validators=[Optional(), URL()])
+    discord_server_url = URLField('Discord Server URL', validators=[Optional(), URL()])
+    reddit_url = URLField('Reddit URL', validators=[Optional(), URL()])
+    # Add more as needed
+
+    submit = SubmitField('Update Profile')
+
+    def __init__(self, original_username=None, original_email=None, *args, **kwargs):
+        super(EditProfileForm, self).__init__(*args, **kwargs)
+        self.original_username = original_username
+        self.original_email = original_email
+
+    def validate_username(self, username):
+        if username.data != self.original_username:
+            user = User.query.filter_by(username=username.data).first()
+            if user:
+                raise ValidationError('That username is already taken. Please choose another.')
+
     def validate_email(self, email):
         if email.data != self.original_email:
             user = User.query.filter_by(email=email.data).first()
@@ -542,6 +645,61 @@ class File(db.Model):
     def __repr__(self):
         return f'<File {self.id}: {self.original_filename}>'
 
+# Association table for Post Likes
+post_likes = db.Table('post_likes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True)
+)
+
+# Association table for Post Dislikes
+post_dislikes = db.Table('post_dislikes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True)
+)
+
+class Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    text_content = db.Column(db.Text, nullable=True)
+    photo_filename = db.Column(db.String(255), nullable=True)
+    video_filename = db.Column(db.String(255), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    original_post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True, index=True)
+
+    author = db.relationship('User', backref=db.backref('posts', lazy='dynamic', order_by='Post.timestamp.desc()'))
+    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan", order_by='Comment.timestamp.asc()')
+
+    # Relationships for likes and dislikes
+    comments = db.relationship('Comment', backref='post',
+                               lazy='select',  # CHANGED FROM 'dynamic'
+                               cascade="all, delete-orphan",
+                               order_by='Comment.timestamp.asc()')
+    likers = db.relationship('User', secondary=post_likes,
+                             lazy='select',  # CHANGED FROM 'dynamic'
+                             backref=db.backref('liked_posts', lazy='dynamic'))
+    dislikers = db.relationship('User', secondary=post_dislikes,
+                                lazy='select',  # CHANGED FROM 'dynamic'
+                                backref=db.backref('disliked_posts', lazy='dynamic'))
+
+    # Relationship for shared posts (reposts)
+    original_post = db.relationship('Post', remote_side=[id], backref=db.backref('shares', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Post {self.id} by User {self.user_id}>'
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False, index=True)
+    text_content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    author = db.relationship('User', backref=db.backref('comments', lazy='dynamic'))
+    # 'post' backref is already defined in Post.comments
+
+    def __repr__(self):
+        return f'<Comment {self.id} by User {self.user_id} on Post {self.post_id}>'
+
 # --- Forms ---
 
 class RegistrationForm(FlaskForm):
@@ -580,6 +738,22 @@ class UploadFileForm(FlaskForm):
         FileRequired(message='No file selected!'),
     ])
     submit = SubmitField('Upload')
+
+class CreatePostForm(FlaskForm):
+    text_content = TextAreaField('What\'s on your mind?', validators=[Length(max=5000)]) # Optional text
+    photo = FileField('Upload Photo', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'png', 'jpeg', 'gif', 'webp'], 'Images only!')
+    ])
+    video = FileField('Upload Video', validators=[
+        Optional(),
+        FileAllowed(['mp4', 'webm', 'ogg', 'mov'], 'Videos only!') # Adjust allowed video types
+    ])
+    submit = SubmitField('Post')
+
+class CommentForm(FlaskForm):
+    text_content = TextAreaField('Write a comment...', validators=[DataRequired(), Length(min=1, max=1000)])
+    submit = SubmitField('Comment')
 
 class AdminSettingsForm(FlaskForm):
     """Form for administrator settings."""
@@ -3106,6 +3280,606 @@ def reset_token(token):
         return redirect(url_for('login'))
     return render_template('reset_password.html', title='Reset Password', form=form, token=token)
 
+@app.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    form = EditProfileForm(original_username=current_user.username, original_email=current_user.email)
+    if form.validate_on_submit():
+        # Update user text data (username, email, bio, links...)
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        current_user.bio = form.bio.data
+        filename = None # Initialize filename
+        if hasattr(current_user, 'github_url'): current_user.github_url = form.github_url.data
+        if hasattr(current_user, 'spotify_url'): current_user.spotify_url = form.spotify_url.data
+        if hasattr(current_user, 'youtube_url'): current_user.youtube_url = form.youtube_url.data
+        if hasattr(current_user, 'twitter_url'): current_user.twitter_url = form.twitter_url.data
+        if hasattr(current_user, 'steam_url'): current_user.steam_url = form.steam_url.data
+        if hasattr(current_user, 'twitch_url'): current_user.twitch_url = form.twitch_url.data
+        if hasattr(current_user, 'discord_server_url'): current_user.discord_server_url = form.discord_server_url.data
+        if hasattr(current_user, 'reddit_url'): current_user.reddit_url = form.reddit_url.data
+
+        # --- Profile Picture Processing ---
+        if form.profile_picture.data:
+            picture_file = form.profile_picture.data
+            picture_path = None # Initialize path
+
+            try:
+                img = Image.open(picture_file)
+
+                # --- Check if it's an animated GIF ---
+                is_animated = getattr(img, 'is_animated', False)
+                file_format = img.format # Get original format
+
+                filename_base = secure_filename(str(current_user.id))
+                static_profile_pics_path = os.path.join(app.root_path, 'static', 'uploads', 'profile_pics')
+                os.makedirs(static_profile_pics_path, exist_ok=True)
+
+                max_size = (256, 256) # Define your desired max dimensions
+
+                if is_animated and file_format == 'GIF':
+                    app.logger.info(f"Processing animated GIF for user {current_user.id}")
+                    filename = f"{filename_base}.gif" # Save as GIF
+                    picture_path = os.path.join(static_profile_pics_path, filename)
+
+                    frames = []
+                    duration = img.info.get('duration', 100) # Default duration per frame
+                    loop = img.info.get('loop', 0) # Default loop count (0 means infinite)
+
+                    for frame in ImageSequence.Iterator(img):
+                        # Create a copy to resize
+                        frame_copy = frame.copy()
+                        # Convert palette ('P') or RGBA to RGB if needed for consistency before thumbnail?
+                        # Often needed if saving palette-based GIFs gives issues. Test this.
+                        if frame_copy.mode == 'P':
+                           frame_copy = frame_copy.convert('RGBA') # Convert via RGBA often preserves palette better
+                        if frame_copy.mode == 'RGBA':
+                           frame_copy = frame_copy.convert('RGB') # Or handle transparency differently if needed
+
+                        frame_copy.thumbnail(max_size, Image.Resampling.LANCZOS) # Use LANCZOS for better quality resize
+                        frames.append(frame_copy)
+
+                    if frames: # Ensure we have frames
+                        # Save the sequence
+                        frames[0].save(picture_path,
+                                       format='GIF',
+                                       save_all=True,
+                                       append_images=frames[1:],
+                                       duration=duration,
+                                       loop=loop,
+                                       optimize=False) # Optimize=False often more reliable for animated GIFs
+                        app.logger.info(f"Saved resized animated GIF: {picture_path}")
+                    else:
+                         raise ValueError("Could not process frames from animated GIF.")
+
+                else:
+                    # --- Process as static image ---
+                    app.logger.info(f"Processing static image (Format: {file_format}) for user {current_user.id}")
+                    filename = f"{filename_base}.jpg" # Save static images as JPEG (or PNG)
+                    picture_path = os.path.join(static_profile_pics_path, filename)
+
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                    # Convert to RGB if necessary (for JPEG)
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+
+                    img.save(picture_path, format='JPEG', quality=85, optimize=True)
+                    app.logger.info(f"Saved resized static image as JPEG: {picture_path}")
+
+                # Update DB field *only if* processing and saving were successful
+                if filename: # Check if filename was successfully set by processing
+                    current_user.profile_picture_filename = filename
+
+            except Exception as e:
+                app.logger.error(f"Error processing profile picture for user {current_user.id}: {e}", exc_info=True)
+                flash(f'Could not process the profile picture ({e}). Please try a different image.', 'danger')
+                filename = None # Ensure filename isn't saved to DB on error
+                # Optional: Delete partially saved file if it exists
+                if picture_path and os.path.exists(picture_path):
+                     try: os.remove(picture_path)
+                     except OSError: pass
+
+        # --- Commit DB Changes ---
+        # This commits username, email, bio, links, and potentially profile_picture_filename
+        try:
+            db.session.commit()
+            if filename: # Only flash success if PFP was part of the update
+                 flash('Your profile (including picture) has been updated!', 'success')
+            else: # Only text fields were updated
+                 flash('Your profile has been updated!', 'success')
+        except Exception as e:
+             db.session.rollback()
+             app.logger.error(f"Error committing profile update for user {current_user.id}: {e}", exc_info=True)
+             flash('An error occurred saving your profile.', 'danger')
+
+        return redirect(url_for('user_profile', username=current_user.username))
+
+    # --- GET Request Logic ---
+    elif request.method == 'GET':
+        # (Populate form fields as before)
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+        form.bio.data = current_user.bio
+        if hasattr(current_user, 'github_url'): form.github_url.data = current_user.github_url
+        if hasattr(current_user, 'spotify_url'): form.spotify_url.data = current_user.spotify_url
+        if hasattr(current_user, 'youtube_url'): form.youtube_url.data = current_user.youtube_url
+        if hasattr(current_user, 'twitter_url'): form.twitter_url.data = current_user.twitter_url
+        if hasattr(current_user, 'steam_url'): form.steam_url.data = current_user.steam_url
+        if hasattr(current_user, 'twitch_url'): form.twitch_url.data = current_user.twitch_url
+        if hasattr(current_user, 'discord_server_url'): form.discord_server_url.data = current_user.discord_server_url
+        if hasattr(current_user, 'reddit_url'): form.reddit_url.data = current_user.reddit_url
+
+    profile_picture_url = None
+    if current_user.profile_picture_filename:
+        profile_picture_url = url_for('static', filename=f'uploads/profile_pics/{current_user.profile_picture_filename}')
+
+    return render_template('edit_profile.html', title='Edit Profile', form=form, profile_picture_url=profile_picture_url)
+
+@app.route('/follow/<username>', methods=['POST'])
+@login_required
+def follow_user(username):
+    user_to_follow = User.query.filter_by(username=username).first_or_404()
+    if user_to_follow == current_user:
+        flash('You cannot follow yourself!', 'warning')
+        return redirect(url_for('user_profile', username=username))
+    current_user.follow(user_to_follow)
+    db.session.commit()
+    flash(f'You are now following {username}.', 'success')
+    return redirect(url_for('user_profile', username=username))
+
+@app.route('/unfollow/<username>', methods=['POST'])
+@login_required
+def unfollow_user(username):
+    user_to_unfollow = User.query.filter_by(username=username).first_or_404()
+    if user_to_unfollow == current_user:
+        flash('You cannot unfollow yourself!', 'warning') # Should not happen if UI is correct
+        return redirect(url_for('user_profile', username=username))
+    current_user.unfollow(user_to_unfollow)
+    db.session.commit()
+    flash(f'You have unfollowed {username}.', 'info')
+    return redirect(url_for('user_profile', username=username))
+
+@app.route('/user/<username>')
+@login_required
+def user_profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    profile_picture_url = None
+    if user.profile_picture_filename:
+        profile_picture_url = url_for('static', filename=f'uploads/profile_pics/{user.profile_picture_filename}')
+
+    # Member since calculation (keep existing)
+    member_since_date = user.created_at.strftime("%B %d, %Y")
+    now = datetime.utcnow()
+    time_difference = now - user.created_at
+    days = time_difference.days
+    if days < 30: member_for = f"{days} day{'s' if days != 1 else ''}"
+    elif days < 365: months = days // 30; member_for = f"{months} month{'s' if months != 1 else ''}"
+    else: years = days // 365; member_for = f"{years} year{'s' if years != 1 else ''}"
+
+    # --- MODIFIED: Query and paginate user's posts ---
+    page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'recent_desc') # Default sort for profile posts
+    comment_form = CommentForm() # Instantiate comment form
+
+    # Base query for this user's posts
+    query = Post.query.filter(Post.user_id == user.id) # Use the relationship backref
+
+    # Apply sorting (similar to feed, but on user.posts)
+    if sort_by == 'recent_desc':
+        query = query.order_by(Post.timestamp.desc())
+    elif sort_by == 'recent_asc':
+        query = query.order_by(Post.timestamp.asc())
+    elif sort_by == 'likes_desc':
+        query = query.outerjoin(post_likes).group_by(Post.id).order_by(db.func.count(post_likes.c.user_id).desc(), Post.timestamp.desc())
+    elif sort_by == 'comments_desc':
+        query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
+    elif sort_by == 'shares_desc':
+        SharedPostAlias = aliased(Post, name='shares_alias')
+        query = query.outerjoin(SharedPostAlias, Post.shares) \
+                       .group_by(Post.id) \
+                       .order_by(db.func.count(SharedPostAlias.id).desc(), Post.timestamp.desc())
+
+    # ... add other sorting options if desired ...
+    else: # Default
+        query = query.order_by(Post.timestamp.desc())
+
+    # Eager load relationships needed by the macro
+    query = query.options(
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename), # Already have user, but good practice
+        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(Post.likers).load_only(User.id),
+        db.joinedload(Post.dislikers).load_only(User.id),
+        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username)
+    )
+
+    posts = query.paginate(page=page, per_page=10) # Paginate the user's posts
+    # --- END MODIFIED ---
+
+    return render_template('user_profile.html', title=f"{user.username}'s Profile",
+                           user=user,
+                           profile_picture_url=profile_picture_url,
+                           member_since_date=member_since_date,
+                           member_for=member_for,
+                           posts=posts, # Pass paginated posts
+                           current_sort=sort_by, # Pass current sort order
+                           comment_form=comment_form, # Pass the form
+                           csrf_token=generate_csrf) # Pass the function
+
+@app.route('/post/<int:post_id>')
+@login_required
+def view_single_post(post_id):
+    post = Post.query.options( # Eager load necessary data
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(Post.likers).load_only(User.id),
+        db.joinedload(Post.dislikers).load_only(User.id),
+        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username)
+    ).get_or_404(post_id)
+
+    comment_form = CommentForm()
+    # You might want a dedicated template like 'view_single_post.html'
+    # Or reuse the feed/profile template structure if it makes sense
+    # For simplicity, let's reuse post_feed.html but only pass the single post
+    # A better approach is a dedicated template.
+    return render_template('view_single_post.html', # Create this template
+                           title=f"Post by {post.author.username}",
+                           post=post,
+                           comment_form=comment_form,
+                           csrf_token=generate_csrf)
+
+@app.route('/post/new', methods=['GET', 'POST'])
+@login_required
+def create_post():
+    form = CreatePostForm()
+    # Fetch upload limits from settings for the template
+    try:
+        max_photo_mb = int(Setting.get('max_photo_upload_mb', str(DEFAULT_MAX_PHOTO_MB)))
+    except (ValueError, TypeError):
+        max_photo_mb = DEFAULT_MAX_PHOTO_MB
+    try:
+        max_video_mb = int(Setting.get('max_video_upload_mb', str(DEFAULT_MAX_VIDEO_MB)))
+    except (ValueError, TypeError):
+        max_video_mb = DEFAULT_MAX_VIDEO_MB
+
+    if form.validate_on_submit():
+        photo_fn = None
+        video_fn = None
+        upload_path = get_post_media_path() # Use helper function
+
+        # --- Handle Photo Upload ---
+        if form.photo.data:
+            try:
+                picture_file = form.photo.data
+                # Add file size check here against max_photo_mb * 1024 * 1024
+                # ...
+                ext = os.path.splitext(secure_filename(picture_file.filename))[1]
+                photo_fn = str(uuid.uuid4()) + ext
+                picture_path = os.path.join(upload_path, photo_fn)
+                # Add image processing/resizing if needed (like profile pics)
+                picture_file.save(picture_path)
+                app.logger.info(f"Post photo saved: {photo_fn}")
+            except Exception as e:
+                app.logger.error(f"Error uploading post photo: {e}", exc_info=True)
+                flash("Error uploading photo.", "danger")
+                photo_fn = None # Ensure it's None on error
+
+        # --- Handle Video Upload ---
+        if form.video.data and not photo_fn: # Only allow one media type for now
+            try:
+                video_file = form.video.data
+                # Add file size check here against max_video_mb * 1024 * 1024
+                # ...
+                ext = os.path.splitext(secure_filename(video_file.filename))[1]
+                video_fn = str(uuid.uuid4()) + ext
+                video_path = os.path.join(upload_path, video_fn)
+                video_file.save(video_path)
+                app.logger.info(f"Post video saved: {video_fn}")
+            except Exception as e:
+                app.logger.error(f"Error uploading post video: {e}", exc_info=True)
+                flash("Error uploading video.", "danger")
+                video_fn = None # Ensure it's None on error
+        elif form.video.data and photo_fn:
+             flash("You can upload a photo OR a video, not both.", "warning")
+
+
+        if not form.text_content.data and not photo_fn and not video_fn:
+            flash('A post must have text, a photo, or a video.', 'warning')
+        elif form.video.data and photo_fn:
+             # Flash message already shown above, just prevent post creation
+             pass
+        else:
+            try:
+                post = Post(user_id=current_user.id,
+                            text_content=form.text_content.data if form.text_content.data else None,
+                            photo_filename=photo_fn,
+                            video_filename=video_fn)
+                db.session.add(post)
+                db.session.commit()
+                flash('Post created!', 'success')
+                return redirect(url_for('user_profile', username=current_user.username)) # Redirect to profile after post
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Error saving post to DB: {e}", exc_info=True)
+                flash("An error occurred while saving the post.", "danger")
+                # Clean up saved files if DB commit fails
+                if photo_fn and 'picture_path' in locals() and os.path.exists(picture_path): os.remove(picture_path)
+                if video_fn and 'video_path' in locals() and os.path.exists(video_path): os.remove(video_path)
+
+
+    # For GET request, or if form validation fails
+    return render_template('create_post.html',
+                            title='New Post',
+                            form=form,
+                            max_photo_upload_mb=max_photo_mb,
+                            max_video_upload_mb=max_video_mb)
+
+@app.route('/post/<int:post_id>/delete', methods=['POST'])
+@login_required
+def delete_post(post_id):
+    post_to_delete = Post.query.get_or_404(post_id)
+
+    # Check permissions:
+    # User must be the author of the post OR an admin
+    if not (post_to_delete.author == current_user or current_user.is_admin):
+        flash('You do not have permission to delete this post.', 'danger')
+        # Redirect to a relevant page, e.g., the post itself or the feed
+        return redirect(request.referrer or url_for('post_feed'))
+
+    try:
+        # --- Delete Associated Media Files (if any) ---
+        upload_path = get_post_media_path() # Your helper function for post media
+
+        if post_to_delete.photo_filename:
+            photo_path = os.path.join(upload_path, post_to_delete.photo_filename)
+            if os.path.exists(photo_path):
+                os.remove(photo_path)
+                app.logger.info(f"Deleted post photo: {photo_path}")
+
+        if post_to_delete.video_filename:
+            video_path = os.path.join(upload_path, post_to_delete.video_filename)
+            if os.path.exists(video_path):
+                os.remove(video_path)
+                app.logger.info(f"Deleted post video: {video_path}")
+
+        # --- Delete Post from Database ---
+        db.session.delete(post_to_delete)
+        db.session.commit()
+        flash('Post deleted successfully.', 'success')
+        app.logger.info(f"Post ID {post_id} deleted by user {current_user.username} (Admin: {current_user.is_admin})")
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting post {post_id}: {e}", exc_info=True)
+        flash('An error occurred while deleting the post.', 'danger')
+
+    # Redirect to the feed or the user's profile page after deletion
+    return redirect(url_for('post_feed')) # Or perhaps url_for('user_profile', username=current_user.username)
+
+@app.route('/post/<int:post_id>/like', methods=['POST'])
+@login_required
+def like_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    # Prevent liking own post? Optional, depends on requirements.
+    # if post.author == current_user:
+    #     return jsonify({'status': 'error', 'message': 'You cannot like your own post.'}), 403
+
+    action = 'liked' # Default action
+    if current_user in post.dislikers: # If previously disliked, remove dislike first
+        post.dislikers.remove(current_user)
+
+    if current_user in post.likers:
+        post.likers.remove(current_user)
+        action = 'unliked'
+    else:
+        post.likers.append(current_user)
+        # action remains 'liked'
+
+    try:
+        db.session.commit()
+        # Use .count() for potentially better performance on large numbers
+        like_count = db.session.query(post_likes).filter_by(post_id=post.id).count()
+        dislike_count = db.session.query(post_dislikes).filter_by(post_id=post.id).count()
+        return jsonify({
+            'status': 'success',
+            'action': action,
+            'likes': like_count,
+            'dislikes': dislike_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error liking post {post_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Database error during like.'}), 500
+
+
+# --- Post Feed ---
+@app.route('/feed')
+@login_required
+def post_feed():
+    page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'recent_desc') # Default sort
+    comment_form = CommentForm() # Instantiate comment form
+
+    followed_users_ids = [user.id for user in current_user.followed]
+    # --- ADDED: Also include the current user's own posts in the feed ---
+    followed_users_ids.append(current_user.id)
+    # Remove duplicates if the user follows themselves
+    followed_users_ids = list(set(followed_users_ids))
+    # --- END ADDITION ---
+
+
+    # Base query for posts from followed users and self
+    query = Post.query.filter(Post.user_id.in_(followed_users_ids))
+
+    # Apply sorting (ensure correct joins/counts for complex sorts)
+    if sort_by == 'recent_desc':
+        query = query.order_by(Post.timestamp.desc())
+    elif sort_by == 'recent_asc':
+        query = query.order_by(Post.timestamp.asc())
+    elif sort_by == 'likes_desc':
+        query = query.outerjoin(post_likes).group_by(Post.id).order_by(db.func.count(post_likes.c.user_id).desc(), Post.timestamp.desc())
+    elif sort_by == 'likes_asc':
+        query = query.outerjoin(post_likes).group_by(Post.id).order_by(db.func.count(post_likes.c.user_id).asc(), Post.timestamp.desc())
+    elif sort_by == 'comments_desc':
+        query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
+    elif sort_by == 'comments_asc':
+         query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).asc(), Post.timestamp.desc())
+    elif sort_by == 'shares_desc':
+        SharedPostAlias = aliased(Post, name='shares_alias')
+        query = query.outerjoin(SharedPostAlias, Post.shares) \
+                       .group_by(Post.id) \
+                       .order_by(db.func.count(SharedPostAlias.id).desc(), Post.timestamp.desc())
+
+    # ... other sort options ...
+    else: # Default
+        query = query.order_by(Post.timestamp.desc())
+
+    # Eager load relationships for efficiency in the template macro
+    query = query.options(
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(Post.likers).load_only(User.id), # Only need ID to check if current_user liked
+        db.joinedload(Post.dislikers).load_only(User.id), # Only need ID to check if current_user disliked
+        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username) # Load original post author if it's a share
+    )
+
+    posts = query.paginate(page=page, per_page=10) # Example pagination
+
+    return render_template('post_feed.html',
+                           title='My Feed',
+                           posts=posts,
+                           current_sort=sort_by,
+                           comment_form=comment_form, # Pass the form
+                           csrf_token=generate_csrf) # Pass the function to generate tokens
+
+
+@app.route('/post/<int:post_id>/dislike', methods=['POST'])
+@login_required
+def dislike_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    # Prevent disliking own post? Optional.
+    # if post.author == current_user:
+    #     return jsonify({'status': 'error', 'message': 'You cannot dislike your own post.'}), 403
+
+    action = 'disliked' # Default action
+    if current_user in post.likers: # If previously liked, remove like first
+        post.likers.remove(current_user)
+
+    if current_user in post.dislikers:
+        post.dislikers.remove(current_user)
+        action = 'undisliked'
+    else:
+        post.dislikers.append(current_user)
+        # action remains 'disliked'
+
+    try:
+        db.session.commit()
+        like_count = db.session.query(post_likes).filter_by(post_id=post.id).count()
+        dislike_count = db.session.query(post_dislikes).filter_by(post_id=post.id).count()
+        return jsonify({
+            'status': 'success',
+            'action': action,
+            'likes': like_count,
+            'dislikes': dislike_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error disliking post {post_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Database error during dislike.'}), 500
+
+
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def add_comment_to_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    # Use request.form for standard form submission, request.json for AJAX
+    is_ajax = request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html
+
+    if is_ajax:
+        data = request.get_json()
+        if not data:
+             return jsonify({'status': 'error', 'message': 'Invalid JSON data.'}), 400
+        text_content = data.get('text_content')
+    else: # Handle standard form submission
+        form = CommentForm()
+        if form.validate_on_submit():
+            text_content = form.text_content.data
+        else:
+            # Handle form validation errors if needed, maybe flash messages
+            flash('Comment could not be posted. Please check the content.', 'danger')
+            return redirect(request.referrer or url_for('post_feed')) # Redirect back
+
+    if not text_content or len(text_content.strip()) == 0:
+        if is_ajax: return jsonify({'status': 'error', 'message': 'Comment text cannot be empty.'}), 400
+        else: flash('Comment text cannot be empty.', 'warning'); return redirect(request.referrer or url_for('post_feed'))
+
+    if len(text_content) > 1000: # Match form validator length
+        if is_ajax: return jsonify({'status': 'error', 'message': 'Comment is too long.'}), 400
+        else: flash('Comment is too long (max 1000 characters).', 'warning'); return redirect(request.referrer or url_for('post_feed'))
+
+    try:
+        comment = Comment(user_id=current_user.id, post_id=post.id, text_content=text_content.strip())
+        db.session.add(comment)
+        db.session.commit()
+        app.logger.info(f"Comment {comment.id} added to post {post_id} by user {current_user.id}")
+
+        if is_ajax:
+            # Return the created comment data for dynamic insertion into the page
+            return jsonify({
+                'status': 'success',
+                'message': 'Comment added.',
+                'comment': {
+                    'id': comment.id,
+                    'text_content': comment.text_content,
+                    'timestamp': comment.timestamp.isoformat() + 'Z',
+                    'author_username': current_user.username,
+                    'author_profile_pic': current_user.profile_picture_filename # Or full URL
+                },
+                'comment_count': len(post.comments) # Use len() for a list
+            }), 201
+        else:
+             flash('Comment posted!', 'success')
+             return redirect(request.referrer or url_for('post_feed'))
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving comment for post {post_id} by user {current_user.id}: {e}", exc_info=True)
+        if is_ajax: return jsonify({'status': 'error', 'message': 'Could not save comment.'}), 500
+        else: flash('Error saving comment.', 'danger'); return redirect(request.referrer or url_for('post_feed'))
+
+
+# --- CORRECTED Share Post Route ---
+@app.route('/post/<int:post_id>/share', methods=['POST'])
+@login_required
+def share_post(post_id):
+    # Correctly fetch the original post using its ID
+    original_post = Post.query.get_or_404(post_id) # Use post_id from the route
+
+    if original_post.author == current_user:
+        return jsonify({'status': 'error', 'message': 'You cannot share your own post directly this way (already on your profile).'}), 400
+
+    # Check if this user has already shared this specific original post
+    existing_share = Post.query.filter_by(user_id=current_user.id, original_post_id=original_post.id).first()
+    if existing_share:
+        return jsonify({'status': 'info', 'message': 'You have already shared this post.'}), 200
+
+    # Create a new post that is a "share" of the original_post
+    shared_post = Post(
+        user_id=current_user.id,
+        original_post_id=original_post.id, # Link to the original post
+        # text_content for the share itself can be None, or you can add a form field for the user to add their own text to the share
+        # photo_filename and video_filename for the share itself are None, as it's sharing the original's media
+    )
+    db.session.add(shared_post)
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'message': 'Post shared successfully!',
+        'share_count': original_post.shares.count() # Count shares of the original post
+    }), 201
+# --- END CORRECTED Share Post Route ---
+
 
 # --- Utility Function to Create Database ---
 def create_db(app_instance):
@@ -3132,6 +3906,18 @@ def create_db(app_instance):
             if not os.path.exists(upload_folder_path):
                 os.makedirs(upload_folder_path)
                 app_instance.logger.info(f"Created base upload folder: {upload_folder_path}")
+
+            # --- ADDED: Ensure post media folder exists ---
+            post_media_folder_path = app_instance.config.get('POST_MEDIA_FOLDER')
+            if not post_media_folder_path:
+                post_media_folder_path = os.path.join(app_instance.instance_path, 'uploads', 'post_media')
+                app_instance.config['POST_MEDIA_FOLDER'] = post_media_folder_path
+                app_instance.logger.warning(f"POST_MEDIA_FOLDER not in app.config, using default: {post_media_folder_path}")
+
+            if not os.path.exists(post_media_folder_path):
+                os.makedirs(post_media_folder_path)
+                app_instance.logger.info(f"Created post media folder: {post_media_folder_path}")
+            # --- END ADDED ---
 
         except OSError as e:
             app_instance.logger.error(f"OSError creating instance or upload folders: {e}", exc_info=True)
@@ -3207,6 +3993,7 @@ def create_db(app_instance):
         # and assume model definitions are the source of truth for columns in new tables.
 
         app_instance.logger.info("Database initialization and settings check complete.")
+
 
 class OllamaChatMessage(db.Model):
     """Model for storing individual ollama chat messages per user."""
@@ -3335,6 +4122,12 @@ class GroupChatMessage(db.Model):
 
     def to_dict(self, include_sender=True, include_file=True):
         """Helper to convert message to dictionary for JSON responses/template."""
+        sender_username = None
+        sender_profile_pic = None # Initialize profile pic filename as None
+        if include_sender and self.sender:
+            sender_username = self.sender.username
+            sender_profile_pic = self.sender.profile_picture_filename
+
         data = {
             'id': self.id,
             'user_id': self.user_id,
@@ -3342,6 +4135,7 @@ class GroupChatMessage(db.Model):
             'content': self.content,
             'file_id': self.file_id,
             'sender_username': self.sender.username if include_sender and self.sender else None,
+            'sender_profile_picture_filename': sender_profile_pic,
             'shared_file': None, # Initialize as None
             'is_edited': bool(self.edited_at),
             'is_deleted': self.is_deleted,
