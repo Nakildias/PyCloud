@@ -1,0 +1,74 @@
+{# templates/post_feed.html #}
+{% extends "base.html" %}
+{% from "_post_macros.html" import display_post %} {# Import the macro #}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="post-feed-container">
+    <div class="feed-header">
+        <h2>{{ title }}</h2>
+        <div class="feed-sort-options">
+            <span class="sort-label">Sort by:</span>
+            <a href="{{ url_for('post_feed', sort='recent_desc') }}" class="sort-link {% if current_sort == 'recent_desc' %}active{% endif %}">Most Recent</a> |
+            <a href="{{ url_for('post_feed', sort='recent_asc') }}" class="sort-link {% if current_sort == 'recent_asc' %}active{% endif %}">Least Recent</a> |
+            <a href="{{ url_for('post_feed', sort='likes_desc') }}" class="sort-link {% if current_sort == 'likes_desc' %}active{% endif %}">Most Liked</a> |
+            <a href="{{ url_for('post_feed', sort='comments_desc') }}" class="sort-link {% if current_sort == 'comments_desc' %}active{% endif %}">Most Commented</a> |
+            <a href="{{ url_for('post_feed', sort='shares_desc') }}" class="sort-link {% if current_sort == 'shares_desc' %}active{% endif %}">Most Shared</a>
+            {# Add more sort links as needed (e.g., least liked, least commented) #}
+        </div>
+    </div>
+
+    {% if posts and posts.items %}
+        <div class="posts-list">
+            {% for post in posts.items %}
+                {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }} {# Pass comment_form #}
+            {% endfor %}
+        </div>
+
+        {# Pagination Links #}
+        {% if posts.has_prev or posts.has_next %}
+        <nav aria-label="Feed navigation" class="pagination-nav">
+            <ul class="pagination">
+                {# Previous Page Link #}
+                <li class="page-item {% if not posts.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('post_feed', page=posts.prev_num, sort=current_sort) if posts.has_prev else '#_posts' }}" aria-label="Previous">
+                        &laquo; Previous
+                    </a>
+                </li>
+
+                {# Page Numbers #}
+                {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if posts.page == page_num %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('post_feed', page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {# Next Page Link #}
+                <li class="page-item {% if not posts.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('post_feed', page=posts.next_num, sort=current_sort) if posts.has_next else '#_posts' }}" aria-label="Next">
+                        Next &raquo;
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="empty-feed-message">
+            <p>Your feed is empty.</p>
+            <p>Follow some users to see their posts here, or <a href="{{ url_for('create_post') }}">create your own post</a>!</p>
+            {# Suggest exploring users or something similar #}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# Include scripts from base.html #}
+    <script src="{{ url_for('static', filename='posts.js') }}"></script> {# Link to the new posts.js #}
+{% endblock %}
