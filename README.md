@@ -12,6 +12,8 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### Changeable email ( For user ) *NEW*
 # Upcoming features
 ### Email verification
+### Friends & Friend Chat
+### Notifications for friend invite, messages, new posts
 ### Rate limiting password reset
 ### Separated Upload Limit for group chat
 ### Wipe entire Group Chat in admin settings
