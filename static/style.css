@@ -1,8 +1,8 @@
 /* static/style.css */
 
 /* ==========================================================================
- 1 . Global Variables & Basic Styles                          *
- ========================================================================== */
+ * 1 . Global Variables & Basic Styles                          *
+ * ========================================================================== */
 
 :root {
     /* Color Palette */
@@ -78,8 +78,8 @@ a { color: var(--primary-color); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ==========================================================================
- 2 . Navigation Bar                                           *
- ========================================================================== */
+ * 2 . Navigation Bar                                           *
+ * ========================================================================== */
 nav {
     background-color: var(--secondary-color);
     padding: 10px 20px;
@@ -104,8 +104,8 @@ nav ul li a { color: var(--text-color); font-weight: bold; }
 nav ul li a:hover { color: var(--primary-color); text-decoration: none; }
 
 /* ==========================================================================
- 3 . Forms & Buttons (General - Non-Chat Input)               *
- ========================================================================== */
+ * 3 . Forms & Buttons (General - Non-Chat Input)               *
+ * ========================================================================== */
 /* Exclude chat forms from general styling */
 form:not(#ollama-chat-form):not(#chat-form) {
     display: flex; flex-direction: column; gap: 15px;
@@ -154,8 +154,8 @@ input[type="file"].visually-hidden {
 .btn-sm { padding: 6px 12px; font-size: 0.9em; }
 
 /* ==========================================================================
- 4 . Flash Messages & Toast Notifications                     *
- ========================================================================== */
+ * 4 . Flash Messages & Toast Notifications                     *
+ * ========================================================================== */
 #toast-container {
 position: fixed; top: 60px; right: 20px; z-index: 1050;
 display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px;
@@ -174,8 +174,8 @@ display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px;
 .toast-message.toast-warning { background-color: #f39c12; border-color: #f1c40f; color: #333; }
 
 /* ==========================================================================
- 5 . File Manager Styles                                      *
- ========================================================================== */
+ * 5 . File Manager Styles                                      *
+ * ========================================================================== */
 .breadcrumb { padding: 0; margin: 0 0 15px 0; background-color: transparent; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; align-items: center; font-size: 1.1em; }
 .breadcrumb a { color: var(--primary-color); }
 #drop-zone { border: 2px dashed var(--border-color); padding: 30px; text-align: center; transition: background-color 0.2s ease, border-color 0.2s ease; margin-bottom: 25px; }
@@ -205,8 +205,8 @@ display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px;
 .context-menu .menu-separator { height: 1px; background-color: var(--border-color); margin: 5px 0; }
 
 /* ==========================================================================
- 6 . Notes Styles                                             *
- ========================================================================== */
+ * 6 . Notes Styles                                             *
+ * ========================================================================== */
 .notes-list { list-style: none; padding: 0; }
 .notes-list li { background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; margin-bottom: 15px; }
 .notes-list h3 { margin-bottom: 5px; }
@@ -434,12 +434,26 @@ flex-grow: 1;
 #chat-history .chat-message-wrapper {
 display: flex;
 margin-bottom: 10px;
+align-items: flex; /* Align items to the bottom (pfp and bubble) */
+gap: 8px; /* Space between PFP and bubble */
 }
 #chat-history .chat-message-wrapper.current-user {
 justify-content: flex-end;
 }
 #chat-history .chat-message-wrapper:not(.current-user) {
 justify-content: flex-start;
+}
+.chat-message-pfp-container {
+    flex-shrink: 0; /* Prevent PFP from shrinking */
+    /* margin-bottom: 5px; Optional: if alignment isn't perfect */
+}
+.chat-message-pfp {
+    width: 90px; /* Adjust size as needed */
+    height: 90px;
+    border-radius: 50%; /* Make it round */
+    object-fit: cover; /* Crop image nicely */
+    vertical-align: bottom; /* Helps alignment sometimes */
+    border: 2px solid var(--border-color); /* Optional border */
 }
 #chat-history .chat-message {
 padding: 8px 12px;
@@ -449,7 +463,28 @@ word-wrap: break-word;
 line-height: 1.5;
 position: relative;
 box-sizing: border-box;
+max-width: calc(75% - 40px);
 /* width: fit-content; /* Generally not needed here due to flex parent */
+}
+#chat-history .message-sender a, /* Target the anchor tag directly */
+#chat-history .message-sender {  /* Keep styling for the class */
+font-weight: bold;
+color: inherit; /* Inherit color from the message bubble (light for dark, dark for light) */
+text-decoration: none;
+margin-right: 8px; /* Space between name and timestamp */
+}
+#chat-history .message-sender a:hover {
+text-decoration: underline;
+}
+#chat-history .chat-message-wrapper.current-user .message-sender a {
+color: #ffffff; /* Ensure it's readable on primary color background */
+/* Opacity adjustment might be needed depending on your primary color */
+/* opacity: 0.9; */
+}
+#chat-history .chat-message-wrapper:not(.current-user) .message-sender a {
+color: #e0e0e0; /* Ensure it's readable on secondary color background */
+/* Opacity adjustment might be needed */
+/* opacity: 0.9; */
 }
 #chat-history .chat-message-wrapper:not(.current-user) .chat-message {
 background-color: var(--secondary-color);
@@ -619,64 +654,718 @@ margin-top: 5px;
 border-radius: 6px;
 background-color: transparent; /* Make player background transparent to show chat bubble bg */
 
-/* Filter Explanation:
- *      1. invert(1): Inverts all colors (dark to light, light to dark, hues inverted).
- *      2. sepia(100%): Converts to sepia tones. This helps neutralize inverted colors.
- *      3. saturate(0%): Removes all color, making it grayscale.
- *      4. hue-rotate(0deg): This seems redundant with saturate(0) but often included in such filter chains.
- *         Can be experimented with if colors are off (e.g. 180deg).
- *      5. brightness(X%): Adjusts overall brightness. Increase to make it whiter/lighter.
- *      6. contrast(Y%): Adjusts contrast. May need tweaking after brightness.
- */
 filter: invert(1) sepia(100%) saturate(0%) hue-rotate(0deg) brightness(150%) contrast(100%);
-/* Start with brightness(150%) and contrast(100%).
- *      If too bright, reduce brightness. If too washed out, increase contrast.
- *      If too dim, increase brightness further.
- */
 }
 
-/* Firefox-specific override (put this AFTER the general rule) */
 @-moz-document url-prefix() {
     #chat-history .chat-message .file-preview audio {
-    /* Try a filter that looks best *in Firefox*, even if different */
-    filter: none; /* Or a very minimal filter, or a different one */
-    /* You could try setting a background for it in Firefox */
-    /* background-color: #333; /* Example */
+    filter: none;
     }
 }
-/* The ::-webkit-media-controls-* pseudo-elements are highly browser-specific (Chrome/Safari/Edge).
- *  The global filter above is the primary method. These are fallbacks or refinements
- *  that MIGHT have some effect, but often don't override the main appearance set by the browser
- *  when native controls are used.
- */
 
 #chat-history .chat-message .file-preview audio::-webkit-media-controls-panel {
-/* Attempt to ensure the panel background itself is also transparent if filter makes it opaque */
 background-color: transparent !important;
-color: inherit !important; /* Try to make icons inherit the filtered (light) color */
-}
-
-#chat-history .chat-message .file-preview audio::-webkit-media-controls-play-button,
-#chat-history .chat-message .file-preview audio::-webkit-media-controls-mute-button {
-/* Individual icons might need specific color overrides if the filter doesn't catch them well.
- *      However, directly setting 'color' or 'background-color' on these pseudo-elements
- *      is often ignored by the browser for native controls. The filter is the main tool. */
-}
-
-#chat-history .chat-message .file-preview audio::-webkit-media-controls-timeline,
-#chat-history .chat-message .file-preview audio::-webkit-media-controls-volume-slider-container, /* For volume slider area */
-#chat-history .chat-message .file-preview audio::-webkit-media-controls-volume-slider {
-/* Try to make these transparent or apply a light color if filter results are poor */
-/* background-color: rgba(200, 200, 200, 0.3); /* Example: Light semi-transparent track */
-}
-
-#chat-history .chat-message .file-preview audio::-webkit-media-slider-thumb {
-/* background-color: #ffffff; /* Attempt to make thumb white */
-/* border: 1px solid #cccccc; */
+color: inherit !important;
 }
 
 
 /* ==========================================================================
- 8 . Admin Page Styles                                        *
- ========================================================================== */
+ * 8 . Admin Page Styles                                        *
+ * ========================================================================== */
 /* No changes needed here, they inherit the wider .container */
+
+
+/* ==========================================================================
+ * 9 . Posting Feature Styles                                   *
+ * ========================================================================== */
+
+/* --- Create Post Form --- */
+.create-post-container {
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 25px;
+    background-color: var(--secondary-color); /* Slightly lighter than page bg */
+    border-radius: 8px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.4);
+}
+.create-post-container h2 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 25px;
+}
+.create-post-form .form-group {
+    margin-bottom: 20px;
+}
+.create-post-form .form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #c0c0c0; /* Lighter than main text for labels */
+}
+.create-post-form .text-content-area {
+    min-height: 100px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 4px;
+    resize: vertical;
+}
+.create-post-form .text-content-area:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+    outline: none;
+}
+.create-post-form .form-control-file {
+    display: block; /* Make it take full width for easier styling */
+    padding: 8px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color); /* For the "No file chosen" text */
+}
+.create-post-form .form-control-file::-webkit-file-upload-button { /* Style the button part */
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+.create-post-form .form-control-file:hover::-webkit-file-upload-button {
+    background-color: #3a7ac0;
+}
+.create-post-form .form-text.text-muted {
+    font-size: 0.85em;
+    color: #999;
+    display: block;
+    margin-top: 5px;
+}
+.create-post-form .submit-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+.create-post-form .btn-create-post {
+    padding: 10px 25px;
+}
+
+
+/* --- Post Feed & Post List --- */
+.post-feed-container, .user-posts-section {
+    margin-top: 20px;
+}
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap; /* Allow wrapping for sort options */
+}
+.feed-header h2 {
+    margin: 0;
+    color: var(--text-color);
+}
+.feed-sort-options, .profile-sort-options {
+    font-size: 0.9em;
+}
+.feed-sort-options .sort-label {
+    margin-right: 8px;
+    color: #bbb;
+}
+.feed-sort-options .sort-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    margin: 0 3px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+.feed-sort-options .sort-link:hover {
+    background-color: rgba(74, 144, 226, 0.2);
+    text-decoration: none;
+}
+.feed-sort-options .sort-link.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+.posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px; /* Space between posts */
+}
+
+/* --- Individual Post Container --- */
+.post-container {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between; /* This will push .post-author-info to the left and .post-actions-menu to the right */
+    align-items: flex-start;      /* Align items to the top of the header line. Change to 'center' if you prefer vertical centering. */
+    margin-bottom: 12px;
+    position: relative; /* Remains useful if dropdown needs to break out */
+    /* Ensure it spans the full width if it's not already */
+    width: 100%;
+}
+.post-author-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.post-author-pfp {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+    flex-shrink: 0; /* ADD THIS */
+}
+.post-author-details {
+    display: flex;
+    flex-direction: column;
+    /* You could also try adding a small margin-left here if needed */
+    /* margin-left: 5px; */
+}
+.post-author-username {
+    font-weight: bold;
+    color: var(--text-color);
+}
+.post-author-username:hover {
+    text-decoration: underline;
+}
+.post-timestamp {
+    font-size: 0.8em;
+    color: #aaa;
+}
+
+.shared-post-indicator {
+    font-size: 0.9em;
+    color: #bbb;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: rgba(0,0,0,0.1);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 0 4px 4px 0;
+}
+.shared-post-indicator .share-verb {
+    font-style: italic;
+}
+.shared-post-indicator .original-author-link,
+.shared-post-indicator .view-original-link {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+.sharer-text-content { /* Text added by the sharer */
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    font-style: italic;
+    color: #ccc;
+}
+.original-shared-content { /* The content of the post that was shared */
+    margin-left: 15px; /* Indent shared content slightly */
+    padding: 10px;
+    border: 1px dashed #555;
+    border-radius: 5px;
+    background-color: rgba(0,0,0,0.05);
+}
+
+
+.post-content p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
+    word-wrap: break-word;
+}
+.post-media {
+    display: block;
+    max-width: 100%;
+    max-height: 400px; /* Adjust as needed */
+    border-radius: 6px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: var(--bg-color); /* BG for transparent images/videos */
+}
+video.post-media {
+    /* Ensure video controls are visible on dark backgrounds if native */
+}
+
+.post-stats {
+    display: flex;
+    flex-wrap: wrap; /* Allow stat groups to wrap to next line */
+    justify-content: flex-start; /* Align groups to the start */
+    align-items: center; /* Align items vertically if they wrap */
+    /* Use row-gap and column-gap for potentially better control than single gap */
+    row-gap: 5px;     /* Vertical space between rows if wrapping occurs */
+    column-gap: 20px; /* INCREASED Horizontal space between stat groups */
+    font-size: 0.85em;
+    color: #aaa;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    margin-top: 10px;
+    margin-bottom: 10px;
+    min-height: 2em; /* Give it a minimum height */
+}
+.post-stats span { /* e.g., likes-stat, dislikes-stat */
+    display: inline-flex; /* Treat each stat group like an inline block that uses flex internally */
+    align-items: center;  /* Vertically center icon and text/count within the span */
+    gap: 5px;           /* Space between icon and text/count */
+    flex-shrink: 0;     /* Prevent the group from shrinking */
+    white-space: nowrap;/* Prevent text/count inside from wrapping */
+}
+.post-stats img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    vertical-align: middle; /* Helps with baseline alignment */
+}
+
+.post-stats span > span { /* e.g., like-count */
+    /* Potentially add margin-right if gap isn't working reliably */
+    /* margin-right: 3px; */
+}
+
+.post-actions {
+    display: flex;
+    gap: 10px; /* Space between action buttons */
+    margin-bottom: 10px;
+}
+
+.post-header {
+    display: flex;
+    align-items: center; /* Vertically align items in header */
+    margin-bottom: 12px;
+    position: relative; /* For positioning the dropdown */
+}
+
+.post-author-info {
+    /* ... (existing styles for author info) ... */
+    flex-grow: 1; /* Allow author info to take available space */
+}
+
+.post-actions-menu {
+    position: relative; /* Needed for absolute positioning of dropdown */
+    margin-left: auto;  /* Pushes the menu to the right */
+}
+
+.btn-post-menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    display: inline-flex; /* Helps with icon alignment */
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-post-menu-toggle img {
+    width: 20px; /* Adjust as needed */
+    height: 20px; /* Adjust as needed */
+    opacity: 0.7;
+}
+
+.btn-post-menu-toggle:hover img {
+    opacity: 1;
+}
+
+.post-menu-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%; /* Position below the button */
+    background-color: var(--secondary-color); /* Or var(--bg-color) if you prefer */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    z-index: 100; /* Ensure it's above other post content */
+    min-width: 120px; /* Adjust as needed */
+    padding: 4px 0; /* Add some padding around menu items */
+}
+
+.post-menu-dropdown button { /* Style for buttons inside the dropdown */
+    display: block;
+    width: 100%;
+    padding: 8px 15px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.post-menu-dropdown button:hover {
+    background-color: var(--primary-color); /* Highlight on hover */
+    color: white;
+}
+
+.post-menu-dropdown button.menu-item-danger:hover {
+    background-color: var(--error-color); /* Specific hover for danger items */
+    color: white;
+}
+
+.btn-action {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 6px 12px;
+    border-radius: 20px; /* Pill shape */
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-action img {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+}
+.btn-action:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+.btn-action.active { /* For active like/dislike */
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+.btn-action.active img {
+    opacity: 1;
+}
+
+
+/* --- Comments Section --- */
+.comments-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #555;
+}
+.comment-form {
+    display: flex;
+    flex-direction: column; /* Stack textarea and button */
+    gap: 8px;
+    margin-bottom: 15px;
+}
+.comment-form .comment-input {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 10px;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 40px; /* Min height for textarea */
+}
+.comment-form .comment-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+    outline: none;
+}
+.comment-form .btn-post-comment {
+    align-self: flex-end; /* Align button to the right */
+    padding: 6px 15px;
+}
+
+.comments-list .comment {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 10px;
+}
+.comments-list .comment:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.comment-author-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.comment-author-pfp {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.comment-author-username {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 0.9em;
+}
+.comment-text {
+    margin: 0 0 5px 0; /* Remove top margin, add bottom */
+    font-size: 0.95em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.comment-timestamp {
+    font-size: 0.75em;
+    color: #888;
+}
+.no-comments-yet {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 10px 0;
+}
+
+/* Pagination for Feed/Profile Posts */
+.pagination-nav {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    gap: 5px;
+}
+.page-item .page-link {
+    color: var(--primary-color);
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+.page-item.disabled .page-link {
+    color: #666;
+    background-color: #222;
+    border-color: #333;
+    cursor: not-allowed;
+}
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: bold;
+}
+.page-item:not(.disabled) .page-link:hover {
+    background-color: var(--primary-color);
+    color: white;
+    opacity: 0.8;
+}
+
+.empty-feed-message {
+    text-align: center;
+    margin-top: 40px;
+    color: #aaa;
+}
+.empty-feed-message p {
+    margin-bottom: 10px;
+}
+.empty-feed-message a {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+/* User Profile - Post Count Stat */
+.profile-stats span:last-child { /* Assuming Post count is last */
+    /* Add specific styling if needed, or rely on general span styling in .profile-stats */
+}
+
+
+
+
+
+.profile-page-container {
+    max-width: 900px; /* Adjust max width as needed */
+    margin: 20px auto;
+    padding: 20px;
+}
+
+/* Main Header Layout (Picture + Main Info Area) */
+.profile-header {
+    display: flex;
+    flex-direction: column; /* Stack vertically on small screens */
+    align-items: center;    /* Center items vertically stack */
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 20px; /* Gap between picture and info on small screens */
+}
+
+/* Profile Picture Area */
+.profile-picture-area {
+    flex-shrink: 0; /* Don't shrink the picture area */
+    text-align: center; /* Center picture content */
+}
+.profile-picture, .profile-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary-color);
+    background-color: var(--secondary-color);
+    display: inline-block; /* Allows text-align centering */
+    vertical-align: middle;
+}
+.profile-picture-placeholder {
+    display: inline-flex; /* Use flex to center the initial */
+    align-items: center;
+    justify-content: center;
+    font-size: 4em;
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+/* Container for Left/Right Columns (Username/Stats | Bio/Links) */
+.profile-info-main {
+    display: flex;
+    flex-direction: column; /* Stack left/right on small screens */
+    flex-grow: 1; /* Take available horizontal space */
+    gap: 15px; /* Gap between left/right when stacked */
+    text-align: center; /* Center text on small screens */
+    width: 100%; /* Take full width on small screens */
+}
+
+/* Left Column (Username, Stats, Actions) */
+.profile-info-left {
+    /* No specific width needed in vertical layout */
+}
+.profile-username {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 2em;
+    color: var(--text-color);
+    word-break: break-all; /* Break long usernames */
+}
+.profile-stats {
+    margin-bottom: 10px;
+    color: #b0b0b0;
+    font-size: 0.95em;
+}
+.profile-stats strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+.profile-member-since {
+    color: #888;
+    font-size: 0.85em;
+    margin-bottom: 15px;
+}
+.profile-actions {
+    margin-top: 10px;
+}
+
+/* Right Column (Bio Box, Links Box) */
+.profile-info-right {
+    display: flex;
+    flex-direction: column; /* Stack bio/links vertically */
+    gap: 10px; /* Space between bio and links boxes */
+    width: 100%; /* Take full width on small screens */
+}
+
+/* Bio Box Styling */
+.profile-bio-box {
+    height: 120px; /* FIXED HEIGHT - Adjust value as needed */
+    max-height: 120px; /* Reinforce */
+    overflow-y: auto;  /* Enable vertical scroll if content exceeds height */
+    padding: 10px 15px; /* Internal spacing (more horizontal padding) */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 0.95em;
+    line-height: 1.5;
+    overflow-wrap: break-word; /* Break long words nicely */
+    text-align: left; /* Ensure text is left-aligned inside */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Links Box Styling */
+.profile-links-box {
+    padding: 0px 15px; /* Internal spacing */
+    border: 0px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--secondary-color);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Link Icons List (inside links box) */
+.profile-header-links {
+    margin-top: 0; /* No extra margin needed inside the box */
+}
+.profile-header-links ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* Space between icons */
+    justify-content: flex-start; /* Align icons to the left */
+}
+.profile-header-links a {
+    display: inline-block; /* Prevents layout shifts */
+}
+/* Link Icon Styling */
+.profile-link-icon {
+    width: 28px; /* Adjust icon size */
+    height: 28px; /* Adjust icon size */
+    vertical-align: middle;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.profile-header-links a:hover .profile-link-icon {
+    opacity: 0.7;
+    transform: scale(1.1);
+}
+
+/* Media Query for Larger Screens (Side-by-Side Layout) */
+@media (min-width: 768px) { /* Adjust breakpoint as needed */
+    .profile-header {
+        flex-direction: row; /* Picture and info side-by-side */
+        align-items: flex-start; /* Align items to the top */
+        text-align: left; /* Default text align left */
+        gap: 30px; /* Space between picture and info */
+    }
+    .profile-picture-area {
+        text-align: left; /* Override small screen centering */
+    }
+    .profile-info-main {
+        flex-direction: row; /* Left and right columns side-by-side */
+        gap: 30px; /* Space between left/right columns */
+        text-align: left; /* Override small screen centering */
+        align-items: flex-start; /* Align columns at the top */
+    }
+    .profile-info-left {
+        flex-basis: 45%; /* Adjust width distribution */
+        flex-shrink: 1;
+        /* flex-grow: 1; */ /* Maybe don't let left grow too much */
+    }
+    .profile-info-right {
+        flex-basis: 55%; /* Adjust width distribution */
+        flex-shrink: 1;
+        flex-grow: 1; /* Allow right side to use remaining space */
+        align-items: stretch; /* Make bio/links boxes fill width */
+    }
+    .profile-bio-box, .profile-links-box {
+        /* Width is already 100%, will fill stretched container */
+    }
+}
+
+/* Container for any content BELOW the header */
+.profile-details {
+    margin-top: 20px;
+}
