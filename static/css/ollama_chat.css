@@ -1,0 +1,209 @@
+/* static/css/ollama_chat.css */
+
+/* --- Ollama Chat History Styles --- */
+.oc-chat-history-area { /* Was #ollama-chat-history */
+    flex-grow: 1;
+    overflow-y: auto;
+    height: 0;
+    border: none;
+    padding: 15px 15px calc(var(--input-bar-height) + 50px) 15px; /* Uses --input-bar-height from base.css */
+    margin-bottom: 0;
+    background-color: transparent;
+    border-radius: 0;
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.oc-empty-history-message { /* Was #empty-history-msg styling */
+    color: #aaa;
+    text-align: center;
+    margin: auto; /* For flex centering */
+    padding: 20px;
+}
+
+/* --- Ollama Fixed Chat Input Form --- */
+.oc-chat-form-element { /* Was #ollama-chat-form */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(26, 26, 26, 0.9);
+    padding: 10px 0;
+    width: 100%;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+    border-top: 1px solid var(--border-color);
+    box-sizing: border-box;
+}
+
+.oc-chat-form-element .oc-chat-input-inner { /* Was .chat-input-inner */
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: var(--secondary-color);
+    padding: 8px 8px 8px 15px;
+    border-radius: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.oc-chat-form-element .oc-message-textarea { /* Was textarea */
+    flex-grow: 1;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    resize: none;
+    outline: none;
+    padding: 8px 0;
+    margin: 0;
+    font-size: 1em;
+    line-height: 1.5;
+    min-height: 24px;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+    /* Inherits .form-control from base.css */
+}
+.oc-chat-form-element .oc-message-textarea::placeholder {
+    color: var(--placeholder-color);
+}
+
+/* Buttons inside the input bar */
+.oc-chat-form-element .oc-btn-clear-history, /* Was #clear-history-button styling */
+.oc-chat-form-element .oc-btn-send {         /* Was #send-button styling */
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    line-height: 1;
+    background-color: transparent;
+    color: var(--placeholder-color);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+    /* Inherits .btn from base.css if also applied */
+}
+.oc-chat-form-element .oc-btn-clear-history:hover,
+.oc-chat-form-element .oc-btn-send:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.oc-chat-form-element .oc-btn-send { /* Specific to send button */
+    color: var(--primary-color); /* For icon color if it inherits */
+    /* Inherits .btn-primary if also applied */
+}
+.oc-chat-form-element .oc-btn-send:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.2);
+}
+.oc-chat-form-element .oc-btn-send:disabled,
+.oc-chat-form-element .oc-btn-clear-history:disabled {
+    background-color: transparent;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Icons within buttons */
+.oc-chat-form-element .oc-icon-clear, /* Was #clear-history-button img */
+.oc-chat-form-element .oc-icon-send {   /* Was #send-button img */
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+/* --- Ollama Chat Message Styles (Inside .oc-chat-history-area) --- */
+.oc-message { /* Was .ollama-chat-message */
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 18px;
+    max-width: 75%;
+    word-wrap: break-word;
+    line-height: 1.5;
+    box-sizing: border-box;
+    width: fit-content;
+    clear: both;
+}
+
+/* Role-based message styling */
+.oc-message.oc-message-role-user { /* Was .ollama-chat-message.user */
+    background-color: var(--primary-color);
+    color: #ffffff;
+    margin-left: auto;
+    margin-right: 0;
+    border-bottom-right-radius: 5px;
+}
+
+.oc-message.oc-message-role-assistant, /* Was .ollama-chat-message.assistant */
+.oc-message.oc-message-role-thinking, /* Was .ollama-chat-message.thinking */
+.oc-message.oc-message-role-error {   /* Was .ollama-chat-message.error */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    margin-right: auto;
+    margin-left: 0;
+    border-bottom-left-radius: 5px;
+}
+
+.oc-message.oc-message-role-thinking { /* Was .ollama-chat-message.thinking */
+    font-style: italic;
+    opacity: 0.85;
+}
+
+.oc-message.oc-message-role-error { /* Was .ollama-chat-message.error */
+    background-color: var(--error-color);
+    color: #ffffff;
+}
+
+/* Header for Sender (Role) and Timestamp */
+.oc-message .oc-message-header { /* Was .message-header */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 0.8em;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.oc-message .oc-message-sender { /* Was .message-sender */
+    font-weight: bold;
+}
+
+.oc-message .oc-message-timestamp { /* Was .message-timestamp */
+    font-size: 0.95em;
+    line-height: 1.2;
+}
+
+/* Text colors for sender/timestamp based on bubble type */
+.oc-message.oc-message-role-user .oc-message-sender,
+.oc-message.oc-message-role-user .oc-message-timestamp {
+    color: #e8e8e8;
+}
+
+.oc-message.oc-message-role-assistant .oc-message-sender,
+.oc-message.oc-message-role-assistant .oc-message-timestamp,
+.oc-message.oc-message-role-thinking .oc-message-sender,
+.oc-message.oc-message-role-thinking .oc-message-timestamp {
+    color: #b0b0b0;
+}
+
+.oc-message.oc-message-role-error .oc-message-sender,
+.oc-message.oc-message-role-error .oc-message-timestamp {
+    color: #ffffff;
+}
+
+.oc-message .oc-message-content { /* Was .message-content */
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}

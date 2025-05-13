@@ -1,0 +1,78 @@
+/* static/css/register.css */
+
+.reg-page-container {
+    max-width: 500px; /* Consistent with login form width */
+    margin: 40px auto;
+    padding: 30px;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.reg-title {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+}
+
+.reg-form {
+    /* Styles for the form element itself, if any */
+}
+
+.reg-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px; /* Slightly less than login for tighter form */
+}
+
+.reg-label {
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-color-lighter, #e0e0e0);
+}
+
+.reg-input-username,
+.reg-input-email,
+.reg-input-password,
+.reg-input-confirm-password {
+    /* Inherits .form-control from base.css for padding, border, etc. */
+    /* Add specific overrides if needed: */
+    /* Example: border-left: 3px solid var(--primary-color); */
+}
+
+.reg-errors {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 0 0;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+.reg-errors li {
+    padding: 2px 0;
+}
+
+.reg-submit-group {
+    margin-top: 25px; /* Space before submit button */
+}
+
+.reg-submit-button {
+    /* Inherits .btn and .btn-primary from base.css */
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.reg-login-link-text {
+    margin-top: 25px; /* Space above the login link */
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--text-color-dimmed, #b0b0b0);
+}
+
+.reg-login-link {
+    /* Inherits general 'a' styles from base.css */
+    font-weight: 500;
+    /* color: var(--info-color); */ /* Example: use info color */
+}

@@ -1,0 +1,183 @@
+/* static/css/notes.css */
+
+/* ==========================================================================
+ * Notes Listing Page Styles (notes.html) - Prefixed with nl-
+ * ========================================================================== */
+.nl-notes-list { /* Was .notes-list */
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nl-notes-list-item { /* Was .notes-list li */
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.nl-notes-list-item .nl-item-title { /* Was .notes-list h3 */
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: var(--primary-color);
+    font-size: 1.3em;
+}
+
+.nl-notes-list-item .nl-item-title-link { /* Was .notes-list h3 a */
+    color: inherit;
+    text-decoration: none;
+}
+.nl-notes-list-item .nl-item-title-link:hover {
+    text-decoration: underline;
+    color: var(--primary-color);
+}
+
+.nl-notes-list-item .nl-item-meta { /* Was .notes-list small */
+    color: #aaa;
+    font-size: 0.85em;
+    display: block; /* Ensure it takes its own line if needed */
+    margin-bottom: 10px;
+}
+
+.nl-notes-list-item .nl-item-actions { /* Was .notes-list .actions */
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+/* Buttons inside .nl-item-actions will use general .btn .btn-sm etc. from base.css */
+
+
+/* ==========================================================================
+ * View Single Note Page Styles (view_note.html) - Prefixed with vn-
+ * ========================================================================== */
+.vn-page-container {
+    /* Wrapper for the view note page if needed */
+}
+
+.vn-header { /* Was .view-note-header */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.vn-header .vn-title { /* Was .view-note-header h2 */
+    margin: 0;
+    color: var(--primary-color); /* Ensure title color */
+}
+
+.vn-header .vn-actions { /* Was .view-note-header .actions */
+    display: flex;
+    gap: 10px;
+}
+/* Buttons inside .vn-actions will use general .btn .btn-sm etc. from base.css */
+.vn-header .vn-actions .btn-danger { /* Specific for delete button if needed */
+    /* Example: background-color: var(--error-color-darker); */
+}
+
+
+.vn-meta-info { /* Was .view-note-meta */
+    color: #bbb;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+}
+
+.vn-content-display { /* Was .note-content */
+    white-space: pre-wrap;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    border-radius: 5px;
+    margin-top: 15px;
+    font-family: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace;
+    line-height: 1.6;
+    color: var(--text-color);
+    font-size: 0.95em;
+    overflow-x: auto; /* Add scroll for very long lines */
+}
+
+.vn-back-link-container { /* Was .view-note-backlink styling */
+    margin-top: 25px;
+    display: block;
+}
+.vn-back-link-container a {
+    /* Inherits general 'a' styles */
+}
+
+
+/* ==========================================================================
+ * Note Form Styles (note_form.html) - Prefixed with nf-
+ * ========================================================================== */
+.nf-page-container {
+    max-width: 700px; /* Or your preferred max-width for forms */
+    margin: 20px auto; /* Center the container */
+    /* Padding and background handled by .container from base.html if this also has that class */
+    /* If not, add them here: */
+    /* padding: 25px; */
+    /* background-color: var(--secondary-color); */
+    /* border-radius: 8px; */
+    /* box-shadow: 0 3px 10px rgba(0,0,0,0.3); */
+}
+
+.nf-title { /* For the <h2> legend */
+    color: var(--primary-color);
+    text-align: center; /* Or left, as preferred */
+    margin-bottom: 25px;
+}
+
+.nf-form {
+    /* Styles for the form element itself, if any */
+}
+
+.nf-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.nf-label {
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.nf-input-title,
+.nf-textarea-content {
+    /* These inherit .form-control from base.css for basic styling */
+    /* Add specific overrides if needed */
+}
+
+.nf-textarea-content {
+    min-height: 200px; /* Suggest a minimum height */
+    font-family: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace; /* Monospace for note content */
+    font-size: 0.95em; /* Match view note content font size */
+    line-height: 1.6; /* Match view note content line height */
+}
+
+.nf-errors {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 0 0;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+
+.nf-submit-group {
+    display: flex;
+    justify-content: flex-start; /* Align buttons to the left, or flex-end for right */
+    gap: 10px; /* Space between buttons */
+    margin-top: 25px; /* Space above button group */
+    padding-top: 15px; /* Space above buttons if there's a separator */
+    /* border-top: 1px solid var(--border-color); */ /* Optional separator */
+}
+
+.nf-submit-button,
+.nf-cancel-button {
+    /* These inherit .btn, .btn-primary, .btn-secondary from base.css */
+    /* Add specific overrides if needed */
+    /* Example: padding: 10px 20px; */
+}

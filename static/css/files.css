@@ -1,0 +1,777 @@
+/* static/css/files.css */
+
+/* --- General Page Container --- */
+.fl-page-container {
+    /* Consider adding some horizontal padding for smaller screens directly here
+     *     if not handled by a parent element or global styles.
+     *     e.g., padding: 0 10px;
+     */
+}
+
+/* --- Header Bar (Title, Breadcrumbs, Storage) --- */
+.fl-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* Vertically align items if they wrap */
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 15px; /* Good for spacing between elements when they wrap */
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.fl-page-title {
+    margin: 0;
+    flex-grow: 1; /* Allow title to take available space */
+    flex-basis: 100%; /* Default to full width, will share if space allows later */
+    min-width: 0; /* Allow shrinking without breaking layout */
+    font-size: 1.5em; /* Base title size */
+}
+
+.fl-breadcrumb-nav {
+    flex-grow: 1; /* Allow breadcrumbs to take available space if title is short */
+    flex-basis: auto; /* Adjust based on content */
+    min-width: 0; /* Allow shrinking */
+}
+
+.fl-breadcrumb {
+    padding: 0;
+    margin: 0; /* Reset margin */
+    background-color: transparent;
+    display: flex;
+    flex-wrap: wrap; /* Allow breadcrumbs to wrap */
+    gap: 6px 8px; /* row-gap column-gap */
+    list-style: none;
+    align-items: center;
+    font-size: 1em; /* Adjusted for better mobile readability */
+    line-height: 1.4; /* Improve readability for wrapped items */
+}
+.fl-breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+.fl-breadcrumb a:hover {
+    text-decoration: underline;
+}
+.fl-breadcrumb-item::after {
+    content: '/';
+    margin-left: 8px; /* Match column-gap */
+    color: var(--text-color);
+    opacity: 0.5;
+}
+.fl-breadcrumb-item:last-child::after {
+    content: '';
+    margin-left: 0; /* No margin if no separator */
+}
+
+.fl-storage-usage-display {
+    margin: 0;
+    font-size: 0.85em; /* Slightly smaller for better fit */
+    color: var(--text-muted-color, #ccc); /* Use a variable if possible */
+    white-space: nowrap;
+    flex-shrink: 0; /* Prevent shrinking */
+    text-align: right; /* Align to the right if it wraps to its own line */
+}
+
+/* --- Top Actions Toolbar --- */
+.fl-actions-toolbar-top {
+    margin-bottom: 20px;
+    min-height: 40px;
+    display: flex;
+    flex-wrap: wrap; /* Allow buttons to wrap to the next line */
+    gap: 10px; /* Spacing between action buttons/groups */
+    align-items: center;
+}
+
+/* Buttons like .fl-btn-show-create-folder, .fl-btn-paste etc.
+ * should inherit .btn .btn-sm from a base CSS.
+ * Ensure these buttons have adequate padding for touch targets (e.g., min 40x40px effective area).
+ * Example: .btn { padding: 0.5em 1em; min-height: 38px; } in base.css
+ */
+
+.fl-multi-select-actions-toolbar {
+    display: flex; /* JS manages visibility */
+    gap: 10px;
+    flex-wrap: wrap; /* Allow these buttons to wrap as well */
+}
+
+.fl-form-create-folder {
+    background-color: var(--bg-color);
+    padding: 15px; /* Increased padding */
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    width: 100%; /* Make it full width by default on mobile */
+    max-width: 500px; /* Keep max-width for larger screens */
+    box-sizing: border-box;
+    margin-top: 10px; /* Add some space if it appears after a button click */
+}
+.fl-create-folder-form-inner {
+    display: flex;
+    flex-direction: column; /* Stack input and buttons vertically by default */
+    gap: 10px;
+    align-items: stretch; /* Make children take full width */
+}
+.fl-form-group-foldername {
+    flex-grow: 1;
+    margin-bottom: 0; /* Handled by gap in parent */
+}
+.fl-input-foldername {
+    width: 100%; /* Ensure input takes full width of its container */
+    /* Inherits .form-control .form-control-sm */
+    /* Ensure .form-control has sufficient padding for touch */
+}
+.fl-create-folder-buttons { /* New wrapper for buttons for better layout control */
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end; /* Align buttons to the right by default */
+}
+.fl-btn-submit-foldername,
+.fl-btn-cancel-foldername {
+    /* Inherits .btn .btn-sm */
+    /* Consider making them full width on very small screens if stacked (see media queries) */
+}
+
+
+/* --- Upload Section & Drop Zone --- */
+.fl-upload-section {
+    border: 2px dashed var(--border-color);
+    padding: 20px; /* Adjusted from 30px, can be more on larger screens via media query */
+    text-align: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    background-color: var(--subtle-bg-color, rgba(0,0,0,0.05));
+}
+.fl-upload-section.drag-over {
+    background-color: rgba(var(--primary-color-rgb), 0.1);
+    border-color: var(--primary-color);
+    border-style: solid;
+}
+.fl-upload-title {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em; /* Adjusted */
+    color: var(--text-color);
+}
+.fl-upload-guidance {
+    margin: 0 0 15px 0;
+    font-size: 1em; /* Adjusted */
+    color: var(--placeholder-color);
+    line-height: 1.5;
+}
+
+.fl-upload-form-element {
+    /* Styles for the form itself if needed */
+}
+.fl-upload-input-wrapper {
+    text-align: center;
+    margin-bottom: 15px; /* Increased margin */
+}
+.fl-btn-browse-files {
+    /* Inherits .btn .btn-secondary .btn-sm */
+    /* Ensure it's large enough for touch, e.g., padding: 0.6em 1.2em; */
+}
+.fl-input-file-actual {
+    /* Is .visually-hidden from base.css */
+}
+.fl-upload-info-group {
+    text-align: center;
+    margin-top: 10px;
+}
+.fl-upload-errors {
+    text-align: left;
+    display: inline-block; /* Or block with margin auto for centering container */
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: var(--danger-color, #dc3545); /* Use a variable for error color */
+}
+.fl-upload-size-limit {
+    font-size: 0.85em; /* Adjusted */
+    color: var(--placeholder-color);
+}
+
+
+/* --- File List Table --- */
+.fl-file-list-container {
+    width: 100%;
+    margin-top: 15px;
+    overflow-x: auto; /* Essential for table responsiveness */
+}
+
+.fl-file-list-table-element {
+    width: 100%;
+    border-collapse: collapse;
+    /* table-layout: fixed; /* Retained for performance if columns widths are reliable */
+    min-width: 320px; /* Smallest practical viewport width before scrolling is absolutely needed */
+    font-size: 0.95em; /* Base font size for table */
+}
+
+.fl-table-header-row {
+    border-bottom: 2px solid var(--border-color); /* Stronger separator for header */
+}
+
+.fl-th {
+    padding: 12px 8px; /* Increased padding */
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap; /* Prevent header text from wrapping */
+}
+
+/* Default column widths - these will be overridden in media queries */
+.fl-th-checkbox { width: 40px; text-align: center; }
+.fl-th-name     { width: auto; } /* Name takes remaining space */
+.fl-th-size     { width: 100px; text-align: right; }
+.fl-th-modified { width: 130px; text-align: center; }
+.fl-th-actions  { width: 80px; text-align: center; }
+
+
+.fl-item-row {
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+.fl-item-row:last-child {
+    border-bottom: none;
+}
+.fl-item-row:hover {
+    /* Ensure var(--text-color-rgb) is defined, e.g., 230, 230, 230 for a light text on dark bg */
+    background-color: rgba(var(--text-color-rgb, 255, 255, 255), 0.05);
+}
+.fl-item-row.selected {
+    background-color: rgba(var(--primary-color-rgb), 0.15);
+}
+.fl-item-row.cut-item {
+    opacity: 0.5;
+    background-color: var(--cut-item-bg-color, #2c2c2c);
+}
+
+.fl-td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+.fl-td-checkbox { text-align: center; }
+.fl-td-name {
+
+    /* Name column will use available space */
+    /* Consider word-break: break-word; if very long unbroken strings are an issue */
+}
+.fl-td-size     { text-align: right; white-space: nowrap; }
+.fl-td-modified { text-align: center; white-space: nowrap; }
+
+.fl-td-actions.fl-actions-cell {
+    text-align: center; /* Center the inline-block menu button/trigger */
+    position: absolute; /* Crucial for positioning the absolute dropdown menu */
+}
+
+
+.fl-item-icon {
+    margin-right: 8px;
+    font-size: 1.2em; /* Slightly larger icon */
+    display: inline-block;
+    width: 24px; /* Slightly wider for larger icon */
+    text-align: center;
+    vertical-align: middle;
+}
+.fl-item-icon-folder { color: var(--primary-color); font-weight: bold; }
+.fl-item-icon-file   { color: var(--text-color); opacity: 0.7; }
+
+.fl-itemname-display {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%; /* TD will constrain it. Adjust if TD has other fixed-size siblings */
+    vertical-align: middle;
+    line-height: 1.4;
+}
+.fl-itemname-display a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: block; /* Make the link fill available space for easier tapping */
+    padding: 2px 0; /* Add slight vertical padding to link if needed */
+}
+.fl-itemname-display a:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.fl-itemname-input {
+    display: none; /* JS controlled */
+    width: calc(100% - 10px);
+    box-sizing: border-box;
+    background-color: var(--input-bg-color, var(--text-color)); /* Or a lighter input background */
+    color: var(--input-text-color, var(--bg-color)); /* Or a darker input text color */
+    border: 1px solid var(--primary-color);
+    padding: 6px 8px; /* Slightly more padding */
+    border-radius: 3px;
+    font-size: inherit;
+    vertical-align: middle;
+}
+
+
+/* Share Link Row Styling */
+.fl-share-link-row {
+    background-color: var(--subtle-highlight-bg, rgba(0,0,0,0.1));
+}
+.fl-share-link-cell {
+    /* Dynamic padding-left based on checkbox, icon, and their margins/paddings.
+     *     Example: checkbox (40px) + cell padding (8px*2) + icon (24px) + icon margin (8px) = ~88px
+     *     Adjust this based on your exact structure before the name column.
+     *     This example tries to align with where item name text would start.
+     */
+    padding: 10px 15px 10px calc(40px + 16px + 24px + 8px);
+    /* For smaller screens, this might be too much padding (see media queries). */
+}
+.fl-share-link-display-area {
+    display: flex;
+    flex-direction: column; /* Stack vertically on small screens by default */
+    align-items: stretch; /* Full width for input and button */
+    gap: 8px;
+}
+.fl-share-link-label {
+    font-size: 0.9em;
+    font-weight: normal;
+    color: var(--text-muted-color, #bbb);
+    white-space: nowrap;
+    margin-bottom: 4px; /* Add some space when stacked */
+}
+.fl-share-link-input {
+    flex-grow: 1;
+    font-size: 0.9em;
+    background-color: var(--input-bg-color, var(--bg-color));
+    color: var(--input-text-color, var(--text-color));
+    border: 1px solid var(--border-color);
+    padding: 6px 10px; /* Increased padding */
+    border-radius: 4px;
+    width: 100%; /* Ensure it takes available width when stacked */
+    box-sizing: border-box;
+}
+.fl-btn-copy-share-link {
+    flex-shrink: 0; /* Prevent shrinking if on the same line (larger screens) */
+    /* Ensure it has .btn styles for proper touch target size */
+}
+
+/* Action Menu (Dropdown for each file/folder row) */
+.pm-post-actions-menu { /* This is the container for the trigger button */
+    position: relative; /* Keeps it in flow, allows absolute positioning of child */
+    display: inline-block; /* So it doesn't take full width of cell */
+    vertical-align: middle; /* Align with other cell content if any */
+}
+/* The actual button inside .pm-post-actions-menu should be styled for touch (e.g. using .btn class) */
+
+.pm-post-menu-dropdown {
+    display: none; /* Managed by JS */
+    position: absolute;
+    top: 100%; /* Position below the button */
+    right: 0; /* Align to the right of the parent (.pm-post-actions-menu)
+    This is often better on mobile to prevent going off-screen.
+    The parent .fl-td-actions is text-align:center, and .pm-post-actions-menu is inline-block,
+    so this will align the dropdown to the right edge of the centered trigger. */
+    /* left: 50%; transform: translateX(-50%); /* Alternative: center below trigger */
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+    padding: 6px 0;
+    margin: 2px 0 0 0; /* Small margin from the trigger button */
+    min-width: 180px; /* Adjust as needed */
+    z-index: 500;
+    list-style: none;
+}
+
+.pm-post-menu-dropdown .unified-action-button.pm-menu-item,
+.pm-post-menu-dropdown > a.unified-action-button.pm-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 15px; /* Increased padding for touch */
+    border-radius: 0;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    box-sizing: border-box;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.pm-post-menu-dropdown .unified-action-button.pm-menu-item:hover,
+.pm-post-menu-dropdown > a.unified-action-button.pm-menu-item:hover {
+    background-color: var(--primary-color);
+    color: var(--primary-contrast-color, #ffffff);
+}
+
+.pm-post-menu-dropdown .pm-menu-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 6px 0;
+}
+
+
+/* Empty folder message */
+.fl-empty-folder-row .fl-empty-folder-message {
+    text-align: center;
+    padding: 30px 15px; /* Increased padding */
+    color: var(--text-muted-color, #aaa);
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+/* Action status bar */
+.fl-action-status-bar {
+    margin-top: 15px;
+    color: var(--info-color);
+    min-height: 1.2em;
+    font-style: italic;
+    font-size: 0.9em;
+    padding: 5px 0;
+}
+
+/* --- File Viewer Modal Styles --- */
+.fl-modal { /* This is the overlay */
+    /* display: none; Typically managed by JS to add a class like 'is-open' */
+    position: fixed;
+    z-index: 1070;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px; /* Padding around the modal content, especially for small screens */
+    box-sizing: border-box;
+    overflow-y: auto; /* Allow scrolling of the overlay if modal content is very tall, though modal itself should scroll */
+}
+
+.fl-modal-content {
+    background-color: var(--secondary-color);
+    padding: 0; /* Header/body will have padding */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    width: 100%; /* Full width within the padding of .fl-modal */
+    max-width: 1000px;
+    height: auto; /* Adjust height based on content, up to max-height */
+    max-height: 95vh; /* Use viewport height, leave some space */
+    overflow: hidden; /* Header/footer fixed, body scrolls */
+}
+
+.fl-modal-header {
+    padding: 12px 15px;
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: inherit; /* Inherit from parent */
+    border-top-right-radius: inherit; /* Inherit from parent */
+    flex-shrink: 0;
+}
+
+.fl-modal-title-text {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 1.1em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 10px; /* Space before close button */
+}
+
+.fl-modal-close-button {
+    color: var(--text-color);
+    font-size: 1.8rem;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 5px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.fl-modal-close-button:hover,
+.fl-modal-close-button:focus {
+    color: var(--primary-color);
+    text-decoration: none;
+    outline: none;
+}
+
+.fl-modal-body {
+    flex-grow: 1;
+    display: flex; /* For centering content like images/unsupported message */
+    justify-content: center;
+    align-items: center;
+    overflow: auto; /* Allow scrolling for content that exceeds body */
+    background-color: var(--bg-color);
+    border-bottom-left-radius: inherit; /* Inherit from parent */
+    border-bottom-right-radius: inherit; /* Inherit from parent */
+    position: relative;
+    padding: 15px;
+}
+
+.fl-modal-media, /* img, video */
+.fl-modal-iframe,
+.fl-modal-unsupported-message {
+    display: none; /* JS will show the relevant one */
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* For img, video */
+}
+
+.fl-modal-audio {
+    width: 100%;
+    height: auto;
+    max-height: none; /* Override if .fl-modal-media is too restrictive */
+}
+.fl-modal-video {
+    /* max-height is 100% from .fl-modal-media */
+}
+.fl-modal-iframe {
+    width: 100%;
+    height: 100%; /* Make iframe fill the modal body */
+    border: none;
+    background-color: #fff; /* Default background for iframe content */
+}
+
+.fl-modal-unsupported-message {
+    color: var(--text-color);
+    text-align: center;
+    padding: 20px;
+}
+.fl-modal-unsupported-message p {
+    margin-bottom: 15px;
+}
+.fl-btn-download-unsupported {
+    margin-top: 15px;
+    /* Ensure .btn styles are applied */
+}
+
+/* --- Responsive Adjustments --- */
+
+/* Tablet and larger phones (e.g., > 768px) */
+@media (min-width: 769px) {
+    .fl-page-title {
+        flex-basis: auto; /* Allow title and breadcrumbs to share space horizontally */
+    }
+    .fl-create-folder-form-inner {
+        flex-direction: row; /* Input and buttons side-by-side */
+        align-items: center;
+    }
+    .fl-form-group-foldername {
+        /* flex-grow: 1; already set */
+    }
+    .fl-create-folder-buttons {
+        flex-shrink: 0; /* Prevent buttons from shrinking too much */
+        justify-content: flex-end; /* Keep alignment */
+    }
+    .fl-share-link-display-area {
+        flex-direction: row; /* Side-by-side for label, input, button */
+        align-items: center;
+    }
+    .fl-share-link-label {
+        margin-bottom: 0; /* Reset margin */
+    }
+    .fl-share-link-input {
+        width: auto; /* Allow flex-grow to manage width */
+    }
+}
+
+
+/* Original 900px breakpoint - for hiding table columns */
+@media (max-width: 900px) {
+    .fl-file-list-table-element .fl-th-modified,
+    .fl-file-list-table-element .fl-td-modified {
+        display: none; /* Hide modified column */
+    }
+    /* Columns remaining: checkbox, name, size, actions */
+    .fl-th-checkbox { width: 40px; }
+    .fl-th-name     { /* width: auto; */ }
+    .fl-th-size     { width: 90px; }
+    .fl-th-actions  { width: 70px; }
+}
+
+/* Original 625px breakpoint - more adjustments */
+@media (max-width: 625px) {
+    .fl-header-bar {
+        flex-direction: column; /* Stack title, breadcrumbs, storage vertically */
+        align-items: flex-start; /* Align items to the start */
+        gap: 10px; /* Adjust gap for stacked items */
+    }
+    .fl-page-title {
+        font-size: 1.3em;
+    }
+    .fl-breadcrumb {
+        font-size: 0.9em;
+    }
+    .fl-storage-usage-display {
+        width: 100%; /* Take full width */
+        text-align: left; /* Align to left when stacked */
+        margin-top: 5px; /* Add some space above it */
+        font-size: 0.8em;
+    }
+
+    .fl-actions-toolbar-top {
+        /* Consider justify-content: space-around or flex-start */
+        gap: 8px;
+    }
+    /* Make buttons in toolbar potentially take more width or adjust size */
+    .fl-actions-toolbar-top .btn, /* Targetting generic .btn, refine if needed */
+    .fl-multi-select-actions-toolbar .btn {
+        /* padding: 0.6em 0.8em; */ /* Adjust padding if text allows */
+        /* font-size: 0.9em; */
+    }
+
+    .fl-upload-section {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .fl-upload-title {
+        font-size: 1.1em;
+    }
+    .fl-upload-guidance {
+        font-size: 0.9em;
+    }
+
+    .fl-file-list-table-element .fl-th-size,
+    .fl-file-list-table-element .fl-td-size {
+        display: none; /* Hide size column */
+    }
+    /* Columns remaining: checkbox, name, actions */
+    .fl-th-checkbox { width: 40px; }
+    .fl-th-name     { /* width: auto; */ }
+    .fl-th-actions  { width: 60px; }
+
+    .fl-item-icon {
+        font-size: 1.1em;
+        width: 20px;
+        margin-right: 6px;
+    }
+
+    .fl-share-link-cell {
+        /* Adjust padding for fewer preceding elements */
+        padding-left: calc(40px + 12px + 20px + 6px); /* checkbox_w + cell_paddings + icon_w + icon_margin */
+    }
+
+    .pm-post-menu-dropdown {
+        min-width: 160px;
+    }
+
+    .fl-modal-content {
+        max-height: 90vh;
+        border-radius: 6px;
+    }
+    .fl-modal-header {
+        padding: 10px 12px;
+    }
+    .fl-modal-title-text {
+        font-size: 1em;
+    }
+    .fl-modal-body {
+        padding: 10px;
+    }
+}
+
+/* Very small screens (e.g., < 480px) */
+@media (max-width: 480px) {
+    .fl-page-container {
+        /* padding-left: 5px; padding-right: 5px; /* Minimal edge padding */
+    }
+
+    .fl-header-bar {
+        gap: 8px;
+    }
+    .fl-page-title {
+        font-size: 1.2em;
+    }
+    .fl-breadcrumb {
+        gap: 4px 6px; /* Reduce breadcrumb gap */
+        font-size: 0.85em;
+    }
+
+    /* Toolbar buttons: consider full width or two per row */
+    .fl-actions-toolbar-top .btn,
+    .fl-multi-select-actions-toolbar .btn {
+        /* width: 100%; */ /* Example: Full width buttons */
+        /* flex-basis: calc(50% - 4px); /* Example: Two buttons per row (adjust gap) */
+        font-size: 0.9em; /* Slightly smaller button text */
+        padding: 0.5em 0.8em; /* Adjust padding for smaller buttons */
+    }
+    .fl-form-create-folder {
+        padding: 10px;
+    }
+    .fl-create-folder-buttons {
+        flex-direction: column; /* Stack cancel/submit buttons */
+        gap: 8px;
+    }
+    .fl-create-folder-buttons .btn {
+        width: 100%; /* Make folder action buttons full width */
+    }
+
+    .fl-upload-section {
+        padding: 10px;
+        margin-bottom: 15px;
+    }
+    .fl-upload-title { font-size: 1em; }
+    .fl-upload-guidance { font-size: 0.85em; line-height: 1.4; }
+    .fl-btn-browse-files { padding: 0.5em 1em; font-size: 0.9em; }
+
+
+    .fl-file-list-table-element {
+        font-size: 0.9em; /* Smaller table font */
+    }
+    .fl-th, .fl-td {
+        padding: 8px 6px; /* Reduce cell padding */
+    }
+    /* Columns left: checkbox, name, actions */
+    .fl-th-checkbox { width: 30px; }
+    .fl-th-actions  { width: 50px; }
+    .fl-item-icon {
+        font-size: 1em;
+        width: 18px;
+        margin-right: 4px;
+    }
+    .fl-itemname-display a {
+        /* word-break: break-all; /* Use with caution if names are very long and have no spaces */
+    }
+
+    .pm-post-menu-dropdown {
+        /* Attempt to make it not go off-screen, might need JS for perfection */
+        right: 5px; /* Ensure it doesn't touch edge */
+        left: auto; /* Override general centering if any */
+        transform: translateX(0); /* Override general centering if any */
+        max-width: calc(100vw - 20px); /* Limit width to viewport minus some margin */
+        min-width: 140px;
+    }
+    .pm-post-menu-dropdown .unified-action-button.pm-menu-item,
+    .pm-post-menu-dropdown > a.unified-action-button.pm-menu-item {
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+
+    .fl-modal-content {
+        margin: 5px; /* Ensure it doesn't touch screen edges */
+        width: calc(100% - 10px); /* Occupy almost full screen */
+        max-height: calc(100vh - 10px); /* Fill screen with small margin */
+        border-radius: 4px;
+    }
+    .fl-modal-header { padding: 8px 10px; }
+    .fl-modal-title-text { font-size: 0.95em; }
+    .fl-modal-close-button { font-size: 1.6rem; }
+    .fl-modal-body { padding: 8px; }
+    .fl-modal-unsupported-message p { font-size: 0.9em; }
+    .fl-btn-download-unsupported { font-size: 0.9em; padding: 0.4em 0.8em; }
+
+    .fl-share-link-cell {
+        /* Adjust padding for fewer/smaller preceding elements */
+        padding-left: calc(30px + 12px + 18px + 4px);
+    }
+    .fl-share-link-input {
+        padding: 5px 8px;
+        font-size: 0.85em;
+    }
+}

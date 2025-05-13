@@ -1,0 +1,157 @@
+/* static/css/notifications.css */
+
+.notif-page-container {
+    /* General padding and max-width will be handled by the main .base-container class */
+}
+
+.notif-page-container .notif-page-title { /* Specific styling for the H2 on this page */
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notif-actions-bar { /* Was .notifications-actions */
+    margin-bottom: 20px; /* Increased margin */
+    text-align: right;
+}
+.notif-btn-mark-all-read { /* Was #mark-all-read-btn styling, now a class */
+    /* Inherits .btn .btn-secondary .btn-sm from base.css */
+    /* Add specific overrides if needed */
+}
+
+
+.notif-list { /* Was .notifications-list */
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.notif-item { /* Was .notification-item */
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px 20px; /* Increased padding */
+    margin-bottom: 15px; /* Increased margin */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.3s ease, opacity 0.5s ease;
+}
+
+.notif-item.unread { /* Modifier class, kept as is */
+    background-color: #2c3e50; /* Distinct BG for unread */
+    /* border-left: 4px solid var(--primary-color); */ /* Alternative unread indicator */
+}
+.notif-item.unread:hover {
+    background-color: #34495e;
+}
+.notif-item:not(.unread):hover {
+    background-color: #252525;
+}
+
+.notif-item-header { /* Was .notification-header */
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Increased gap */
+    margin-bottom: 10px; /* Increased margin */
+}
+
+.notif-sender-pfp { /* Was .notification-sender-pfp */
+    width: 40px; /* Increased size */
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.notif-sender-pfp.notif-sender-pfp-placeholder { /* Added specific placeholder class */
+    background-color: var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* font-weight: bold; color: var(--text-color); */ /* For initials if added */
+}
+
+.notif-sender-name { /* Was .notification-sender */
+    font-weight: bold;
+    color: var(--primary-color); /* Ensure link color is primary */
+}
+.notif-sender-name a { /* Styling for the link within */
+    color: inherit; /* Inherit color from .notif-sender-name */
+    text-decoration: none;
+}
+.notif-sender-name a:hover {
+    text-decoration: underline;
+}
+
+.notif-timestamp { /* Was .notification-timestamp */
+    font-size: 0.8em;
+    color: #aaa;
+    margin-left: auto;
+    padding-left: 10px;
+    white-space: nowrap;
+}
+
+.notif-unread-indicator { /* Was .unread-indicator */
+    width: 10px; /* Increased size */
+    height: 10px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 10px; /* Increased margin */
+    flex-shrink: 0;
+}
+
+.notif-content-text { /* Was .notification-content-text */
+    font-size: 0.98em; /* Slightly larger */
+    line-height: 1.5;
+    color: var(--text-color);
+    flex-grow: 1;
+}
+.notif-content-text .notif-content-link { /* Was .notification-link */
+    color: var(--text-color);
+    text-decoration: none;
+    display: block;
+}
+.notif-content-text .notif-content-link:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.notif-btn-dismiss { /* Was .btn-dismiss-notification */
+    position: absolute;
+    top: 10px; /* Adjusted position */
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px; /* Larger hit area */
+    opacity: 0.6;
+    transition: opacity 0.2s ease, transform 0.2s ease; /* Added transform */
+    border-radius: 50%; /* Make it round */
+}
+.notif-btn-dismiss:hover {
+    opacity: 1;
+    background-color: rgba(255,255,255,0.1); /* Subtle hover background */
+    transform: scale(1.1);
+}
+.notif-btn-dismiss .notif-dismiss-icon { /* Was img direct child */
+    width: 16px; /* Increased icon size */
+    height: 16px;
+    display: block;
+    filter: invert(0.7);
+}
+
+.notif-no-notifications-message { /* Was .no-notifications */
+    text-align: center;
+    color: var(--placeholder-color, #888); /* Use variable */
+    padding: 30px 0;
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+/* Pagination for notifications - uses general pagination styles from base.css */
+.notif-pagination-nav {
+    /* Specific overrides for pagination on this page if needed */
+    /* margin-top: 30px; */
+}

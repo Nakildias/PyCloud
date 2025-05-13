@@ -1,0 +1,358 @@
+/* static/css/group_chat.css */
+
+/* --- Group Chat History Styles --- */
+.gc-chat-history-area {
+    flex-grow: 1;
+    overflow-y: auto;
+    height: 0;
+    border: none;
+    padding: 15px 15px calc(var(--input-bar-height) + 50px) 15px;
+    margin-bottom: 0;
+    background-color: transparent;
+    border-radius: 0;
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.gc-empty-chat-message {
+    color: #aaa;
+    text-align: center;
+    margin: auto;
+    padding: 20px;
+}
+
+/* --- Group Chat Fixed Input Form --- */
+.gc-chat-form-element {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(26, 26, 26, 0.9);
+    padding: 10px 0;
+    width: 100%;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+    border-top: 1px solid var(--border-color);
+    box-sizing: border-box;
+}
+
+.gc-chat-form-element .gc-chat-input-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: var(--secondary-color);
+    padding: 8px 8px 8px 15px;
+    border-radius: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.gc-chat-form-element .gc-message-input-textarea {
+    flex-grow: 1;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    resize: none;
+    outline: none;
+    padding: 8px 0;
+    margin: 0;
+    font-size: 1em;
+    line-height: 1.5;
+    min-height: 24px;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+.gc-chat-form-element .gc-message-input-textarea::placeholder {
+    color: var(--placeholder-color);
+}
+
+.gc-chat-form-element .gc-btn-file-attach,
+.gc-chat-form-element .gc-btn-send {
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    line-height: 1;
+    background-color: transparent;
+    color: var(--placeholder-color);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+}
+.gc-chat-form-element .gc-btn-file-attach:hover,
+.gc-chat-form-element .gc-btn-send:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.gc-chat-form-element .gc-btn-send {
+    color: var(--primary-color);
+}
+.gc-chat-form-element .gc-btn-send:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.2);
+}
+.gc-chat-form-element .gc-btn-send:disabled {
+    background-color: transparent;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.gc-chat-form-element .gc-icon-upload,
+.gc-chat-form-element .gc-icon-send {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.gc-file-input-actual.visually-hidden {
+    /* Uses .visually-hidden from base.css */
+}
+
+
+/* --- Group Chat Message Styles (Inside .gc-chat-history-area) --- */
+.gc-chat-history-area .gc-chat-message-wrapper {
+    display: flex; /* This makes margin-left: auto work for .current-user */
+    margin-bottom: 10px;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 100%; /* Allow wrapper to be full width if needed, content inside is controlled */
+}
+
+.gc-chat-history-area .gc-chat-message-wrapper.current-user {
+    margin-left: auto; /* Push the whole wrapper to the right */
+    margin-right: 0;   /* Ensure no right margin interferes */
+    flex-direction: row; /* PFP appears after the bubble */
+    justify-content: flex-end; /* This aligns items *within* the wrapper, margin-left:auto handles wrapper position */
+}
+
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) {
+    /* justify-content: flex-start; /* Default, not strictly needed */
+    flex-direction: row;
+    margin-right: auto; /* Ensure it stays left */
+    margin-left: 0;
+}
+
+.gc-chat-message-pfp-container {
+    flex-shrink: 0;
+}
+.gc-chat-message-pfp {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.gc-chat-history-area .gc-chat-message {
+    padding: 8px 12px;
+    border-radius: 18px;
+    max-width: 75%;
+    word-wrap: break-word;
+    line-height: 1.5;
+    position: relative;
+    box-sizing: border-box;
+    width: fit-content; /* Make bubble snug to its content */
+}
+
+/* Bubble colors */
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-chat-message {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border-bottom-left-radius: 5px;
+}
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-chat-message {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-bottom-right-radius: 5px;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 0.8em;
+    color: inherit;
+    opacity: 0.8;
+    margin-bottom: 4px;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-sender a,
+.gc-chat-history-area .gc-chat-message .gc-message-sender {
+    font-weight: bold;
+    color: inherit;
+    text-decoration: none;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-sender a:hover {
+    text-decoration: underline;
+}
+
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-message-timestamp {
+    color: rgba(255,255,255,0.8);
+}
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-message-timestamp {
+    color: rgba(var(--text-color-rgb, 224, 224, 224), 0.7);
+}
+.gc-chat-history-area .gc-chat-message .gc-message-timestamp {
+    line-height: 1.2;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-edited-marker {
+    font-size: 0.9em;
+    font-style: italic;
+    line-height: 1.2;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-content {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-file-attachment {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-chat-message .gc-message-file-attachment {
+    border-top-color: rgba(0,0,0,0.2);
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name {
+    font-size: 0.9em;
+    margin-bottom: 5px;
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name a {
+    color: inherit;
+    text-decoration: underline;
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name a:hover {
+    opacity: 0.8;
+}
+
+.gc-chat-history-area .gc-file-preview { margin-top: 5px; }
+.gc-chat-history-area .gc-file-preview img,
+.gc-chat-history-area .gc-file-preview video {
+    display: block;
+    border-radius: 5px;
+    max-width: 100%;
+    height: auto;
+    max-height: 200px;
+}
+.gc-chat-history-area .gc-text-file-preview {
+    background-color: rgba(0, 0, 0, 0.15);
+    padding: 5px 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+    max-height: 100px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-text-file-preview {
+    border-color: rgba(0,0,0,0.2);
+}
+.gc-chat-history-area .gc-text-file-preview pre {
+    margin: 0;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: inherit;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-actions {
+    position: absolute;
+    top: 5px;
+    right: 7px;
+    display: none;
+    gap: 4px;
+    background-color: rgba(0,0,0,0.2);
+    padding: 3px 5px;
+    border-radius: 5px;
+    z-index: 10;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-actions .btn-sm {
+    padding: 2px 5px;
+    line-height: 1;
+    background-color: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.gc-chat-history-area .gc-chat-message .gc-message-actions .btn-sm:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+.gc-chat-history-area .gc-chat-message .gc-message-actions .btn-sm img {
+    width: 0.9em;
+    height: 0.9em;
+    vertical-align: middle;
+}
+
+.gc-edit-message-container {
+    display: none;
+    position: fixed;
+    bottom: var(--input-bar-height);
+    left: 0;
+    right: 0;
+    background-color: var(--secondary-color);
+    padding: 10px 0;
+    z-index: 105;
+    border-top: 1px solid var(--border-color);
+    box-sizing: border-box;
+}
+.gc-edit-message-container .gc-edit-message-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 15px;
+}
+.gc-edit-input-field {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 0.95em;
+}
+.gc-edit-input-field:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
+}
+.gc-edit-message-container .gc-btn-save-edit,
+.gc-edit-message-container .gc-btn-cancel-edit {
+    padding: 7px 12px;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-file-preview audio {
+    width: 100%;
+    max-width: 350px;
+    height: 40px;
+    margin-top: 5px;
+    border-radius: 6px;
+    background-color: transparent;
+    filter: invert(1) sepia(100%) saturate(0%) hue-rotate(0deg) brightness(150%) contrast(100%);
+}
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-file-preview audio {
+    filter: invert(0.9) brightness(1.1);
+}
+
+@-moz-document url-prefix() {
+    .gc-chat-history-area .gc-chat-message .gc-file-preview audio {
+        filter: none;
+    }
+}
+.gc-chat-history-area .gc-chat-message .gc-file-preview audio::-webkit-media-controls-panel {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+

@@ -1,0 +1,114 @@
+/* static/css/edit.css */
+
+.edit-file-page {
+    /* Add any page-specific wrapper styles if needed */
+    /* max-width: 900px; */ /* Example if you want to constrain width */
+    /* margin: 20px auto; */
+}
+
+.edit-file-title {
+    /* Inherits h2 from base.css */
+    /* Add specific overrides if needed */
+    margin-bottom: 5px; /* Reduce bottom margin slightly */
+}
+
+.edit-file-filename-display {
+    /* Styles for the filename span within the h2 if needed */
+    /* color: var(--text-color-light); */ /* Example */
+}
+
+.edit-file-stored-name-info {
+    font-size: 0.9em;
+    color: #ccc;
+    margin-bottom: 20px; /* Space before the form */
+}
+
+.edit-file-form {
+    /* Styles for the form element itself */
+}
+
+.edit-file-form-group {
+    /* Replicates .form-group from base.css if it's being made specific */
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px; /* Default spacing for form groups on this page */
+}
+
+.edit-file-label {
+    /* Replicates label from base.css */
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-color); /* Ensure label color */
+}
+
+.edit-file-textarea-content {
+    /* Replicates .form-control and specific textarea styles */
+    background-color: var(--bg-color); /* Darker input background from base.css */
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 10px; /* Adjusted padding */
+    border-radius: 4px;
+    box-sizing: border-box;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-size: 1rem; /* Default font size */
+    line-height: 1.5;
+    font-family: monospace; /* Specific to this textarea */
+    /* rows attribute handles initial height, CSS can set min-height if needed */
+    min-height: 400px; /* Example min-height, adjust as needed */
+}
+
+.edit-file-textarea-content:focus {
+    /* Replicates focus style from base.css */
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
+}
+
+.edit-file-errors {
+    /* Replicates .errors from base.css */
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+
+.edit-file-submit-group {
+    /* Replicates .form-group styles if needed, plus specific for submit area */
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end; /* Align buttons to the right */
+    padding-top: 15px; /* Add some space above buttons */
+    border-top: 1px solid var(--border-color); /* Separator line */
+}
+
+.edit-file-btn-cancel,
+.edit-file-btn-submit {
+    /* These will inherit .btn, .btn-secondary, .btn-primary from base.css */
+    /* Add specific overrides if needed */
+    /* Example: padding: 8px 20px; */
+}
+
+.edit-file-form-group .CodeMirror { /* Target the CodeMirror instance */
+    border: 1px solid var(--border-color); /* Match your site's border style */
+    border-radius: 4px; /* Match your site's border-radius */
+    /* font-family: monospace; /* Already set by CodeMirror themes, but can override */
+    /* font-size: 0.95em; /* Adjust if needed */
+    /* line-height: 1.5; /* CodeMirror usually handles this well */
+    min-height: 400px; /* Ensure a minimum height, same as your textarea */
+    /* The height can also be set via editor.setSize() in JS */
+    resize: vertical; /* Some themes/setups allow this */
+}
+
+.edit-file-form-group .CodeMirror-focused { /* Style when editor has focus */
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5); /* Match your focus style */
+    outline: none;
+}
+
+/* Hide the original textarea as CodeMirror will manage the display */
+.edit-file-textarea-content {
+    display: none;
+}

@@ -1,0 +1,608 @@
+/* static/css/posts.css */
+
+/* ==========================================================================
+ * Create Post Form Styles (cp- prefixed)
+ * ========================================================================== */
+.cp-container {
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 25px;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.4);
+}
+.cp-container .cp-title {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 25px;
+}
+.cp-form .cp-form-group {
+    margin-bottom: 20px;
+}
+.cp-form .cp-form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #c0c0c0;
+}
+.cp-form .cp-text-content-area {
+    min-height: 100px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 4px;
+    resize: vertical;
+    width: 100%;
+    box-sizing: border-box;
+}
+.cp-form .cp-text-content-area:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
+    outline: none;
+}
+.cp-form .cp-input-file-photo,
+.cp-form .cp-input-file-video {
+    display: block;
+}
+.cp-form .form-control-file::-webkit-file-upload-button { /* Kept general for now */
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.2s ease;
+}
+.cp-form .form-control-file:hover::-webkit-file-upload-button {
+    background-color: #3a7ac0;
+}
+.cp-form .cp-errors {
+    list-style: none;
+    padding-left: 5px;
+    margin-top: 5px;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+.cp-form .cp-form-text.cp-text-muted {
+    font-size: 0.85em;
+    color: #999;
+    display: block;
+    margin-top: 5px;
+}
+.cp-form .cp-submit-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+.cp-form .cp-btn-submit {
+    padding: 10px 25px;
+}
+
+/* ==========================================================================
+ * Post Feed Page Styles (pf- prefixed) - NEW SECTION
+ * ========================================================================== */
+.pf-page-container {
+    /* General container for the feed page, padding/max-width from .base-container */
+}
+
+.pf-header-bar { /* Was .feed-header */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px; /* Increased margin */
+    padding-bottom: 15px; /* Increased padding */
+    border-bottom: 1px solid var(--border-color);
+}
+.pf-header-bar .pf-page-title { /* Was .feed-header h2 */
+    margin: 0;
+    color: var(--primary-color); /* Ensure title color */
+}
+.pf-header-actions { /* Was .feed-header-actions */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.pf-btn-new-post { /* Was .feed-new-post-btn */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* Increased gap */
+    /* Inherits .btn .btn-primary .btn-sm */
+}
+.pf-btn-new-post .pf-new-post-icon { /* Was .btn-icon */
+    width: 18px; /* Increased size */
+    height: 18px;
+    filter: brightness(0) invert(1);
+}
+
+/* Sort options styling */
+.pf-sort-options { /* Was .feed-sort-options */
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pf-sort-options .pf-sort-label { /* Was .sort-label */
+    margin-right: 8px;
+    color: #bbb;
+}
+.pf-sort-dropdown { /* Was .sort-dropdown */
+    position: relative;
+    display: inline-block;
+}
+.pf-sort-dropdown-toggle { /* Was .sort-dropdown-toggle */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 8px 14px; /* Increased padding */
+    font-size: 0.9em;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Increased gap */
+    min-width: 160px; /* Increased min-width */
+    justify-content: space-between;
+}
+.pf-sort-dropdown-toggle:hover {
+    background-color: var(--bg-color);
+    border-color: var(--primary-color);
+}
+.pf-sort-arrow-icon { /* Was .sort-arrow-icon */
+    width: 14px; /* Increased size */
+    height: 14px;
+    opacity: 0.7;
+    transition: transform 0.2s ease-in-out;
+}
+.pf-sort-dropdown:hover .pf-sort-arrow-icon {
+    transform: rotate(180deg);
+}
+.pf-sort-dropdown-menu { /* Was .sort-dropdown-menu */
+    display: none;
+    position: absolute;
+    background-color: var(--secondary-color);
+    min-width: 100%;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.3);
+    z-index: 10;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.pf-sort-dropdown:hover .pf-sort-dropdown-menu {
+    display: block;
+}
+.pf-sort-dropdown-item { /* Was .sort-dropdown-item */
+    color: var(--text-color);
+    padding: 10px 14px; /* Increased padding */
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.pf-sort-dropdown-item:hover {
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+}
+.pf-sort-dropdown-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+.pf-posts-list-container { /* Was .posts-list */
+    display: flex;
+    flex-direction: column;
+    gap: 25px; /* Existing gap */
+}
+
+/* Pagination for Feed - Using general .pagination-nav, .page-item, .page-link from base.css */
+/* Adding specific pf- classes for potential overrides */
+.pf-pagination-nav {
+    margin-top: 30px;
+    /* display: flex; justify-content: center; (from base.css) */
+}
+.pf-pagination-list {
+    /* display: flex; list-style: none; padding: 0; gap: 5px; (from base.css) */
+}
+.pf-page-item {
+    /* Styles for individual page items if different from base .page-item */
+}
+.pf-page-link {
+    /* Styles for page links if different from base .page-link */
+}
+
+
+.pf-empty-feed-message { /* Was .empty-feed-message */
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px; /* Added padding */
+    color: #aaa;
+    background-color: rgba(0,0,0,0.1); /* Subtle background */
+    border-radius: 6px;
+}
+.pf-empty-feed-message p {
+    margin-bottom: 10px;
+}
+.pf-empty-feed-message .pf-empty-feed-create-link { /* Was a */
+    color: var(--primary-color);
+    font-weight: bold;
+    text-decoration: underline;
+}
+.pf-empty-feed-message .pf-empty-feed-create-link:hover {
+    color: var(--primary-color-darker, #3a7ac0); /* Define if not present */
+}
+
+
+/* ==========================================================================
+ * Post Display Styles (pm-post-* and pm-comment-*)
+ * These styles remain from the previous update for _post_macros.html
+ * ========================================================================== */
+
+/* --- Individual Post Container (from macro) --- */
+.pm-post-item-container {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.pm-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    position: relative;
+}
+.pm-post-author-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-grow: 1;
+}
+.pm-post-author-pfp {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+    flex-shrink: 0;
+}
+.pm-post-author-details {
+    display: flex;
+    flex-direction: column;
+}
+.pm-post-author-username {
+    font-weight: bold;
+    color: var(--text-color);
+    text-decoration: none;
+}
+.pm-post-author-username:hover {
+    text-decoration: underline;
+}
+.pm-post-timestamp {
+    font-size: 0.8em;
+    color: #aaa;
+}
+
+/* Shared Post Specific Styles */
+.pm-post-shared-post-indicator {
+    font-size: 0.9em;
+    color: #bbb;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: rgba(0,0,0,0.1);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 0 4px 4px 0;
+}
+.pm-post-shared-post-indicator .pm-post-shared-post-verb { font-style: italic; }
+.pm-post-shared-post-indicator .pm-post-shared-original-author-link,
+.pm-post-shared-post-indicator .pm-post-shared-view-original-link {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+.pm-post-sharer-text-content {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    font-style: italic;
+    color: #ccc;
+}
+.pm-post-original-shared-content-block {
+    margin-left: 0;
+    padding: 10px;
+    border: 1px dashed #555;
+    border-radius: 5px;
+    background-color: rgba(0,0,0,0.05);
+    margin-top: 10px;
+}
+.pm-post-shared-comment-indicator {
+    font-size: 0.9em;
+    color: #bbb;
+    margin-bottom: 10px;
+}
+.pm-post-sharer-text-empty-indicator {
+    color: #888;
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+/* Post Content (Text, Photo, Video) */
+.pm-post-main-content p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.pm-post-media-item {
+    display: block;
+    max-width: 100%;
+    max-height: 450px;
+    border-radius: 6px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: var(--bg-color);
+    object-fit: cover;
+}
+video.pm-post-media-item {}
+
+/* Post Actions Menu */
+.pm-post-actions-menu {
+    position: relative;
+    margin-left: auto;
+}
+.pm-post-menu-toggle-button {}
+.pm-post-menu-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    z-index: 100;
+    min-width: 120px;
+    padding: 4px 0;
+}
+.pm-post-menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border-radius: 0;
+    padding: 8px 15px;
+}
+
+/* Post Action Buttons */
+.pm-post-actions-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+/* Comments Section */
+.pm-post-comments-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #555;
+}
+.pm-post-main-comment-form {}
+.pm-post-main-comment-form .pm-post-main-comment-input {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 10px;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.pm-post-main-comment-form .pm-post-main-comment-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
+    outline: none;
+}
+.pm-post-main-comment-form .pm-post-action-submit-comment {
+    align-self: flex-end;
+}
+.pm-post-comments-list {}
+.pm-post-comments-list .pm-comment-item {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 10px;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+.pm-post-comments-list .pm-comment-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.pm-comment-author-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.pm-comment-author-pfp {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.pm-comment-author-username {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 0.9em;
+    text-decoration: none;
+}
+.pm-comment-author-username:hover { text-decoration: underline; }
+.pm-comment-text-content {
+    margin: 0 0 5px 0;
+    font-size: 0.95em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--text-color);
+}
+.pm-comment-timestamp {
+    font-size: 0.75em;
+    color: #888;
+}
+.pm-post-no-comments-message {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 10px 0;
+}
+
+/* Comment Actions Styling */
+.pm-comment-actions-bar {
+    margin-top: 8px;
+    margin-bottom: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Reply Form Styling */
+.pm-comment-reply-form-container {
+    margin-left: 38px;
+    padding-top: 5px;
+    border-left: 2px solid var(--border-color);
+    padding-left: 10px;
+    margin-top: 8px;
+}
+.pm-comment-reply-form .pm-comment-reply-input {
+    min-height: 40px;
+    font-size: 0.9em;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 10px;
+    border-radius: 4px;
+    resize: vertical;
+    width: 100%;
+    box-sizing: border-box;
+}
+.pm-comment-reply-form .pm-comment-reply-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
+    outline: none;
+}
+
+/* Nested Replies Styling */
+.pm-comment-item--reply {
+    margin-left: 20px;
+    padding-left: 15px;
+    border-left: 2px solid #444;
+    margin-top: 10px;
+    background-color: rgba(0,0,0,0.08);
+    border-radius: 0 5px 5px 0;
+}
+.pm-comment-item--reply .pm-comment-author-pfp { width: 25px; height: 25px; }
+.pm-comment-item--reply .pm-comment-author-username { font-size: 0.85em; }
+.pm-comment-item--reply .pm-comment-text-content { font-size: 0.9em; }
+.pm-comment-item--reply .pm-comment-timestamp { font-size: 0.7em; }
+.pm-comment-item--reply .pm-comment-actions-bar .unified-action-button.small { font-size: 0.75em; padding: 2px 6px; }
+.pm-comment-item--reply .pm-comment-actions-bar .unified-action-button.small img { width: 14px; height: 14px; }
+
+/* Share Comment As Post Modal Styling */
+#shareCommentAsPostModal .modal-content {}
+#shareCommentAsPostModal h4 { margin-top: 0; color: var(--primary-color); margin-bottom: 15px; }
+#shareCommentAsPostModal .original-comment-preview {
+margin-top: 15px; margin-bottom: 15px; padding: 10px;
+background-color: var(--bg-color); border: 1px dashed var(--border-color);
+border-radius: 4px; font-size: 0.9em;
+}
+#shareCommentAsPostModal .original-comment-preview p { margin: 5px 0; }
+#shareCommentAsPostModal textarea[name="text_content"] { width: 100%; box-sizing: border-box; min-height: 60px; }
+
+/* Embedded Shared Comment within a Post */
+.pm-post-sharer-text-empty-indicator { color: #888; font-style: italic; margin-bottom: 10px; }
+.pm-post-embedded-shared-comment-block {
+    border: 1px solid var(--border-color); border-radius: 6px; padding: 10px;
+    margin-top: 10px; background-color: var(--bg-color);
+}
+.pm-post-embedded-shared-comment-block .embedded-header {
+    font-size: 0.85em; color: #aaa; margin-bottom: 8px; padding-bottom: 5px;
+    border-bottom: 1px dashed #555;
+}
+.pm-post-embedded-shared-comment-block .embedded-header a { color: var(--primary-color); }
+.pm-post-embedded-shared-comment-block > .pm-comment-item { background-color: transparent; border: none; padding: 0; margin: 0; }
+.pm-post-embedded-shared-comment-block > .pm-comment-item .pm-comment-author-pfp { width: 30px; height: 30px; }
+.pm-post-embedded-shared-comment-block .pm-comment-replies-list-container {
+    margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--border-color);
+}
+
+/* User Profile - Post Count Stat in profile header */
+.profile-stats span:last-child { /* This is likely in user_profile.css */ }
+
+/* Comment Actions Menu (similar to post menu) */
+.pm-comment-actions-menu {
+    position: relative; /* Allows absolute positioning of the dropdown */
+    margin-left: auto; /* Pushes the menu to the right within its flex container */
+}
+
+.pm-comment-menu-toggle-button { /* Styles for the hamburger button itself */
+    /* Leverages .unified-icon-button .small from base.css */
+    /* You can add specific overrides here if needed */
+}
+
+.pm-comment-menu-dropdown {
+    display: none; /* Hidden by default, JS will toggle */
+    position: absolute;
+    right: 0; /* Align to the right of the toggle button */
+    top: 100%; /* Position below the toggle button */
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    z-index: 100; /* Ensure it's above other comment content */
+    min-width: 150px; /* Adjust as needed */
+    padding: 4px 0; /* Padding for items inside */
+}
+
+.pm-comment-menu-dropdown .pm-comment-menu-item {
+    /* Styling for items within the comment menu dropdown */
+    /* Leverages .unified-action-button .small .danger */
+    display: flex; /* Use flex for icon and text alignment */
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    border-radius: 0; /* Override default button border-radius if any */
+    padding: 8px 15px; /* Consistent padding */
+    /* gap: 8px; /* Already in .unified-action-button */
+}
+.pm-comment-menu-dropdown .pm-comment-menu-item img {
+    /* Icon styling within menu item, if different from unified-action-button */
+}
+
+
+/* Adjust the position of the comment author details to make space for the menu */
+.pm-comment-author-info {
+    display: flex; /* Ensure it's a flex container */
+    align-items: flex-start; /* Align items to the top */
+    /* gap: 10px; /* Already there from post styling */
+}
+
+.pm-comment-author-details {
+    flex-grow: 1; /* Allow details to take available space */
+}
+
+/* Ensure the actions bar and menu don't overlap awkwardly */
+.pm-comment-item {
+    position: relative; /* For z-index stacking if needed, though usually not for this layout */
+}

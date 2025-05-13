@@ -1,0 +1,338 @@
+/* static/css/user_profile.css */
+
+.up-page-container { /* Was .profile-page-container */
+    max-width: 900px;
+    margin: 20px auto;
+    /* Padding is handled by the .base-container class from base.css if this div also has .base-container */
+    /* If .up-page-container is a direct child of body, you might want padding here: */
+    /* padding: 20px; */
+}
+
+/* Main Header Layout (Picture + Main Info Area) */
+.up-profile-header { /* Was .profile-header */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px; /* Added padding for better spacing */
+    background-color: var(--secondary-color-translucent, rgba(42,42,42,0.7)); /* Slightly translucent bg */
+    border-radius: 8px; /* Rounded corners for the header block */
+    border: 1px solid var(--border-color);
+    gap: 20px;
+}
+
+/* Profile Picture Area */
+.up-picture-area { /* Was .profile-picture-area */
+    flex-shrink: 0;
+    text-align: center;
+}
+.up-picture, .up-picture-placeholder { /* Was .profile-picture, .profile-picture-placeholder */
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary-color);
+    background-color: var(--secondary-color);
+    display: inline-block;
+    vertical-align: middle;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* Add shadow to PFP */
+}
+.up-picture-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4em;
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+/* Container for Left/Right Columns (Username/Stats | Bio/Links) */
+.up-info-main { /* Was .profile-info-main */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 15px;
+    text-align: center;
+    width: 100%;
+}
+
+/* Left Column (Username, Stats, Actions) */
+.up-info-left { /* Was .profile-info-left */
+    /* No specific width needed in vertical layout, flex-basis used in media query */
+}
+.up-username { /* Was .profile-username */
+    margin-top: 0;
+    margin-bottom: 8px; /* Increased margin */
+    font-size: 2.2em; /* Slightly larger */
+    color: var(--primary-color); /* Use primary color for username */
+    word-break: break-all;
+    font-weight: 600; /* Bolder username */
+}
+.up-stats { /* Was .profile-stats */
+    margin-bottom: 12px; /* Increased margin */
+    color: #b0b0b0;
+    font-size: 0.95em;
+}
+.up-stats .up-stat-value { /* New class for the numbers */
+    color: var(--text-color);
+    font-weight: 600;
+}
+.up-stats .up-stat-separator { /* New class for separator */
+    margin: 0 10px;
+    opacity: 0.5;
+}
+
+.up-member-since { /* Was .profile-member-since */
+    color: #888;
+    font-size: 0.85em;
+    margin-bottom: 20px; /* Increased margin */
+}
+.up-actions-bar { /* Was .profile-actions */
+    margin-top: 10px;
+    display: flex; /* Layout buttons in a row */
+    gap: 10px;
+    justify-content: center; /* Center buttons in vertical layout */
+}
+.up-actions-bar .up-btn-edit-profile,
+.up-actions-bar .up-btn-new-post,
+.up-actions-bar .up-btn-follow-toggle {
+    /* These inherit .btn .btn-sm etc. */
+    padding: 8px 15px; /* Slightly larger buttons */
+}
+.up-follow-form { /* New class for the follow form */
+    display: inline; /* Keep it inline if it's just for the button */
+}
+
+
+/* Right Column (Bio Box, Links Box) */
+.up-info-right { /* Was .profile-info-right */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Increased space */
+    width: 100%;
+}
+
+.up-bio-box { /* Was .profile-bio-box */
+    min-height: 60px;
+    max-height: 150px; /* Increased max height */
+    overflow-y: auto;
+    padding: 12px 18px; /* Increased padding */
+    border: 1px solid var(--border-color);
+    border-radius: 6px; /* Slightly more rounded */
+    background-color: rgba(var(--secondary-color-rgb, 42, 42, 42), 0.5); /* Slightly translucent */
+    color: var(--text-color);
+    font-size: 0.95em;
+    line-height: 1.6; /* Improved line height */
+    overflow-wrap: break-word;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+}
+.up-bio-box:empty::before {
+    content: "No bio provided.";
+    font-style: italic;
+    color: var(--placeholder-color);
+}
+
+.up-links-box { /* Was .profile-links-box */
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: rgba(var(--secondary-color-rgb, 42, 42, 42), 0.5); /* Slightly translucent */
+    width: 100%;
+    box-sizing: border-box;
+}
+.up-links-box:empty::before {
+    content: "No links shared.";
+    font-style: italic;
+    color: var(--placeholder-color);
+    display: block;
+    text-align: left;
+}
+
+.up-links-list { /* Was .profile-header-links ul */
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px; /* Increased gap */
+    justify-content: center; /* Center icons by default */
+}
+.up-links-list a { /* Targeting the <a> tag directly */
+    display: inline-block;
+}
+.up-link-icon { /* Was .profile-link-icon */
+    width: 30px; /* Slightly larger icons */
+    height: 30px;
+    vertical-align: middle;
+    transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+    filter: invert(0.75) brightness(1.1);
+}
+.up-links-list a:hover .up-link-icon {
+    opacity: 1;
+    transform: scale(1.15); /* Slightly larger hover scale */
+    filter: invert(56%) sepia(99%) saturate(1508%) hue-rotate(180deg) brightness(90%) contrast(90%);
+}
+
+
+/* Media Query for Larger Screens (Side-by-Side Layout) */
+@media (min-width: 768px) {
+    .up-profile-header { /* Was .profile-header */
+        flex-direction: row;
+        align-items: flex-start;
+        text-align: left;
+        gap: 30px;
+        padding: 25px; /* Adjust padding for larger screen */
+    }
+    .up-picture-area { /* Was .profile-picture-area */
+        text-align: left;
+    }
+    .up-info-main { /* Was .profile-info-main */
+        flex-direction: row;
+        gap: 30px;
+        text-align: left;
+        align-items: flex-start;
+    }
+    .up-info-left { /* Was .profile-info-left */
+        flex-basis: 40%;
+        flex-shrink: 0;
+    }
+    .up-actions-bar { /* Specific to .up-info-left on larger screens */
+        justify-content: flex-start; /* Align buttons to left */
+    }
+    .up-info-right { /* Was .profile-info-right */
+        flex-basis: 60%;
+        flex-grow: 1;
+    }
+    .up-links-list { /* Was .profile-header-links ul */
+        justify-content: flex-start; /* Align icons to left on larger screens */
+    }
+}
+
+/* Container for content below the header (e.g., posts section) */
+.up-profile-details-content { /* Was .profile-details */
+    margin-top: 30px; /* Increased margin */
+}
+
+.up-posts-section { /* Was .user-posts-section */
+    /* Styles for the entire posts section on the profile page */
+}
+.up-posts-section-header { /* Was .section-header-with-sort */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+.up-posts-section-title { /* New class for h3 */
+    margin: 0;
+    color: var(--text-color); /* Or var(--primary-color) */
+    font-size: 1.5em; /* Larger title for posts section */
+}
+
+/* Sort options styling for profile page - using up- prefixes */
+.up-sort-options { /* Was .profile-sort-options feed-sort-options */
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.up-sort-dropdown { /* Specific dropdown container */
+    position: relative;
+    display: inline-block;
+}
+.up-sort-dropdown-toggle { /* Button that shows current sort */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 6px 12px;
+    font-size: 0.9em;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 150px;
+    justify-content: space-between;
+}
+.up-sort-dropdown-toggle:hover {
+    background-color: var(--bg-color);
+    border-color: var(--primary-color);
+}
+.up-sort-arrow-icon {
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+    transition: transform 0.2s ease-in-out;
+}
+.up-sort-dropdown:hover .up-sort-arrow-icon {
+    transform: rotate(180deg);
+}
+.up-sort-dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0; /* Align to the right of the button */
+    top: 100%; /* Position below */
+    background-color: var(--secondary-color);
+    min-width: 100%; /* Match button width */
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.3);
+    z-index: 10;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.up-sort-dropdown:hover .up-sort-dropdown-menu {
+    display: block;
+}
+.up-sort-dropdown-item {
+    color: var(--text-color);
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.up-sort-dropdown-item:hover {
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+}
+.up-sort-dropdown-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+.up-posts-list-container { /* Was .posts-list */
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+.up-no-posts-message { /* New class */
+    text-align: center;
+    margin-top: 30px;
+    color: #aaa;
+    font-style: italic;
+    padding: 20px;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+
+/* Pagination for User Profile Posts - uses up- prefixes */
+.up-pagination-nav {
+    margin-top: 30px;
+    /* display: flex; justify-content: center; (from base.css .pagination-nav) */
+}
+.up-pagination-list {
+    /* display: flex; list-style: none; padding: 0; gap: 5px; (from base.css .pagination) */
+}
+.up-page-item {
+    /* Styles for individual page items if different from base .page-item */
+}
+.up-page-link {
+    /* Styles for page links if different from base .page-link */
+}

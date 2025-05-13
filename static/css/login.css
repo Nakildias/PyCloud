@@ -1,0 +1,104 @@
+/* static/css/login.css */
+
+.login-page-container {
+    max-width: 450px; /* Or your preferred max-width for login forms */
+    margin: 40px auto; /* Center the container */
+    padding: 30px; /* Ample padding */
+    background-color: var(--secondary-color); /* Using base.css variables */
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.login-title {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 25px; /* Space below title */
+    font-size: 1.8em; /* Larger title */
+}
+
+.login-form {
+    /* Styles for the form element itself, if any */
+}
+
+.login-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px; /* Consistent spacing */
+}
+
+.login-label {
+    margin-bottom: 8px; /* More space below label */
+    font-weight: 500; /* Slightly less bold than default */
+    color: var(--text-color-lighter, #e0e0e0); /* Ensure labels are bright */
+}
+
+.login-input-username,
+.login-input-password {
+    /* Inherits .form-control from base.css for padding, border, etc. */
+    /* Add specific overrides if needed: */
+    /* Example: font-size: 1.05em; */
+    /* padding: 10px 14px; */ /* Slightly larger padding for login inputs */
+}
+
+.login-errors {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0; /* Space above errors */
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+.login-errors li {
+    padding: 2px 0; /* Spacing for multiple errors */
+}
+
+.login-form-check-remember {
+    /* This uses .form-check from base.css for layout */
+    /* Specific overrides for the remember me checkbox group */
+    margin-top: 5px;  /* Space above remember me */
+    margin-bottom: 25px; /* More space below remember me */
+}
+
+.login-checkbox-remember {
+    /* Inherits .form-check-input from base.css */
+    /* Specific overrides if needed */
+    /* Example: transform: scale(1.1); */
+}
+
+.login-label-remember {
+    /* Inherits .form-check-label from base.css */
+    /* Specific overrides if needed */
+    color: var(--text-color-lighter, #cccccc);
+}
+
+.login-submit-group {
+    margin-top: 25px; /* Ensure space before submit button */
+}
+
+.login-submit-button {
+    /* Inherits .btn and .btn-primary from base.css */
+    width: 100%; /* Make submit button full width */
+    padding: 12px 20px; /* Larger button */
+    font-size: 1.1em; /* Larger text on button */
+    font-weight: 600;
+}
+
+.login-links-section {
+    margin-top: 30px; /* Space above the links */
+    text-align: center;
+    font-size: 0.9em;
+}
+
+.login-link-text {
+    margin-bottom: 8px; /* Space between "Need an account?" and "Forgot password?" lines */
+    color: var(--text-color-dimmed, #b0b0b0); /* Dimmer text for prompts */
+}
+
+.login-link {
+    /* Inherits general 'a' styles from base.css */
+    /* Specific overrides if needed: */
+    font-weight: 500;
+    /* color: var(--info-color); */ /* Example: use info color for these links */
+}
+.login-link:hover {
+    /* text-decoration: none; */ /* Example: remove underline on hover if desired */
+}

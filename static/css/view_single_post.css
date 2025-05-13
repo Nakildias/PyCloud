@@ -1,0 +1,36 @@
+/* static/css/view_single_post.css */
+
+.vsp-page-container {
+    /* General wrapper for the page if needed */
+    /* Example: padding-top: 20px; */
+}
+
+.vsp-post-wrapper {
+    max-width: 700px; /* From original inline style */
+    margin: 20px auto;  /* From original inline style, centers the post */
+    padding: 15px; /* Add some padding around the post content */
+    background-color: var(--secondary-color-translucent, rgba(42, 42, 42, 0.7)); /* Optional: slight background tint */
+    border-radius: 8px; /* Rounded corners for the wrapper */
+    border: 1px solid var(--border-color); /* Subtle border */
+}
+
+.vsp-not-found-message {
+    color: var(--error-color);
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+.vsp-back-link-container {
+    margin-top: 25px; /* Increased margin */
+    text-align: center;
+    padding-bottom: 20px; /* Space at the bottom of the page */
+}
+
+.vsp-back-link {
+    /* Inherits .btn and .btn-secondary from base.css */
+    /* Add specific overrides if needed: */
+    padding: 8px 20px; /* Slightly larger button */
+    font-weight: 500;
+}

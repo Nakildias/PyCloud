@@ -1,0 +1,109 @@
+/* static/css/edit_profile.css */
+
+.ep-page-container {
+    /* Max width and centering can be inherited from .base-container if applied in base.html */
+    /* Add specific page padding if needed */
+}
+
+.ep-page-title {
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center; /* Or left, to match admin_settings */
+}
+
+.ep-form {
+    /* Styles for the form element itself, if any */
+}
+
+.ep-fieldset {
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 6px;
+    background-color: rgba(0,0,0,0.05); /* Subtle background for fieldsets, slightly different from admin */
+}
+
+.ep-legend {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-color);
+    padding: 0 10px;
+    margin-left: 5px;
+}
+
+.ep-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+}
+
+.ep-label {
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #d0d0d0;
+}
+
+.ep-char-count-note {
+    font-size: 0.85em;
+    color: #aaa;
+    margin-left: 5px;
+}
+
+.ep-input-username,
+.ep-input-email,
+.ep-textarea-bio,
+.ep-input-url {
+    /* These inherit .form-control from base.css for basic styling */
+    /* Add specific overrides if needed */
+    /* Example: background-color: var(--bg-color-slightly-lighter); */
+}
+
+.ep-textarea-bio {
+    min-height: 120px; /* Default height for bio */
+    resize: vertical;
+}
+
+.ep-input-file-pfp {
+    /* Inherits .form-control-file from base.css */
+}
+
+.ep-pfp-preview-container {
+    margin-bottom: 15px;
+    text-align: left; /* Or center if preferred */
+}
+
+.ep-pfp-current-preview {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color); /* Add a border */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.ep-errors {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 0 0;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+.ep-errors li {
+    padding: 2px 0;
+}
+
+.ep-submit-group {
+    display: flex;
+    justify-content: flex-start; /* Align to left, similar to admin_settings */
+    gap: 10px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.ep-submit-button {
+    /* Inherits .btn and .btn-primary from base.css */
+    padding: 10px 25px; /* Make save button a bit larger */
+}

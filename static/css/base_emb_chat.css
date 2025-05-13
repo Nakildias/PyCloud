@@ -1,0 +1,391 @@
+/* static/css/base_emb_chat.css */
+/* Styles specifically for the embedded chat feature initiated by base_friend_chat.js */
+
+/* ==========================================================================
+ * Embedded Chat Variables & Base
+ * ========================================================================== */
+:root {
+    /* Text color for received messages in embedded chat, if different from global */
+    --dc-text-color: var(--text-color, #e0e0e0);
+}
+
+/* Ensure box-sizing for all embedded elements if not universally set */
+.emb-chat-bubble *,
+.emb-chat-box * {
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+ * Embedded Chat Bubbles (Initiators)
+ * ========================================================================== */
+.emb-chat-bubble {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transition: transform 0.2s ease-out;
+    position: relative; /* For close button and unread badge */
+    pointer-events: all; /* Bubbles are clickable */
+}
+.emb-chat-bubble:hover {
+    transform: translateY(-5px);
+}
+.emb-chat-bubble img.emb-pfp { /* Profile picture inside the bubble */
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.emb-chat-bubble .emb-placeholder-pfp { /* Placeholder for PFP in bubble */
+    font-size: 1.8em;
+    font-weight: bold;
+}
+.emb-chat-bubble .emb-bubble-close-btn { /* Close button on the bubble */
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background-color: rgba(0,0,0,0.7);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.8;
+    z-index: 1; /* Ensure it's above PFP */
+}
+.emb-chat-bubble .emb-bubble-close-btn:hover {
+    opacity: 1;
+    background-color: rgba(0,0,0,0.9);
+}
+.emb-chat-bubble .emb-unread-message-indicator { /* Unread count on bubble */
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    width: 18px;
+    height: 18px;
+    background-color: var(--error-color);
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid var(--secondary-color); /* Match chat box bg if possible, or a neutral dark */
+    z-index: 1;
+}
+
+/* ==========================================================================
+ * Embedded Chat Box (The pop-up window)
+ * ========================================================================== */
+.emb-chat-box {
+    width: 320px;
+    height: 450px;
+    background-color: var(--secondary-color, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px; /* Space between chat boxes if multiple are open */
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    pointer-events: all; /* Chat box is interactive */
+    overflow: hidden; /* Prevent content from spilling out */
+}
+
+.emb-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--bg-color, #1a1a1a); /* Darker header */
+    border-bottom: 1px solid var(--border-color, #444);
+    cursor: default; /* Can be grab for dragging if implemented */
+    border-radius: 8px 8px 0 0; /* Match parent rounding */
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+.emb-chat-header .emb-user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden; /* For long usernames */
+}
+.emb-chat-header .emb-pfp { /* PFP in chat box header */
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.emb-chat-header .emb-placeholder-pfp { /* Placeholder PFP in chat box header */
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-color-muted, #555); /* Use a muted accent or theme color */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1em;
+    font-weight: 500;
+}
+.emb-chat-header .emb-username { /* Username in chat box header */
+    color: var(--text-color, #e0e0e0);
+    font-weight: 600;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.emb-chat-header .emb-actions { /* Container for minimize/close buttons */
+    display: flex;
+    gap: 5px;
+}
+.emb-chat-header .emb-actions button { /* Styling for buttons in header */
+    background: none;
+    border: none;
+    color: var(--placeholder-color, #888);
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex; /* For icon alignment */
+    align-items: center;
+    justify-content: center;
+}
+.emb-chat-header .emb-actions button:hover {
+    color: var(--text-color, #e0e0e0);
+    background-color: rgba(255,255,255,0.1);
+}
+.emb-chat-header .emb-actions button img { /* Icons in header buttons */
+    width: 16px;
+    height: 16px;
+    display: block;
+    filter: invert(0.7); /* Assuming icons are dark and need to be lightened */
+}
+.emb-chat-header .emb-actions button:hover img {
+    filter: invert(1); /* Make icon fully white on hover */
+}
+
+.emb-chat-messages { /* Message list area within the embedded chat box */
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between messages */
+    background-color: var(--bg-color, #1a1a1a); /* Match DM chat area background */
+}
+/* Custom scrollbar for embedded chat messages (optional) */
+.emb-chat-messages::-webkit-scrollbar { width: 6px; }
+.emb-chat-messages::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 3px; }
+.emb-chat-messages::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+
+
+.emb-chat-input-area { /* Input area at the bottom of the chat box */
+    padding: 8px 10px;
+    border-top: 1px solid var(--border-color, #444);
+    background-color: var(--secondary-color, #2a2a2a); /* Slightly lighter than message area */
+    flex-shrink: 0; /* Prevent input area from shrinking */
+}
+.emb-chat-input-area form.emb-dm-form { /* The form itself */
+    display: flex;
+    align-items: center; /* Align textarea and buttons */
+    gap: 8px;
+}
+.emb-chat-input-area textarea.emb-message-input { /* Textarea for typing message */
+    flex-grow: 1;
+    background-color: var(--bg-color, #1a1a1a); /* Darker input field */
+    color: var(--text-color, #e0e0e0);
+    border: 1px solid var(--border-color-light, #555); /* Slightly lighter border for input */
+    border-radius: 18px; /* Rounded input field */
+    padding: 8px 12px;
+    resize: none;
+    outline: none;
+    font-size: 0.9em;
+    min-height: 20px; /* Start small, JS will resize */
+    max-height: 80px; /* Limit growth */
+    overflow-y: auto;
+    line-height: 1.4;
+}
+.emb-chat-input-area textarea.emb-message-input::placeholder {
+    color: var(--placeholder-color, #888);
+}
+.emb-chat-input-area textarea.emb-message-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.emb-chat-input-area .emb-btn-icon-input { /* Common style for attach/send buttons */
+    flex-shrink: 0;
+    padding: 0; margin: 0; border-radius: 50%;
+    background-color: transparent;
+    border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    transition: background-color 0.2s ease;
+}
+.emb-chat-input-area .emb-btn-icon-input:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.emb-chat-input-area .emb-btn-icon-input img { /* Icons inside these buttons */
+    width: 20px; height: 20px; display: block;
+    filter: invert(0.7); /* Default light grey for icons */
+}
+.emb-chat-input-area .emb-btn-icon-input:hover img {
+    filter: invert(1); /* White on hover */
+}
+.emb-chat-input-area .emb-btn-icon-input.emb-send-btn img { /* Specific for send button icon if needed */
+    /* Example: Make send icon primary color */
+    /* filter: brightness(0) invert(1) sepia(100%) hue-rotate(180deg) saturate(500%) brightness(0.7); */
+}
+.emb-chat-input-area input.emb-file-input.visually-hidden {
+    /* Uses .visually-hidden from base.css */
+    /* position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; */
+    /* overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; */
+}
+
+/* File previews within the embedded chat box (uses dc- classes for content) */
+.emb-chat-box .dc-file-preview img,
+.emb-chat-box .dc-file-preview video,
+.emb-chat-box .dc-file-preview audio {
+    max-width: 100%; /* Ensure preview fits */
+    max-height: 150px; /* Smaller previews for embedded chat */
+    border-radius: 4px;
+}
+.emb-chat-box .dc-text-file-preview {
+    max-height: 100px; /* Smaller text preview */
+}
+
+
+/* ==========================================================================
+ * Direct Chat Message Styling (dc- prefixes)
+ * These are for messages rendered *inside* the .emb-chat-messages container
+ * ========================================================================== */
+
+.dc-message-wrapper {
+    display: flex;
+    align-items: flex-end;
+    max-width: 90%; /* Adjusted from 75% for smaller embedded box */
+    gap: 8px; /* Slightly reduced gap */
+}
+.dc-message-wrapper.sent {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.dc-message-wrapper.received {
+    align-self: flex-start;
+}
+
+.dc-pfp-container-bubble,
+.dc-pfp-placeholder-bubble {
+    width: 32px; /* Smaller PFPs for messages in embedded chat */
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.dc-pfp-container-bubble img.dc-pfp {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.dc-pfp-placeholder-bubble {
+    background-color: var(--accent-color-muted, #555);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em; /* Adjusted for smaller PFP */
+    font-weight: 500;
+}
+
+.dc-message {
+    padding: 8px 12px; /* Slightly reduced padding */
+    border-radius: 15px; /* Slightly less round */
+    line-height: 1.4;
+    word-wrap: break-word;
+    box-shadow: 0 1px 1.5px rgba(0,0,0,0.1); /* Subtle shadow */
+    min-width: 50px;
+}
+.dc-message-wrapper.sent .dc-message {
+    background-color: var(--primary-color, #4a90e2);
+    color: white;
+    border-bottom-right-radius: 5px; /* Tail effect */
+}
+.dc-message-wrapper.received .dc-message {
+    background-color: var(--secondary-color-lighter, #3a3a3a); /* Use a defined lighter secondary or fallback */
+    color: var(--dc-text-color);
+    border-bottom-left-radius: 5px; /* Tail effect */
+}
+
+.dc-message-header {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 4px; /* Reduced space */
+}
+.dc-message-sender {
+    font-size: 0.8em; /* Slightly smaller sender name */
+    font-weight: 600;
+    color: inherit; /* Inherit from .dc-message for contrast */
+    text-decoration: none;
+    margin-bottom: 1px;
+}
+.dc-message-sender:hover { text-decoration: underline; }
+
+.dc-message-timestamp {
+    font-size: 0.7em; /* Smaller timestamp */
+    color: var(--secondary-text-color, #999);
+}
+.dc-message-wrapper.sent .dc-message-timestamp {
+    color: rgba(255,255,255,0.75); /* Lighter timestamp for sent messages */
+}
+
+.dc-message-content {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 0.95em; /* Match input area font size */
+}
+
+/* File attachments in embedded messages */
+.dc-message .dc-message-file-attachment {
+    margin-top: 6px; padding-top: 6px; /* Reduced spacing */
+    border-top: 1px solid rgba(255,255,255,0.1); /* Lighter separator for sent */
+}
+.dc-message-wrapper.received .dc-message .dc-message-file-attachment {
+    border-top-color: var(--border-color-light, #484848); /* Darker separator for received */
+}
+.dc-message .dc-message-file-attachment .dc-file-name a {
+    color: inherit;
+    text-decoration: underline;
+    font-size: 0.9em; /* Slightly smaller file name */
+}
+.dc-message .dc-message-file-attachment .dc-file-name a:hover { opacity: 0.8; }
+
+.dc-message .dc-file-preview { margin-top: 6px; }
+/* General .dc-file-preview img, video, audio styles from above apply */
+
+.dc-message .dc-text-file-preview {
+    max-height: 100px; /* Consistent with .emb-chat-box .dc-text-file-preview */
+    background-color: rgba(0,0,0,0.15); /* Slightly darker than general preview bg */
+    padding: 6px 8px;
+    border-radius: 3px;
+    margin-top: 4px;
+}
+.dc-message .dc-text-file-preview pre {
+    margin: 0;
+    font-size: 0.8em; /* Smaller preview text */
+    color: inherit;
+}
+.dc-message-wrapper.sent .dc-message .dc-text-file-preview pre {
+    color: white;
+}
