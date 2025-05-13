@@ -2,44 +2,64 @@
 
 {% block title %}Edit {{ original_filename }} - {{ super() }}{% endblock %}
 
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit.css') }}">
+    {# CodeMirror Core CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
+    {# CodeMirror Theme CSS Also need change in code_editor.js #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/colorforth.css') }}">
+{% endblock %}
+
 {% block content %}
-    <h2>Edit File: <span id="filename-display">{{ original_filename }}</span></h2>
-    <p style="font-size: 0.9em; color: #ccc;">Editing file stored as: {{ stored_filename }}</p>
+<div class="edit-file-page">
+    <h2 class="edit-file-title">Edit File: <span id="filename-display" class="edit-file-filename-display">{{ original_filename }}</span></h2>
+    <p class="edit-file-stored-name-info">Editing file stored as: {{ stored_filename }}</p>
 
-    <form id="edit-form" method="POST" action="{{ url_for('edit_file', file_id=file_id) }}" novalidate>
-        {{ form.hidden_tag() }} {# Required for CSRF protection #}
+    <form id="edit-form" method="POST" action="{{ url_for('edit_file', file_id=file_id) }}" novalidate class="edit-file-form">
+        {{ form.hidden_tag() }}
 
-        <div class="form-group">
-            {{ form.content.label(style="margin-bottom: 5px;") }}
-            {# Use a large textarea for editing. Consider CodeMirror or similar later for enhancements #}
-            {{ form.content(class="form-control", rows=25, style="font-family: monospace; background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);") }}
+        <div class="edit-file-form-group">
+            {{ form.content.label(class="edit-file-label") }}
+            {# ADD data-original-filename attribute here #}
+            {{ form.content(id="content", class="edit-file-textarea-content", rows=25, **{"data-original-filename": original_filename}) }}
             {% if form.content.errors %}
-                <ul class="errors">
+                <ul class="edit-file-errors">
                     {% for error in form.content.errors %}<li>{{ error }}</li>{% endfor %}
                 </ul>
             {% endif %}
         </div>
 
-        <div class="form-group" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-            <a href="{{ url_for('list_files', folder_id=parent_folder_id) }}" class="btn btn-secondary">Cancel</a>
-            {{ form.submit(class="btn btn-primary", value="Save Changes") }}
+        <div class="edit-file-form-group edit-file-submit-group">
+            <a href="{{ url_for('list_files', folder_id=parent_folder_id) }}" class="btn btn-secondary edit-file-btn-cancel">Cancel</a>
+            {{ form.submit(class="btn btn-primary edit-file-btn-submit", value="Save Changes") }}
         </div>
     </form>
-
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Optional: Add JavaScript here later for features like syntax highlighting (e.g., using CodeMirror),
-    // dirty checking (warn before leaving), auto-save, etc.
-    document.addEventListener('DOMContentLoaded', function() {
-        // Basic example: focus the textarea on load
-        const contentArea = document.getElementById('content');
-        if (contentArea) {
-            contentArea.focus();
-            // Move cursor to the end (optional)
-            // contentArea.setSelectionRange(contentArea.value.length, contentArea.value.length);
-        }
-    });
-</script>
+{{ super() }}
+{# CodeMirror Core JS #}
+<script src="{{ url_for('static', filename='codemirror/lib/codemirror.js') }}"></script>
+
+{# CodeMirror Addons #}
+<script src="{{ url_for('static', filename='codemirror/addon/edit/matchbrackets.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/addon/edit/closebrackets.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/addon/mode/meta.js') }}"></script>
+
+{# CodeMirror Language Modes #}
+<script src="{{ url_for('static', filename='codemirror/mode/python/python.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/javascript/javascript.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/css/css.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/xml/xml.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/htmlmixed/htmlmixed.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/markdown/markdown.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/shell/shell.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/sql/sql.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/clike/clike.js') }}"></script>
+
+{# Link to your new external JS file #}
+<script src="{{ url_for('static', filename='js/code_editor.js') }}"></script>
 {% endblock %}
