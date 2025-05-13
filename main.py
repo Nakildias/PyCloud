@@ -5,7 +5,7 @@ import json
 import logging
 import sqlalchemy as sa
 from wtforms import BooleanField
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import relationship, backref, aliased
 from wtforms import TextAreaField
 from flask import abort
@@ -28,6 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from wtforms.validators import Optional, InputRequired
 from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app)
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect
 from flask_login import (LoginManager, UserMixin, login_user, logout_user, login_required, current_user)
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, EmailField
@@ -96,23 +97,120 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['VIEWABLE_MIMES'] = VIEWABLE_MIMES
 app.config['EDITABLE_EXTENSIONS'] = EDITABLE_EXTENSIONS
+
 mail = Mail(app)
+# --- Database Setup ---
+db = SQLAlchemy(app)
+
+followers = db.Table('followers', db.metadata,
+    db.Column('follower_id', db.Integer, db.ForeignKey('user.id', name='fk_followers_follower_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('followed_id', db.Integer, db.ForeignKey('user.id', name='fk_followers_followed_id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Add this
+)
+
+post_likes = db.Table('post_likes', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_post_likes_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id', name='fk_post_likes_post_id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Add this
+)
+
+post_dislikes = db.Table('post_dislikes', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_post_dislikes_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id', name='fk_post_dislikes_post_id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Add this
+)
+
+comment_likers = db.Table('comment_likers', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_comment_likers_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id', name='fk_comment_likers_comment_id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Add this
+)
+
+comment_dislikers = db.Table('comment_dislikers', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_comment_dislikers_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id', name='fk_comment_dislikers_comment_id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Add this
+)
 
 # Helper to get post media upload path
 def get_post_media_path():
-    """Helper function to get the upload path for post media INSIDE static folder."""
-    # Use app.root_path to get project root, then navigate to static/uploads/post_media
+    # Path for storing post media (photos, videos)
+    # It's generally better to serve user-uploaded static content from a dedicated directory
+    # within 'static' or configure the web server (like Nginx/Apache) to serve it.
+    # For simplicity, we'll use a subdirectory in 'static'.
     path = os.path.join(app.root_path, 'static', 'uploads', 'post_media')
-    # Ensure the directory exists
     try:
         os.makedirs(path, exist_ok=True)
     except OSError as e:
-         # Log error if directory creation fails
          app.logger.error(f"Could not create post media directory: {path} - Error: {e}", exc_info=True)
-         # Depending on desired behavior, you might raise the error
-         # or return None to indicate failure, which should be handled in create_post
-         raise  # Re-raise the error to prevent saving if directory fails
+         raise # Critical if this fails
     return path
+
+def time_since_filter(dt_str, default="just now"):
+    if dt_str is None:
+        return default
+
+    dt_actual = None
+    if isinstance(dt_str, str):
+        try:
+            # Parse the ISO string. Python 3.7+ fromisoformat handles 'Z' by interpreting it as UTC.
+            # If it has more than 6 decimal places for seconds (nanoseconds), it might cause issues.
+            # Standard isoformat() should produce at most 6.
+            dt_actual = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        except ValueError:
+            # Log the error if parsing fails
+            current_app.logger.error(f"Could not parse timestamp string in time_since_filter: '{dt_str}'")
+            return default # Fallback if parsing fails
+    elif isinstance(dt_str, datetime):
+        dt_actual = dt_str # If a datetime object was somehow passed directly
+    else:
+        current_app.logger.warning(f"time_since_filter received unexpected type for dt_str: {type(dt_str)}")
+        return default
+
+    if dt_actual is None: # Should be caught by ValueError above, but as a safeguard
+        return default
+
+    # Ensure the parsed datetime is timezone-aware (UTC)
+    if dt_actual.tzinfo is None:
+        dt_actual = dt_actual.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)  # Use timezone-aware current time in UTC
+
+    try:
+        diff = now - dt_actual
+    except TypeError as e:
+        current_app.logger.error(f"TypeError in time_since_filter during diff: now={now} ({type(now)}), dt_actual={dt_actual} ({type(dt_actual)}). Error: {e}")
+        return default
+
+
+    seconds = diff.total_seconds()
+    days = diff.days
+
+    if days < 0: # Timestamp is in the future
+        return "in the future"
+
+    # The template already appends " ago", so the filter should just return the duration string
+    if days >= 365:
+        years = days // 365
+        return f"{years} year{'s' if years > 1 else ''}"
+    if days >= 30:
+        months = days // 30
+        return f"{months} month{'s' if months > 1 else ''}"
+    if days >= 7:
+        weeks = days // 7
+        return f"{weeks} week{'s' if weeks > 1 else ''}"
+    if days > 0:
+        return f"{days} day{'s' if days > 1 else ''}"
+    if seconds < 60:
+        return default # "just now"
+    if seconds < 3600: # Less than an hour
+        minutes = int(seconds // 60)
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
+    # Less than a day
+    hours = int(seconds // 3600)
+    return f"{hours} hour{'s' if hours > 1 else ''}"
+
+app.jinja_env.filters['timesince'] = time_since_filter
 
 def configure_mail_from_db(current_app):
     with current_app.app_context(): # Ensure DB operations are within context
@@ -318,33 +416,27 @@ def get_archive_uncompressed_size(archive_path):
 
 @app.context_processor
 def inject_settings():
-    """Inject settings into template context."""
     settings_dict = {}
     try:
-        # Fetch commonly needed settings here
-        settings_dict['allow_registration'] = (Setting.get('allow_registration', 'true') == 'true')
-        # Add other settings as needed:
-        # settings_dict['site_name'] = Setting.get('site_name', 'My Web Service')
-
-        # --- Add Ollama Enabled Check ---
-        ollama_url = Setting.get('ollama_api_url', '') # Get URL, default to empty string
-        ollama_model = Setting.get('ollama_model', '') # Get model, default to empty string
-        # Consider enabled only if both URL and Model have non-empty values
+        settings_dict['allow_registration'] = (Setting.get('allow_registration', DEFAULT_SETTINGS['allow_registration']) == 'true')
+        ollama_url = Setting.get('ollama_api_url', DEFAULT_SETTINGS['ollama_api_url'])
+        ollama_model = Setting.get('ollama_model', DEFAULT_SETTINGS['ollama_model'])
         settings_dict['ollama_enabled'] = bool(ollama_url and ollama_model)
-        # --- End Ollama Check ---
-
+        try:
+            # Use the defined DEFAULT_MAX_UPLOAD_MB_FALLBACK from your main.py
+            max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+            settings_dict['max_upload_mb'] = int(max_upload_mb_str)
+        except (ValueError, TypeError):
+            settings_dict['max_upload_mb'] = DEFAULT_MAX_UPLOAD_MB_FALLBACK # Fallback on error
+            app.logger.warning(f"Invalid max_upload_size_mb setting in inject_settings. Using fallback {DEFAULT_MAX_UPLOAD_MB_FALLBACK}MB.")
     except Exception as e:
-        # Handle cases where DB might not be ready yet during initial setup/errors
         app.logger.error(f"Error injecting settings into context: {e}")
-        settings_dict['allow_registration'] = True # Default fallback
-        settings_dict['allow_registration'] = True # Default fallback
-        settings_dict['ollama_enabled'] = False # Default fallback for Ollama
-
+        settings_dict['allow_registration'] = DEFAULT_SETTINGS['allow_registration'] == 'true' # Fallback
+        settings_dict['ollama_enabled'] = False # Fallback
+        settings_dict['max_upload_mb'] = DEFAULT_MAX_UPLOAD_MB_FALLBACK # Fallback for max_upload_mb too
     return dict(settings=settings_dict)
 
 
-# --- Database Setup ---
-db = SQLAlchemy(app)
 
 # --- Login Manager Setup ---
 login_manager = LoginManager()
@@ -358,24 +450,24 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 # --- Database Models ---
-followers = db.Table('followers',
-    db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
-    db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
-)
 class User(db.Model, UserMixin):
-    """User model for storing user details."""
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
-    storage_limit_mb = db.Column(db.Integer, nullable=True) # NULL means use default
-    files = db.relationship('File', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
-    notes = db.relationship('Note', backref='author', lazy=True, cascade="all, delete-orphan")
+    storage_limit_mb = db.Column(db.Integer, nullable=True)
     bio = db.Column(db.String(2500), nullable=True)
     profile_picture_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    # --- Link Fields ---
+
+    last_seen = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    is_online = db.Column(db.Boolean, default=False, index=True)
+
+    is_disabled = db.Column(db.Boolean, default=False)
+    max_file_size = db.Column(db.Integer, nullable=True) # Stores size in MB
+
     github_url = db.Column(db.String(255), nullable=True)
     spotify_url = db.Column(db.String(255), nullable=True)
     youtube_url = db.Column(db.String(255), nullable=True)
@@ -384,19 +476,41 @@ class User(db.Model, UserMixin):
     twitch_url = db.Column(db.String(255), nullable=True)
     discord_server_url = db.Column(db.String(255), nullable=True)
     reddit_url = db.Column(db.String(255), nullable=True)
-    # --- End Link Fields ---
-    folders = db.relationship('Folder',
-                              foreign_keys='Folder.user_id', # Specify FK for user relationship
-                              backref='owner',
-                              lazy='dynamic',
-                              cascade="all, delete-orphan")
+
+    # Relationships (ensure all necessary backrefs and cascades are here)
+    files = db.relationship('File', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
+    notes = db.relationship('Note', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    folders = db.relationship('Folder', foreign_keys='Folder.user_id', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
+    ollama_chat_messages = db.relationship('OllamaChatMessage', backref='user', lazy='dynamic', order_by='OllamaChatMessage.timestamp', cascade="all, delete-orphan")
+    group_chat_messages = db.relationship('GroupChatMessage', foreign_keys='GroupChatMessage.user_id', backref='sender', lazy='dynamic', order_by='GroupChatMessage.timestamp', cascade="all, delete-orphan")
+
+    posts = db.relationship('Post', foreign_keys='Post.user_id', backref='author', lazy='dynamic', order_by=lambda: Post.timestamp.desc(), cascade="all, delete-orphan")
+    comments_authored = db.relationship('Comment', foreign_keys='Comment.user_id', backref='author', lazy='dynamic', cascade="all, delete-orphan")
 
     followed = db.relationship(
         'User', secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
-        backref=db.backref('followers', lazy='dynamic'), # Users who follow this user
+        backref=db.backref('followers', lazy='dynamic', cascade="all"), # Added cascade
         lazy='dynamic'
+    )
+
+    sent_direct_messages = db.relationship(
+        'DirectMessage',
+        foreign_keys='DirectMessage.sender_id',
+        backref='author',  # Allows DirectMessage.author to get the User object of the sender
+        lazy='dynamic',
+        cascade="all, delete-orphan",
+        order_by='DirectMessage.timestamp'
+    )
+    # Direct messages received by the user
+    received_direct_messages = db.relationship(
+        'DirectMessage',
+        foreign_keys='DirectMessage.receiver_id',
+        backref='recipient', # Allows DirectMessage.recipient to get the User object of the receiver
+        lazy='dynamic',
+        cascade="all, delete-orphan",
+        order_by='DirectMessage.timestamp'
     )
 
     def set_password(self, password):
@@ -405,36 +519,44 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    # --- ADD THESE METHODS ---
-    def get_reset_token(self, expires_sec=1800): # 1800 seconds = 30 minutes
+    def get_reset_token(self, expires_sec=1800):
         s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         return s.dumps({'user_id': self.id})
 
     @staticmethod
-    def verify_reset_token(token, expires_sec=1800): # Match expiration time
+    def verify_reset_token(token, expires_sec=1800):
         s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         try:
-            # Pass max_age to loads() to check expiration
             data = s.loads(token, max_age=expires_sec)
             user_id = data.get('user_id')
-        except Exception: # Catches BadSignature, SignatureExpired, etc.
+        except Exception:
             return None
         return User.query.get(user_id)
-    # --- END OF METHODS TO ADD ---
 
-    # Helper methods for following
-    def follow(self, user):
-        if not self.is_following(user):
-            self.followed.append(user)
-            return self
+    def follow(self, user_to_follow):
+        if not self.is_following(user_to_follow) and self.id != user_to_follow.id:
+            self.followed.append(user_to_follow)
 
-    def unfollow(self, user):
-        if self.is_following(user):
-            self.followed.remove(user)
-            return self
+    def unfollow(self, user_to_unfollow):
+        if self.is_following(user_to_unfollow):
+            self.followed.remove(user_to_unfollow)
 
-    def is_following(self, user):
-        return self.followed.filter(followers.c.followed_id == user.id).count() > 0
+    def is_following(self, user_to_check):
+        return self.followed.filter(followers.c.followed_id == user_to_check.id).count() > 0
+
+    def is_followed_by(self, user_to_check):
+        # This checks if 'user_to_check' is in the current user's list of followers
+        return self.followers.filter(followers.c.follower_id == user_to_check.id).count() > 0
+
+    def get_friends(self):
+        """Returns a list of users who mutually follow the current user."""
+        friends = []
+        # Iterate through users this user is following
+        for followed_user in self.followed:
+            # Check if that followed_user is also following this user back
+            if followed_user.is_following(self): # or self.is_followed_by(followed_user)
+                friends.append(followed_user)
+        return friends
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -448,6 +570,11 @@ class CreateFolderForm(FlaskForm):
         # We'll add custom validation in the route for illegal characters/duplicates
     ])
     submit = SubmitField('Create Folder')
+
+class DirectMessageForm(FlaskForm):
+    content = TextAreaField('Message', validators=[Length(max=4000)])
+    file = FileField('Attach File', validators=[Optional()])
+    # No submit field needed if handled by JS + Enter key
 
 class UserLink(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -468,40 +595,70 @@ class EditUserForm(FlaskForm):
     email = EmailField('Email',
                        validators=[DataRequired(), Email()])
     is_admin = BooleanField('Administrator Status')
-    # Storage limit field: Optional() allows it to be empty
-    # If empty, we'll interpret as "use default" (set DB field to None)
     storage_limit_mb = IntegerField(
         'Specific Storage Limit (MB)',
         validators=[
-            Optional(), # Makes the field optional
+            Optional(),
             NumberRange(min=0, message='Storage limit must be 0 or greater.')
         ],
-        description="Leave blank to use the default limit. Enter 0 for explicitly unlimited."
+        # Update description for clarity based on your storage_limit_mb handling
+        description=""
     )
+
+    # --- ADD THESE FIELDS ---
+    max_file_size = IntegerField(
+        'Per User Max File Upload Size (MB)', # Matches the label in admin_edit_user.html
+        validators=[Optional(), NumberRange(min=0)], # Allows empty or non-negative numbers
+        render_kw={"placeholder": ""}
+    )
+    password = PasswordField(
+        'New Password',
+        validators=[
+            Optional(), # Password change is optional
+            Length(min=6, message="Password must be at least 6 characters long if provided.")
+        ]
+    )
+    confirm_password = PasswordField(
+        'Confirm New Password',
+        # Only require confirmation if a new password is typed
+        validators=[
+            EqualTo('password', message='New passwords must match.') if 'password' else Optional()
+        ]
+    )
+    # --- END OF ADDED FIELDS ---
+
     submit = SubmitField('Update User')
 
-    # Need to store the original user ID to check for duplicate username/email correctly
     def __init__(self, original_username=None, original_email=None, *args, **kwargs):
         super(EditUserForm, self).__init__(*args, **kwargs)
         self.original_username = original_username
         self.original_email = original_email
 
-    # Custom validator to check if username already exists (ignoring the current user)
     def validate_username(self, username):
         if username.data != self.original_username:
             user = User.query.filter_by(username=username.data).first()
             if user:
                 raise ValidationError('That username is already taken. Please choose another.')
 
-    # Custom validator to check if email already exists (ignoring the current user)
     def validate_email(self, email):
         if email.data != self.original_email:
             user = User.query.filter_by(email=email.data).first()
             if user:
                 raise ValidationError('That email is already registered. Please use another.')
 
+    # --- ADDED: Custom validator for confirm_password only if password is provided ---
+    def validate_confirm_password(self, confirm_password):
+        if self.password.data and not confirm_password.data:
+            raise ValidationError('Please confirm the new password.')
+        if self.password.data and confirm_password.data and self.password.data != confirm_password.data:
+            # EqualTo validator should catch this, but an explicit check is fine too
+            raise ValidationError('New passwords must match.')
+    # --- END ADDED VALIDATOR ---
+
 class EditProfileForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
+    username = StringField('Username',
+                           validators=[DataRequired(), Length(min=4, max=25)],
+                           render_kw={'readonly': True})
     email = EmailField('Email', validators=[DataRequired(), Email()])
     bio = TextAreaField('Bio', validators=[Optional(), Length(max=2500)])
     profile_picture = FileField('Profile Picture', validators=[
@@ -604,7 +761,7 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     # Foreign Key to link Note to a User
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -627,7 +784,7 @@ class File(db.Model):
     # filepath = db.Column(db.String(512), nullable=False) # Might not be needed if always stored_filename
     filesize = db.Column(db.Integer, nullable=False) # Size in bytes
     mime_type = db.Column(db.String(100), nullable=True) # Detected MIME type
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     # Add foreign key to link File to a Folder (nullable for root files)
     parent_folder_id = db.Column(db.Integer, db.ForeignKey('folder.id'), nullable=True)
@@ -645,60 +802,268 @@ class File(db.Model):
     def __repr__(self):
         return f'<File {self.id}: {self.original_filename}>'
 
-# Association table for Post Likes
-post_likes = db.Table('post_likes',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True)
-)
-
-# Association table for Post Dislikes
-post_dislikes = db.Table('post_dislikes',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True)
-)
-
 class Post(db.Model):
+    __tablename__ = 'post'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_post_user_id', ondelete='CASCADE'), nullable=False, index=True)
     text_content = db.Column(db.Text, nullable=True)
     photo_filename = db.Column(db.String(255), nullable=True)
     video_filename = db.Column(db.String(255), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    original_post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
-    author = db.relationship('User', backref=db.backref('posts', lazy='dynamic', order_by='Post.timestamp.desc()'))
-    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade="all, delete-orphan", order_by='Comment.timestamp.asc()')
+    original_post_id = db.Column(db.Integer, db.ForeignKey('post.id', name='fk_post_original_post_id', ondelete='SET NULL'), nullable=True, index=True)
+    shared_comment_id = db.Column(db.Integer, db.ForeignKey('comment.id', name='fk_post_shared_comment_id', ondelete='SET NULL'), nullable=True, index=True)
 
-    # Relationships for likes and dislikes
-    comments = db.relationship('Comment', backref='post',
-                               lazy='select',  # CHANGED FROM 'dynamic'
-                               cascade="all, delete-orphan",
-                               order_by='Comment.timestamp.asc()')
+    # Relationships
+    comments = db.relationship('Comment', foreign_keys='Comment.post_id', backref='post', lazy='select', cascade="all, delete-orphan", order_by=lambda: Comment.timestamp.asc())
+
     likers = db.relationship('User', secondary=post_likes,
                              lazy='select',  # CHANGED FROM 'dynamic'
-                             backref=db.backref('liked_posts', lazy='dynamic'))
+                             backref=db.backref('liked_posts', lazy='dynamic', cascade="all"))
     dislikers = db.relationship('User', secondary=post_dislikes,
                                 lazy='select',  # CHANGED FROM 'dynamic'
-                                backref=db.backref('disliked_posts', lazy='dynamic'))
+                                backref=db.backref('disliked_posts', lazy='dynamic', cascade="all"))
 
-    # Relationship for shared posts (reposts)
-    original_post = db.relationship('Post', remote_side=[id], backref=db.backref('shares', lazy='dynamic'))
+    original_post = db.relationship('Post', remote_side=[id], backref=db.backref('shares', lazy='dynamic', cascade="all, delete-orphan"))
+    shared_comment = db.relationship('Comment', foreign_keys=[shared_comment_id], backref=db.backref('referenced_in_posts', lazy='select'))
 
     def __repr__(self):
         return f'<Post {self.id} by User {self.user_id}>'
 
 class Comment(db.Model):
+    __tablename__ = 'comment'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_comment_user_id', ondelete='CASCADE'), nullable=False, index=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', name='fk_comment_post_id', ondelete='CASCADE'), nullable=False, index=True)
     text_content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', name='fk_comment_parent_id', ondelete='CASCADE'), nullable=True, index=True)
 
-    author = db.relationship('User', backref=db.backref('comments', lazy='dynamic'))
-    # 'post' backref is already defined in Post.comments
+    replies = db.relationship('Comment',
+                              backref=db.backref('parent_comment', remote_side=[id]),
+                              lazy='select',
+                              cascade="all, delete-orphan",
+                              order_by=lambda: Comment.timestamp.asc())
+
+    likers = db.relationship('User', secondary=comment_likers,
+                             lazy='select',  # CHANGED FROM 'dynamic'
+                             backref=db.backref('liked_comments', lazy='dynamic', cascade="all"))
+    dislikers = db.relationship('User', secondary=comment_dislikers,
+                                lazy='select',  # CHANGED FROM 'dynamic'
+                                backref=db.backref('disliked_comments', lazy='dynamic', cascade="all"))
+
+    def to_dict(self, include_author_details=True, include_replies=False, depth=0, max_depth=1):
+        data = {
+            'id': self.id,
+            'user_id': self.user_id,
+            'post_id': self.post_id,
+            'parent_id': self.parent_id,
+            'text_content': self.text_content,
+            'timestamp': self.timestamp.isoformat() + 'Z',
+            'like_count': len(self.likers) if self.likers is not None else 0,
+            'dislike_count': len(self.dislikers) if self.dislikers is not None else 0,
+            'reply_count': len(self.replies) if self.replies is not None else 0 # Corrected
+        }
+        if include_author_details and self.author:
+            data['author_username'] = self.author.username
+            data['author_profile_pic'] = self.author.profile_picture_filename
+
+        if include_replies and depth < max_depth:
+            # self.replies is now a list due to lazy='select'
+            data['replies'] = [reply.to_dict(include_author_details=True, include_replies=True, depth=depth+1, max_depth=max_depth) for reply in self.replies]
+        else:
+            data['replies'] = []
+
+        return data
 
     def __repr__(self):
         return f'<Comment {self.id} by User {self.user_id} on Post {self.post_id}>'
+
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)  # The user who receives the notification
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True, index=True) # The user who triggered the notification (can be None for system messages)
+    type = db.Column(db.String(50), nullable=False, index=True)  # e.g., 'like', 'comment', 'share_post', 'share_comment', 'follow', 'system_message'
+    related_post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=True, index=True)
+    related_comment_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'), nullable=True, index=True)
+    # Add other related_ids if needed, e.g., related_user_id for follows
+    message = db.Column(db.Text, nullable=True) # Optional custom message or generated text
+    is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    # Relationships to get sender, post, comment details easily
+    recipient = db.relationship('User', foreign_keys=[user_id], backref=db.backref('notifications_received', lazy='dynamic', cascade="all, delete-orphan"))
+    sender = db.relationship('User', foreign_keys=[sender_id], backref=db.backref('notifications_sent', lazy='dynamic'))
+    post = db.relationship('Post', foreign_keys=[related_post_id], backref=db.backref('related_notifications', lazy='select', cascade="all, delete-orphan"))
+    comment = db.relationship('Comment', foreign_keys=[related_comment_id], backref=db.backref('related_notifications', lazy='select', cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f'<Notification {self.id} for User {self.user_id} - Type: {self.type}>'
+
+    def to_dict(self):
+        sender_username = self.sender.username if self.sender else "System"
+
+        # Initialize default text and link
+        text = f"Notification: {self.type}" # Fallback
+        primary_link = "#" # Default link for primary_link
+
+        # Initialize URL generating variables
+        post_url_val = None
+        comment_url_val = None
+
+        # Construct human-readable message text based on type
+        if self.type == 'like_post' and self.post:
+            text = f"{sender_username} liked your post: \"{self.post.text_content[:30]}...\"" if self.post.text_content else f"{sender_username} liked your media post."
+        elif self.type == 'dislike_post' and self.post:
+            text = f"{sender_username} disliked your post: \"{self.post.text_content[:30]}...\"" if self.post.text_content else f"{sender_username} disliked your media post."
+        elif self.type == 'comment_on_post' and self.post and self.comment:
+            text = f"{sender_username} commented on your post: \"{self.comment.text_content[:30]}...\""
+        elif self.type == 'reply_to_comment' and self.post and self.comment and getattr(self.comment, 'parent_comment', None): # Safely check for parent_comment
+            text = f"{sender_username} replied to your comment: \"{self.comment.text_content[:30]}...\""
+        elif self.type == 'share_post' and self.post:
+            text = f"{sender_username} shared your post: \"{self.post.text_content[:30]}...\"" if self.post.text_content else f"{sender_username} shared your media post."
+        elif self.type == 'share_comment' and self.comment:
+            text = f"{sender_username} shared your comment: \"{self.comment.text_content[:30]}...\""
+        elif self.type == 'new_follower':
+            text = f"{sender_username} started following you."
+        elif self.type == 'new_post_from_followed_user' and self.post:
+            text = f"{sender_username} (whom you follow) created a new post: \"{self.post.text_content[:30]}...\"" if self.post.text_content else f"{sender_username} (whom you follow) created a new media post."
+
+        # Generate post_url_val if there's a related post
+        if self.related_post_id:
+            try:
+                post_url_val = url_for('view_single_post', post_id=self.related_post_id, _external=False)
+            except Exception as e:
+                current_app.logger.error(f"Error generating post_url_val for notification {self.id}: {e}")
+
+        # Generate comment_url_val if there's a related comment
+        if self.related_comment_id:
+            # Try to get the post_id for the comment's URL
+            comment_post_id_for_url = None
+            if self.post: # If related_post is already loaded via notification.post
+                comment_post_id_for_url = self.post.id
+            elif self.comment and self.comment.post_id: # Fallback to comment's own post_id
+                comment_post_id_for_url = self.comment.post_id
+
+            if comment_post_id_for_url:
+                try:
+                    comment_url_val = url_for('view_single_post', post_id=comment_post_id_for_url, _anchor=f"comment-{self.related_comment_id}", _external=False)
+                except Exception as e:
+                    current_app.logger.error(f"Error generating comment_url_val for notification {self.id}: {e}")
+
+        # Determine the primary_link based on notification type and available URLs
+        if self.type == 'new_follower' and self.sender_id:
+            try:
+                primary_link = url_for('user_profile', username=sender_username, _external=False)
+            except Exception as e:
+                current_app.logger.error(f"Error generating profile_link for new_follower notification {self.id}: {e}")
+                primary_link = "#" # Fallback
+        elif self.type in ['like_post', 'dislike_post', 'comment_on_post', 'share_post', 'new_post_from_followed_user'] and post_url_val:
+            primary_link = post_url_val
+        elif self.type == 'reply_to_comment' and comment_url_val:
+            primary_link = comment_url_val
+        elif self.type == 'share_comment' and self.comment:
+            # For shared comments, link to the original comment on its post page
+            original_comment_post_id = self.comment.post_id
+            if original_comment_post_id:
+                try:
+                    primary_link = url_for('view_single_post', post_id=original_comment_post_id, _anchor=f"comment-{self.comment.id}", _external=False)
+                except Exception as e:
+                    current_app.logger.error(f"Error generating link for share_comment notification {self.id}: {e}")
+                    primary_link = "#" # Fallback
+            else:
+                primary_link = "#" # Fallback if no post_id for the comment
+
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'sender_id': self.sender_id,
+            'sender_username': sender_username,
+            'sender_profile_pic': self.sender.profile_picture_filename if self.sender else None,
+            'type': self.type,
+            'related_post_id': self.related_post_id,
+            'related_comment_id': self.related_comment_id,
+            'message_text': text,
+            'is_read': self.is_read,
+            'timestamp': self.timestamp.isoformat() + 'Z' if self.timestamp else None,
+            'primary_link': primary_link, # This should now always be defined
+            'post_url': post_url_val,     # This should now always be defined (as None or a URL)
+            'comment_url': comment_url_val, # This should now always be defined (as None or a URL)
+        }
+
+def create_notification(recipient_user, sender_user, type, post=None, comment=None, custom_message=None, cooldown_minutes=5): # Added cooldown_minutes
+    """
+    Helper function to create and save a notification, with spam prevention.
+    - recipient_user: The User object who should receive the notification.
+    - sender_user: The User object who triggered the notification.
+    - type: String representing the notification type.
+    - post: Optional Post object related to the notification.
+    - comment: Optional Comment object related to the notification.
+    - custom_message: Optional string for a specific message.
+    - cooldown_minutes: Integer, time window in minutes to check for duplicate notifications.
+    """
+    if not recipient_user or not sender_user:
+        app.logger.warning("Attempted to create notification without recipient or sender.")
+        return
+
+    # Prevent self-notification for actions where it doesn't make sense
+    if recipient_user.id == sender_user.id and type in ['like_post', 'dislike_post', 'comment_on_post', 'reply_to_comment', 'share_post', 'share_comment', 'new_follower']:
+        app.logger.debug(f"Skipping self-notification for user {recipient_user.id} of type {type}")
+        return
+
+    # --- Spam Prevention Check ---
+    time_threshold = datetime.now(timezone.utc) - timedelta(minutes=cooldown_minutes)
+
+    # Build a query to find recent, identical, unread notifications
+    query_existing = Notification.query.filter(
+        Notification.user_id == recipient_user.id,
+        Notification.sender_id == sender_user.id,
+        Notification.type == type,
+        # Only check timestamp if cooldown_minutes is greater than 0
+        Notification.timestamp >= time_threshold if cooldown_minutes > 0 else True
+    )
+
+    # Add related_id checks if applicable
+    if post:
+        query_existing = query_existing.filter(Notification.related_post_id == post.id)
+    else:
+        # Ensure we don't match notifications that DO have a post_id if this one doesn't
+        query_existing = query_existing.filter(Notification.related_post_id == None)
+
+    if comment:
+        query_existing = query_existing.filter(Notification.related_comment_id == comment.id)
+    else:
+        # Ensure we don't match notifications that DO have a comment_id if this one doesn't
+        query_existing = query_existing.filter(Notification.related_comment_id == None)
+
+    # For 'new_follower', the related items (post/comment) will be None, so the above filters handle it.
+
+    existing_notification = query_existing.first()
+
+    if existing_notification:
+        app.logger.info(f"Spam prevention: Similar notification (ID: {existing_notification.id}) already exists for User {recipient_user.id} from User {sender_user.id} - Type: {type}. Skipping new notification.")
+        return # Skip creating a new notification
+    # --- End Spam Prevention Check ---
+
+    try:
+        notification = Notification(
+            user_id=recipient_user.id,
+            sender_id=sender_user.id,
+            type=type,
+            related_post_id=post.id if post else None,
+            related_comment_id=comment.id if comment else None,
+            message=custom_message, # This is often None, relying on to_dict() for message text
+            timestamp=datetime.now(timezone.utc) # Ensure using timezone-aware now
+        )
+        db.session.add(notification)
+        db.session.commit()
+        app.logger.info(f"Notification created for User {recipient_user.id} from User {sender_user.id} - Type: {type}")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error creating notification: {e}", exc_info=True)
+
+
 
 # --- Forms ---
 
@@ -755,6 +1120,69 @@ class CommentForm(FlaskForm):
     text_content = TextAreaField('Write a comment...', validators=[DataRequired(), Length(min=1, max=1000)])
     submit = SubmitField('Comment')
 
+class AdminSettings(db.Model):
+    __tablename__ = 'admin_settings' # Explicit table name is good practice
+    id = db.Column(db.Integer, primary_key=True)
+    allow_registration = db.Column(db.Boolean, default=True)
+    default_storage_limit_mb = db.Column(db.Integer, nullable=True)  # Nullable for system default/unlimited
+    max_upload_size_mb = db.Column(db.Integer, default=100) # Default max upload size in MB
+
+    # Ollama settings
+    ollama_api_url = db.Column(db.String(255), nullable=True)
+    ollama_model = db.Column(db.String(100), nullable=True)
+
+    # Email settings
+    mail_server = db.Column(db.String(120), nullable=True)
+    mail_port = db.Column(db.Integer, nullable=True)
+    mail_use_tls = db.Column(db.Boolean, default=True)
+    mail_use_ssl = db.Column(db.Boolean, default=False)
+    mail_username = db.Column(db.String(120), nullable=True)
+    mail_password_hashed = db.Column(db.String(255), nullable=True) # Store hash, not plaintext
+    mail_default_sender_name = db.Column(db.String(120), nullable=True, default='PyCloud Notifications')
+    mail_default_sender_email = db.Column(db.String(120), nullable=True, default='noreply@example.com') # User should change
+
+    def __repr__(self):
+        return f'<AdminSettings {self.id}>'
+
+    # Optional: If you had a password hashing mechanism
+    # def set_mail_password(self, password):
+    #     if password:
+    #         self.mail_password_hashed = generate_password_hash(password).decode('utf-8')
+    #     else:
+    #         self.mail_password_hashed = None
+
+    # def check_mail_password(self, password):
+    #     if self.mail_password_hashed is None:
+    #         return False
+    #     return check_password_hash(self.mail_password_hashed, password)
+
+    @staticmethod
+    def get_settings():
+        # This method ensures there's always a settings object returned
+        # It will be created if it doesn't exist when this is first called
+        # within an app context after tables are created.
+        settings = AdminSettings.query.first()
+        if not settings:
+            print("WARNING: No admin settings found in DB by get_settings(), creating defaults. Ensure init-db ran.")
+            # This fallback within get_settings is okay but robust initialization is better.
+            # Note: This requires an active app and db context.
+            try:
+                settings = AdminSettings( # Set your desired defaults here
+                    allow_registration=True,
+                    max_upload_size_mb=100,
+                    default_storage_limit_mb=1024,
+                    mail_default_sender_name='PyCloud Notifications',
+                    mail_default_sender_email='noreply@example.com'
+                )
+                db.session.add(settings)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"Failed to create default admin settings in get_settings: {e}")
+                # Return an in-memory default if commit fails to prevent crashes, but this is a problem.
+                return AdminSettings(allow_registration=True, max_upload_size_mb=100)
+        return settings
+
 class AdminSettingsForm(FlaskForm):
     """Form for administrator settings."""
     allow_registration = BooleanField('Allow New User Registrations')
@@ -775,7 +1203,7 @@ class AdminSettingsForm(FlaskForm):
             # Add a reasonable upper bound? e.g., max=1024*2 (2 GB) depending on server capacity
             # NumberRange(min=1, max=2048, message='Maximum upload size must be between 1 and 2048 MB.')
         ],
-        description="Maximum size allowed for a single file upload."
+        description=""
     )
     ollama_api_url = URLField(
         'Ollama API Base URL',
@@ -913,25 +1341,79 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
+        # --- THIS IS THE KEY CHANGE ---
+        # Query by username using form.username.data
         user = User.query.filter_by(username=form.username.data).first()
-        if user and user.check_password(form.password.data):
-            login_user(user, remember=form.remember.data)
-            flash('Login successful!', 'success')
-            # Redirect to the page the user was trying to access, or list_files
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('list_files')) # Simplified redirect
+        # --- END OF KEY CHANGE ---
+
+        if user:
+            if user.is_disabled: # Check if the account is disabled
+                flash('Your account has been disabled. Please contact an administrator.', 'danger')
+                return redirect(url_for('login'))
+
+            if user.check_password(form.password.data): # Check password
+                login_user(user, remember=form.remember.data)
+                flash('Login successful!', 'success')
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('list_files'))
+            else:
+                # Password was incorrect
+                flash('Login Unsuccessful. Please check username and password.', 'danger')
         else:
+            # User was not found by username
             flash('Login Unsuccessful. Please check username and password.', 'danger')
 
     return render_template('login.html', title='Login', form=form)
 
 @app.route('/logout')
-@login_required # User must be logged in to log out
+@login_required
 def logout():
-    """Logs the current user out."""
+    """Logs the current user out and sets their status to offline."""
+    if current_user.is_authenticated:
+        current_user.is_online = False
+        # last_seen is not updated here, so it will naturally become older
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error setting user {current_user.id} offline during logout: {e}")
+
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/api/users/activity_status', methods=['POST'])
+@login_required
+def api_users_activity_status():
+    data = request.get_json()
+    if not data or 'user_ids' not in data or not isinstance(data['user_ids'], list):
+        return jsonify({"status": "error", "message": "Invalid request. 'user_ids' list is required."}), 400
+
+    user_ids_to_check = data['user_ids']
+    statuses = {}
+
+    afk_threshold = timedelta(minutes=30)
+    now = datetime.now(timezone.utc) # This is offset-aware
+
+    users_found = User.query.filter(User.id.in_(user_ids_to_check)).all()
+
+    for user_obj in users_found: # Renamed loop variable
+        status_string = "offline"
+        if user_obj.is_online:
+            user_last_seen = user_obj.last_seen
+            # --- DEFENSIVE CONVERSION for user_last_seen ---
+            if user_last_seen and user_last_seen.tzinfo is None:
+                user_last_seen = user_last_seen.replace(tzinfo=timezone.utc)
+            # --- END DEFENSIVE CONVERSION ---
+
+            if user_last_seen and (now - user_last_seen) < afk_threshold: # Now comparison is safe
+                status_string = "online"
+            else:
+                status_string = "afk"
+
+        statuses[user_obj.id] = status_string
+
+    return jsonify({"status": "success", "user_statuses": statuses})
 
 @app.route('/files/folder/archive/<int:folder_id>', methods=['POST'])
 @login_required
@@ -1111,14 +1593,21 @@ def extract_file(file_id):
 @app.route('/admin/settings', methods=['GET', 'POST'])
 @login_required
 def admin_settings():
-    if not current_user.is_admin:
-        flash('You do not have permission to access this page.', 'danger')
-        return redirect(url_for('list_files')) # Or your main page
+    # Use the static method to get or create settings
+    # This requires the AdminSettings model to be defined
+    settings_obj = AdminSettings.get_settings() # This will create if not exists
+    if settings_obj is None: # Should not happen if get_settings is robust
+         flash("Critical error: Could not load or create admin settings.", "danger")
+         return redirect(url_for('index')) # Or some other safe page
 
-    form = AdminSettingsForm()
-    # Define default values here for clarity, especially for GET requests
-    # These match the DEFAULT_SETTINGS dictionary used in create_db
-    # (It would be good to have DEFAULT_SETTINGS accessible here too, e.g., from a config file or app.config)
+    form = AdminSettingsForm(obj=settings_obj) # Load form from DB object
+
+    if form.validate_on_submit():
+        form.populate_obj(settings_obj) # Populate DB object from form
+        # Handle password separately if it's a special field
+        if form.mail_password.data: # Assuming you have a set_mail_password method
+             settings_obj.set_mail_password(form.mail_password.data)
+
     default_mail_settings = {
         'MAIL_SERVER': 'smtp.example.com',
         'MAIL_PORT': 587, # Integer
@@ -1254,70 +1743,112 @@ def admin_list_users():
 @app.route('/admin/user/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_user(user_id):
-    """Handles editing a specific user's details."""
+    """Handles editing a specific user's details, including max_file_size."""
     if not current_user.is_admin:
         flash('You do not have permission to perform this action.', 'danger')
-        return redirect(url_for('admin_list_users'))
+        # Assuming you have an admin_dashboard or similar, or redirect to a safe page
+        return redirect(url_for('admin_dashboard')) # Or url_for('admin_list_users') if that's your main admin user page
 
     user_to_edit = User.query.get_or_404(user_id)
-    # Pass original username/email to form for validation checks
-    form = EditUserForm(original_username=user_to_edit.username,
+
+    # Ensure EditUserForm is correctly defined and imported
+    # For example, if your form is in 'forms.py': from .forms import EditUserForm
+    form = EditUserForm(obj=user_to_edit, # Pre-populate form with existing data
+                        original_username=user_to_edit.username,
                         original_email=user_to_edit.email)
 
     if form.validate_on_submit():
-        # --- Update User Fields ---
+        original_username = user_to_edit.username # For logging if username changes
         user_to_edit.username = form.username.data
         user_to_edit.email = form.email.data
-        user_to_edit.is_admin = form.is_admin.data
 
-        # Handle storage limit: None from form means NULL in DB (use default)
-        # 0 from form means 0 in DB (explicitly unlimited or 0 based on interpretation elsewhere)
-        limit_value = form.storage_limit_mb.data
-        if limit_value is None:
-            user_to_edit.storage_limit_mb = None # Use default
-            limit_log_msg = "default"
-        # Optional: Treat 0 as "use default" as well, if preferred
-        # elif limit_value == 0:
-        #     user_to_edit.storage_limit_mb = None
-        #     limit_log_msg = "default (set via 0)"
+        # Prevent admin from unchecking their own admin status
+        if user_to_edit.id == current_user.id:
+            # If current admin is editing themselves, their admin status cannot be changed
+            # via this form (as the checkbox is disabled).
+            # We ensure their is_admin status remains True.
+            # No flash message is needed here because no change was attempted via the checkbox.
+            user_to_edit.is_admin = True
         else:
-            user_to_edit.storage_limit_mb = limit_value # Set specific limit (could be 0)
-            limit_log_msg = f"{limit_value} MB"
+            # If editing another user, get the status from the form.
+            user_to_edit.is_admin = form.is_admin.data
+
+        # Handle total storage limit (storage_limit_mb)
+        storage_limit_val = form.storage_limit_mb.data
+        storage_limit_log_msg = ""
+        if storage_limit_val is None or storage_limit_val <= 0: # Treat None or 0 (or negative) as "use default"
+            user_to_edit.storage_limit_mb = None
+            storage_limit_log_msg = "default"
+        else:
+            user_to_edit.storage_limit_mb = storage_limit_val
+            storage_limit_log_msg = f"{storage_limit_val} MB"
+
+        # Handle per-file max size limit (max_file_size) - NEW
+        max_file_size_val = form.max_file_size.data
+        max_file_size_log_msg = ""
+        if max_file_size_val is None or max_file_size_val <= 0: # Treat blank or 0 as "use global default"
+            user_to_edit.max_file_size = None # Store NULL in DB
+            max_file_size_log_msg = "global default"
+        else:
+            user_to_edit.max_file_size = max_file_size_val
+            max_file_size_log_msg = f"{max_file_size_val} MB"
+
+        # Handle password change if a new password is provided
+        if form.password.data:
+            if form.password.data == form.confirm_password.data:
+                user_to_edit.set_password(form.password.data) # Assuming User model has set_password method
+                flash('Password updated successfully.', 'info')
+                current_app.logger.info(f"Admin {current_user.username} updated password for user {user_to_edit.username} (ID: {user_id}).")
+            else:
+                form.password.errors.append("Passwords must match.")
+                # Do not proceed with other commits if password validation fails here, re-render form.
+                return render_template('admin_edit_user.html',
+                                       title=f'Edit User: {user_to_edit.username}',
+                                       form=form,
+                                       user_to_edit=user_to_edit) # Pass user_to_edit for the template context
 
         try:
             db.session.commit()
             flash(f'User "{user_to_edit.username}" updated successfully.', 'success')
-            app.logger.info(f"Admin {current_user.username} updated user {user_to_edit.username} (ID: {user_id}). Storage limit set to: {limit_log_msg}")
-            return redirect(url_for('admin_list_users'))
-        except IntegrityError as e: # Catch duplicate username/email if validation somehow missed it
-             db.session.rollback()
-             app.logger.warning(f"Update failed for user {user_id} due to integrity error: {e}")
-             # Add errors back to the specific fields if possible
-             if 'users.username' in str(e):
-                 form.username.errors.append("This username is already taken.")
-             elif 'users.email' in str(e):
-                 form.email.errors.append("This email is already registered.")
-             else:
-                flash('Database error: Could not update user due to conflicting data.', 'danger')
+            current_app.logger.info(
+                f"Admin {current_user.username} updated user {original_username} (now {user_to_edit.username}, ID: {user_id}). "
+                f"Total Storage Limit: {storage_limit_log_msg}. Max File Size Per Upload: {max_file_size_log_msg}."
+            )
+            return redirect(url_for('admin_list_users')) # Or wherever your user list is
+        except IntegrityError as e:
+            db.session.rollback()
+            current_app.logger.warning(f"Update failed for user {user_id} (username: {user_to_edit.username}) due to integrity error: {e}")
+            if 'users.username' in str(e).lower() or 'user.username' in str(e).lower(): # Adapt to your actual constraint name
+                form.username.errors.append("This username is already taken.")
+            elif 'users.email' in str(e).lower() or 'user.email' in str(e).lower(): # Adapt to your actual constraint name
+                form.email.errors.append("This email is already registered.")
+            else:
+                flash('Database error: Could not update user due to conflicting data. Check logs.', 'danger')
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error updating user {user_id} by admin {current_user.id}: {e}", exc_info=True)
-            flash('An unexpected error occurred while updating the user.', 'danger')
-        # Re-render form with errors if commit failed
+            current_app.logger.error(f"Error updating user {user_id} by admin {current_user.username}: {e}", exc_info=True)
+            flash('An unexpected error occurred while updating the user. Please try again.', 'danger')
+        # If commit failed and not redirected, form will re-render with errors.
 
     elif request.method == 'GET':
-        # --- Populate Form for GET request ---
+        # Populate form with existing data from the user_to_edit object
+        # WTForms' obj=user_to_edit in constructor usually handles this,
+        # but explicit assignment can be clearer or override if needed.
         form.username.data = user_to_edit.username
         form.email.data = user_to_edit.email
         form.is_admin.data = user_to_edit.is_admin
-        # If DB value is None, form field remains empty (due to Optional())
-        # If DB value is 0 or more, set form field data
         form.storage_limit_mb.data = user_to_edit.storage_limit_mb
+        form.max_file_size.data = user_to_edit.max_file_size # Populate new field
+        # Password fields should remain blank on GET for security
+        form.password.data = None
+        form.confirm_password.data = None
 
+    # Always pass user_to_edit to the template for displaying info outside the form (like status)
     return render_template('admin_edit_user.html',
                            title=f'Edit User: {user_to_edit.username}',
                            form=form,
-                           user_id=user_id) # Pass user_id for form action URL
+                           user_to_edit=user_to_edit) # Changed user_id to user_to_edit for consistency with template
+
 
 # --- File Routes ---
 
@@ -1544,10 +2075,14 @@ def list_files(folder_id):
     # --- CORRECTED STORAGE INFO HANDLING ---
     storage_info = get_user_storage_info(current_user) # Get the full dictionary
     usage_mb = round(storage_info['usage_bytes'] / (1024 * 1024), 2)
-    # Define limit_display correctly
     limit_display = f"{storage_info['limit_mb']} MB" if storage_info['limit_mb'] is not None else "Unlimited"
-    # Define limit_type_indicator correctly
-    limit_type_indicator = f"({storage_info['limit_type'].capitalize()})"
+
+    # Conditionally set the limit_type_indicator
+    limit_type = storage_info['limit_type']
+    if limit_type == 'user':
+        limit_type_indicator = ""  # Remove the indicator if it's a user-specific limit
+    else: # For 'default' or any other types you might add
+        limit_type_indicator = f"({limit_type.capitalize()})"
     # --- END CORRECTION ---
 
     breadcrumbs = []
@@ -1563,14 +2098,28 @@ def list_files(folder_id):
     clipboard_json = json.dumps(clipboard_session_data) if clipboard_session_data else 'null'
     # *** END ADDITION ***
 
-    # --- Fetch Max Upload Size Setting ---
+    # --- MODIFIED: Determine Effective Max Upload Size for Display ---
     try:
-        max_upload_mb_str = Setting.get('max_upload_size_mb', '100') # Default 100MB
-        max_upload_mb = int(max_upload_mb_str)
+        global_max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+        global_max_upload_mb = int(global_max_upload_mb_str)
     except (ValueError, TypeError):
-        max_upload_mb = 100 # Fallback on error
-        app.logger.warning(f"Invalid max_upload_size_mb setting '{max_upload_mb_str}'. Using fallback {max_upload_mb}MB for display.")
-    # --- End Fetch ---
+        app.logger.warning(f"Invalid global 'max_upload_size_mb' setting in list_files. Using fallback {DEFAULT_MAX_UPLOAD_MB_FALLBACK}MB.")
+        global_max_upload_mb = DEFAULT_MAX_UPLOAD_MB_FALLBACK
+
+    effective_display_max_upload_mb = global_max_upload_mb # Start with global default
+
+    # Check for user-specific override
+    if current_user.max_file_size is not None and current_user.max_file_size > 0:
+        effective_display_max_upload_mb = current_user.max_file_size
+
+    # Consider server's MAX_CONTENT_LENGTH as an absolute cap for display if it's lower
+    # and if effective_display_max_upload_mb is not already effectively unlimited (e.g. very large)
+    server_max_content_bytes = current_app.config.get('MAX_CONTENT_LENGTH')
+    if server_max_content_bytes:
+        server_max_content_mb = server_max_content_bytes // (1024 * 1024)
+        if server_max_content_mb < effective_display_max_upload_mb:
+            effective_display_max_upload_mb = server_max_content_mb
+    # --- END OF MODIFIED SECTION ---
 
     return render_template('files.html',
                            title='My Files' + (f' - {current_folder.name}' if current_folder else ''),
@@ -1582,183 +2131,222 @@ def list_files(folder_id):
                            usage_mb=usage_mb,
                            limit_display=limit_display,
                            limit_type_indicator=limit_type_indicator,
-                           max_upload_mb=max_upload_mb, # Pass the admin limit
+                           max_upload_mb=effective_display_max_upload_mb, # Pass the effective limit
                            upload_form=upload_form,
                            create_folder_form=create_folder_form,
-                           # *** ADD THIS: Pass clipboard data to template ***
                            clipboard_json=clipboard_json)
 
+
+def allowed_file(filename):
+    return bool(filename) # Returns True if filename is not empty.
 
 @app.route('/files/upload', methods=['POST'])
 @login_required
 def upload_file():
-    app.logger.info("--- Entering upload_file route ---") # Or print()
-    app.logger.info(f"Request Headers: {request.headers}")
-    app.logger.info(f"Request Form Data: {request.form}")
-    app.logger.info(f"Request Files: {request.files}")
-    """Handles file uploads, checking against server, admin, and user limits."""
-
-    # Determine if the request is likely AJAX (for JSON responses)
-    is_ajax = request.accept_mimetypes.accept_json and \
-              not request.accept_mimetypes.accept_html
-
-    # --- Get Target Folder ---
-    parent_folder_id_str = request.form.get('parent_folder_id')
-    parent_folder_id = int(parent_folder_id_str) if parent_folder_id_str else None
-    redirect_url = url_for('list_files', folder_id=parent_folder_id) # URL for standard redirects
-
-    if parent_folder_id:
-        # Ensure the target folder exists and belongs to the user
-        target_folder = Folder.query.filter_by(id=parent_folder_id, user_id=current_user.id).first()
-        if not target_folder:
-            message = 'Target folder not found or invalid.'
-            if is_ajax: return jsonify({"status": "error", "message": message}), 404
-            else: flash(message, 'danger'); return redirect(url_for('list_files')) # Redirect to root if target invalid
-
-    # --- Validate File Presence ---
     if 'file' not in request.files:
-         message = 'No file part in the request.'
-         if is_ajax: return jsonify({"status": "error", "message": message}), 400
-         else: flash(message, 'danger'); return redirect(redirect_url)
+        # If the client expects JSON, return JSON error
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"status": "error", "message": "No file part in the request."}), 400
+        flash('No file part in the request.', 'danger')
+        return redirect(request.referrer or url_for('list_files'))
 
-    f = request.files['file']
+    file = request.files['file']
+    if not file or file.filename == '':
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"status": "error", "message": "No file selected for uploading."}), 400
+        flash('No file selected for uploading.', 'warning')
+        return redirect(request.referrer or url_for('list_files'))
 
-    if f.filename == '':
-         message = 'No selected file.'
-         if is_ajax: return jsonify({"status": "error", "message": message}), 400
-         else: flash(message, 'danger'); return redirect(redirect_url)
+    # Determine effective limits for the current user
+    user_specific_max_file_size_mb = current_user.max_file_size
 
-    original_filename = secure_filename(f.filename)
-
-    # --- Determine File Size ---
-    uploaded_filesize = None
+    system_default_max_file_size_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
     try:
-        # More reliable way: check stream size directly
-        f.seek(0, os.SEEK_END)
-        uploaded_filesize = f.tell()
-        f.seek(0) # IMPORTANT: Reset stream position!
-        if uploaded_filesize is None:
-            raise ValueError("Could not determine file size using stream.tell().")
-    except Exception as e:
-        # Fallback using content_length header (less reliable)
-        app.logger.warning(f"Could not determine file size using stream: {e}. Falling back to Content-Length.")
-        uploaded_filesize = request.content_length
+        system_default_max_file_size_mb = int(system_default_max_file_size_mb_str)
+    except (ValueError, TypeError):
+        system_default_max_file_size_mb = DEFAULT_MAX_UPLOAD_MB_FALLBACK
+        current_app.logger.warning(
+            f"Invalid 'max_upload_size_mb' in Setting table ('{system_default_max_file_size_mb_str}'). "
+            f"Falling back to {DEFAULT_MAX_UPLOAD_MB_FALLBACK}MB for system default."
+        )
 
-    # If size still unknown, reject
-    if uploaded_filesize is None:
-         app.logger.error(f"Critical: Could not determine file size for upload '{original_filename}' by user {current_user.id}.")
-         message = 'Could not determine file size.'
-         if is_ajax: return jsonify({"status": "error", "message": message}), 400
-         else: flash(message, 'danger'); return redirect(redirect_url)
+    effective_max_file_size_mb = user_specific_max_file_size_mb if user_specific_max_file_size_mb is not None and user_specific_max_file_size_mb > 0 else system_default_max_file_size_mb
+    effective_max_file_size_bytes = effective_max_file_size_mb * 1024 * 1024
 
-
-    # === CHECK 1: Against Hardcoded Server Limit (MAX_CONTENT_LENGTH) ===
-    # Note: Flask usually rejects the request *before* reaching the route if this limit
-    # is exceeded based on Content-Length header. This check is an extra safeguard
-    # and useful if size was determined via stream.tell().
-    hard_limit_bytes = current_app.config.get('MAX_CONTENT_LENGTH')
-    if hard_limit_bytes and uploaded_filesize > hard_limit_bytes:
-         limit_mb = hard_limit_bytes // (1024 * 1024)
-         message = f'Upload failed: File size ({uploaded_filesize / (1024*1024):.1f} MB) exceeds the maximum server limit ({limit_mb} MB).'
-         app.logger.warning(f"Upload rejected for user {current_user.id}: File size {uploaded_filesize} > MAX_CONTENT_LENGTH {hard_limit_bytes}")
-         if is_ajax: return jsonify({"status": "error", "message": message}), 413 # Payload Too Large
-         else: flash(message, 'danger'); return redirect(redirect_url)
-
-
-    # === CHECK 2: Against User's Available Storage Space ===
-    storage_info = get_user_storage_info(current_user)
-    # Available space calculation must handle potential infinite limit
-    if storage_info['limit_bytes'] == float('inf'):
-        available_bytes = float('inf')
-    else:
-        available_bytes = storage_info['limit_bytes'] - storage_info['usage_bytes']
-
-    if uploaded_filesize > available_bytes:
-        limit_mb_display = f"{storage_info['limit_mb']} MB" if storage_info['limit_mb'] is not None else 'Unlimited'
-        usage_mb = round(storage_info['usage_bytes'] / (1024*1024), 1)
-        required_mb = round(uploaded_filesize / (1024*1024), 1)
-        available_mb_display = f"{available_bytes / (1024*1024):.1f}" if available_bytes != float('inf') else 'unlimited' # Handle display
-        message = f'Upload failed: Insufficient storage space. Requires {required_mb} MB, but only {available_mb_display} MB free (Usage: {usage_mb} MB, Limit: {limit_mb_display}).'
-        app.logger.warning(f"Upload rejected for user {current_user.id}: File size {uploaded_filesize} > Available space {available_bytes}")
-        if is_ajax: return jsonify({"status": "error", "message": message}), 413 # Payload Too Large
-        else: flash(message, 'danger'); return redirect(redirect_url)
-
-
-    # === All Checks Passed: Proceed with Saving ===
-    _, ext = os.path.splitext(original_filename)
-    stored_filename = str(uuid.uuid4()) + ext
-    user_upload_path = get_user_upload_path(current_user.id)
-
-    # Ensure user directory exists (important for first upload)
+    user_specific_storage_limit_mb = current_user.storage_limit_mb
+    system_default_storage_limit_mb_str = Setting.get('default_storage_limit_mb', '1024')
     try:
-        os.makedirs(user_upload_path, exist_ok=True)
-    except OSError as e:
-        app.logger.error(f"Failed to create upload directory {user_upload_path} for user {current_user.id}: {e}", exc_info=True)
-        message = 'A server error occurred (could not prepare storage).'
-        if is_ajax: return jsonify({"status": "error", "message": message}), 500
-        else: flash(message, 'danger'); return redirect(redirect_url)
+        system_default_storage_limit_mb = int(system_default_storage_limit_mb_str)
+    except (ValueError, TypeError):
+        system_default_storage_limit_mb = 1024
+        current_app.logger.warning(
+            f"Invalid 'default_storage_limit_mb' in Setting table ('{system_default_storage_limit_mb_str}'). "
+            f"Falling back to {1024}MB for system default."
+        )
+    effective_storage_limit_mb = user_specific_storage_limit_mb if user_specific_storage_limit_mb is not None else system_default_storage_limit_mb
 
-    file_path = os.path.join(user_upload_path, stored_filename)
+    global_max_content_bytes = current_app.config.get('MAX_CONTENT_LENGTH')
 
-    # --- Save File and DB Record ---
-    try:
-        f.save(file_path) # Save the actual file to disk
+    if allowed_file(file.filename):
+        filename = secure_filename(file.filename)
 
-        # Guess mime type after saving
-        mime_type, _ = mimetypes.guess_type(file_path)
-        mime_type = mime_type or 'application/octet-stream'
+        file.seek(0, os.SEEK_END)
+        file_size_bytes = file.tell()
+        file.seek(0)
 
-        # Create the database record
-        new_file = File(original_filename=original_filename,
-                        stored_filename=stored_filename,
-                        filesize=uploaded_filesize, # Use the size determined earlier
-                        mime_type=mime_type,
-                        owner=current_user, # Or user_id=current_user.id
-                        parent_folder_id=parent_folder_id)
-        db.session.add(new_file)
-        db.session.commit()
+        error_msg = None
+        status_code = 200
 
-        message = f'File "{original_filename}" uploaded successfully!'
-        app.logger.info(f"File '{original_filename}' ({uploaded_filesize} bytes) uploaded via {'AJAX' if is_ajax else 'Form'} to folder {parent_folder_id} by user {current_user.id}")
+        if global_max_content_bytes is not None and file_size_bytes > global_max_content_bytes:
+            global_max_content_mb = global_max_content_bytes / (1024 * 1024)
+            error_msg = f"File is too large. Maximum allowed request size is {global_max_content_mb:.2f} MB."
+            status_code = 413
+        elif file_size_bytes > effective_max_file_size_bytes:
+            error_msg = f"File exceeds your maximum allowed upload size of {effective_max_file_size_mb} MB."
+            status_code = 413
+        else:
+            storage_info = get_user_storage_info(current_user)
+            available_bytes = storage_info['limit_bytes'] - storage_info['usage_bytes']
+            if file_size_bytes > available_bytes:
+                req_mb = round(file_size_bytes / (1024*1024), 1)
+                avail_mb = round(available_bytes / (1024*1024), 1) if available_bytes != float('inf') else float('inf')
+                used_mb = round(storage_info['usage_bytes'] / (1024*1024), 1)
+                limit_mb_display = f"{storage_info['limit_mb']} MB" if storage_info['limit_mb'] is not None else "Unlimited"
+                error_msg = f"Uploading this file would exceed your storage limit. Requires {req_mb} MB, {avail_mb} MB free (Used: {used_mb} MB, Limit: {limit_mb_display})."
+                status_code = 413
 
-        # Return success response
-        if is_ajax: return jsonify({"status": "success", "message": message})
-        else: flash(message, 'success'); return redirect(redirect_url)
+        if error_msg:
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({"status": "error", "message": error_msg}), status_code
+            flash(error_msg, "danger")
+            return redirect(request.referrer or url_for('list_files'))
 
-    except Exception as e:
-        # --- Handle Save/Commit Errors ---
-        db.session.rollback() # Rollback DB changes
-
-        # Attempt to clean up the partially saved file
-        if os.path.exists(file_path):
+        user_upload_folder = get_user_upload_path(current_user.id)
+        if not os.path.exists(user_upload_folder):
             try:
-                os.remove(file_path)
-                app.logger.info(f"Cleaned up partially saved file after error: {file_path}")
-            except OSError as remove_err:
-                app.logger.error(f"Error removing partially saved file {file_path} after main error: {remove_err}")
+                os.makedirs(user_upload_folder)
+            except OSError as e:
+                current_app.logger.error(f"Could not create upload directory {user_upload_folder}: {e}")
+                if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                    return jsonify({"status": "error", "message": "Could not create storage directory."}), 500
+                flash("Could not create storage directory. Please contact support.", "danger")
+                return redirect(request.referrer or url_for('list_files'))
 
-        app.logger.error(f"Error saving uploaded file '{original_filename}' for user {current_user.id}: {e}", exc_info=True)
-        message = 'An error occurred while saving the file. Please try again.'
+        target_parent_folder_id = request.form.get('parent_folder_id')
+        if target_parent_folder_id == 'None' or target_parent_folder_id == '':
+            target_parent_folder_id = None
+        elif target_parent_folder_id is not None:
+            try:
+                target_parent_folder_id = int(target_parent_folder_id)
+                if not Folder.query.filter_by(id=target_parent_folder_id, user_id=current_user.id).first():
+                    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                        return jsonify({"status": "error", "message": "Target folder not found or invalid."}), 400
+                    flash("Target folder not found or invalid.", "danger")
+                    return redirect(request.referrer or url_for('list_files'))
+            except ValueError:
+                if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                    return jsonify({"status": "error", "message": "Invalid target folder ID."}), 400
+                flash("Invalid target folder ID.", "danger")
+                return redirect(request.referrer or url_for('list_files'))
 
-        if is_ajax: return jsonify({"status": "error", "message": message}), 500
-        else: flash(message, 'danger'); return redirect(redirect_url)
+        original_filename_for_db = filename
+        _, ext = os.path.splitext(filename)
+        stored_filename_on_disk = str(uuid.uuid4()) + ext
+        file_path_on_disk = os.path.join(user_upload_folder, stored_filename_on_disk)
+
+        counter = 1
+        temp_original_filename = original_filename_for_db
+        while File.query.filter_by(user_id=current_user.id, parent_folder_id=target_parent_folder_id, original_filename=temp_original_filename).first():
+            base, extension = os.path.splitext(original_filename_for_db)
+            temp_original_filename = f"{base}_{counter}{extension}"
+            counter += 1
+        final_original_filename_for_db = temp_original_filename
+
+        try:
+            file.save(file_path_on_disk)
+            mime_type, _ = mimetypes.guess_type(file_path_on_disk)
+            mime_type = mime_type or 'application/octet-stream'
+
+            new_file = File(
+                original_filename=final_original_filename_for_db,
+                stored_filename=stored_filename_on_disk,
+                filesize=file_size_bytes,
+                mime_type=mime_type,
+                user_id=current_user.id,
+                parent_folder_id=target_parent_folder_id
+            )
+            db.session.add(new_file)
+            db.session.commit()
+
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                # For AJAX, return JSON success (client should then refresh file list or update UI)
+                return jsonify({
+                    "status": "success",
+                    "message": f"File '{final_original_filename_for_db}' uploaded successfully!",
+                    "file": { # Optionally return some info about the uploaded file
+                        "id": new_file.id,
+                        "original_filename": new_file.original_filename,
+                        "filesize": new_file.filesize,
+                        "mime_type": new_file.mime_type,
+                        "parent_folder_id": new_file.parent_folder_id
+                    }
+                }), 201 # 201 Created
+            else:
+                # For standard form submission, flash and redirect
+                flash(f"File '{final_original_filename_for_db}' uploaded successfully!", "success")
+                redirect_url = url_for('list_files', folder_id=target_parent_folder_id) if target_parent_folder_id else url_for('list_files')
+                return redirect(request.referrer or redirect_url)
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error saving file or DB record: {e}", exc_info=True)
+            error_message_commit = f"An error occurred while uploading '{final_original_filename_for_db}'. Error: {e}"
+            if os.path.exists(file_path_on_disk):
+                try:
+                    os.remove(file_path_on_disk)
+                except Exception as e_remove:
+                    current_app.logger.error(f"Failed to remove partially uploaded file {file_path_on_disk}: {e_remove}")
+
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({"status": "error", "message": error_message_commit}), 500
+            else:
+                flash(error_message_commit, "danger")
+                return redirect(request.referrer or url_for('list_files', folder_id=target_parent_folder_id))
+    else:
+        # This case now means file.filename was empty, already handled at the top.
+        # If allowed_file were more complex, this would be the "file type not allowed" branch.
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"status": "error", "message": "File type not allowed or no file selected."}), 400
+        flash('File type not allowed or no file selected.', 'warning')
+        return redirect(request.referrer or url_for('list_files'))
 
 @app.route('/files/download/<int:file_id>')
 @login_required
 def download_file(file_id):
     file_record = File.query.get_or_404(file_id)
 
-    # --- MODIFIED PERMISSION CHECK ---
     can_access = False
     # 1. Check if current user is the owner
     if file_record.owner == current_user:
         can_access = True
     else:
-        # 2. Check if the file is referenced in any GroupChatMessage.
-        #    If yes, any authenticated user in the group chat can access it.
+        # 2. Check if file is in a GroupChatMessage (existing logic)
         if GroupChatMessage.query.filter_by(file_id=file_record.id).first():
             can_access = True # Authenticated users can access files shared in the global group chat
-    # --- END MODIFIED PERMISSION CHECK ---
+
+        # 3. ADD THIS: Check if file is in a DirectMessage involving the current user
+        if not can_access:
+            dm_association = DirectMessage.query.filter(
+                DirectMessage.file_id == file_record.id,
+                ((DirectMessage.sender_id == current_user.id) | (DirectMessage.receiver_id == current_user.id))
+            ).first()
+            if dm_association:
+                # Ensure the other party in the DM is the one who actually owns/uploaded the file,
+                # or if the file owner is one of the participants in the DM.
+                # This check is to prevent accessing a file if it was somehow linked to a DM
+                # but the file owner isn't part of that DM.
+                if file_record.user_id == dm_association.sender_id or file_record.user_id == dm_association.receiver_id:
+                    can_access = True
 
     if not can_access:
         app.logger.warning(f"Access denied: User {current_user.id} attempted download of file {file_id}. Owner: {file_record.user_id}. Not shared in chat or user is not owner.")
@@ -2393,9 +2981,19 @@ def view_file(file_id):
     if file_record.owner == current_user:
         can_access = True
     else:
-        # 2. Check if the file is referenced in any GroupChatMessage.
+        # 2. Check if file is in a GroupChatMessage (existing logic)
         if GroupChatMessage.query.filter_by(file_id=file_record.id).first():
-            can_access = True # Authenticated users can access files shared in the global group chat
+            can_access = True
+
+        # 3. ADD THIS: Check if file is in a DirectMessage involving the current user
+        if not can_access:
+            dm_association = DirectMessage.query.filter(
+                DirectMessage.file_id == file_record.id,
+                ((DirectMessage.sender_id == current_user.id) | (DirectMessage.receiver_id == current_user.id))
+            ).first()
+            if dm_association:
+                if file_record.user_id == dm_association.sender_id or file_record.user_id == dm_association.receiver_id:
+                    can_access = True
 
     if not can_access:
         app.logger.warning(f"Access denied: User {current_user.id} attempted view of file {file_id}. Owner: {file_record.user_id}. Not shared in chat or user is not owner.")
@@ -2984,6 +3582,68 @@ def admin_delete_group_chat_message(message_id):
             flash("Failed to delete message.", "danger")
             return redirect(url_for('group_chat'))
 
+@app.route('/admin/disable_user/<int:user_id>', methods=['POST'])
+@login_required
+# @admin_required # Make sure you have or implement this decorator
+def disable_user(user_id):
+    if not current_user.is_admin: # Example check, adapt to your admin logic
+        flash('You are not authorized to perform this action.', 'danger')
+        return redirect(url_for('admin_list_users'))
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('You cannot disable yourself.', 'danger')
+        return redirect(url_for('admin_list_users'))
+    user.is_disabled = True
+    db.session.commit()
+    flash(f'User {user.username} has been disabled.', 'success')
+    return redirect(url_for('admin_list_users'))
+
+@app.route('/admin/enable_user/<int:user_id>', methods=['POST'])
+@login_required
+# @admin_required
+def enable_user(user_id):
+    if not current_user.is_admin: # Example check
+        flash('You are not authorized to perform this action.', 'danger')
+        return redirect(url_for('admin_list_users'))
+    user = User.query.get_or_404(user_id)
+    user.is_disabled = False
+    db.session.commit()
+    flash(f'User {user.username} has been enabled.', 'success')
+    return redirect(url_for('admin_list_users'))
+
+@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+# @admin_required
+def delete_user(user_id):
+    if not current_user.is_admin: # Example check
+        flash('You are not authorized to perform this action.', 'danger')
+        return redirect(url_for('admin_list_users'))
+    user_to_delete = User.query.get_or_404(user_id)
+
+    if user_to_delete.id == current_user.id:
+        flash("You cannot delete yourself.", "danger")
+        return redirect(url_for('admin_list_users'))
+
+    if not user_to_delete.is_disabled:
+        flash(f'User {user_to_delete.username} must be disabled before they can be deleted.', 'warning')
+        return redirect(url_for('admin_list_users'))
+
+    # Optional: Add more cleanup here, e.g., delete user's posts, files, etc.
+    # Example:
+    # Post.query.filter_by(author=user_to_delete).delete()
+    # UploadedFile.query.filter_by(user_id=user_to_delete.id).delete()
+    # Friend.query.filter((Friend.user_id == user_id) | (Friend.friend_id == user_id)).delete()
+    # ... and so on for all related data
+
+    db.session.delete(user_to_delete)
+    db.session.commit()
+    flash(f'User {user_to_delete.username} has been deleted.', 'success')
+    return redirect(url_for('admin_list_users'))
+
+# You'll likely integrate the max_file_size update into your existing admin_edit_user route
+# or create a dedicated one. For now, let's assume it's part of admin_edit_user.
+
+
 # --- Public Sharing Route ---
 
 # Use '/s/' for short shared links
@@ -3280,13 +3940,26 @@ def reset_token(token):
         return redirect(url_for('login'))
     return render_template('reset_password.html', title='Reset Password', form=form, token=token)
 
+@app.before_request
+def update_user_activity():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.now(timezone.utc)
+        current_user.is_online = True
+        # Commit directly here or rely on other operations to commit.
+        # For frequent updates, consider committing less often if performance becomes an issue,
+        # but for last_seen, immediate commit is usually fine.
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error updating user activity for {current_user.id}: {e}")
+
 @app.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
     form = EditProfileForm(original_username=current_user.username, original_email=current_user.email)
     if form.validate_on_submit():
         # Update user text data (username, email, bio, links...)
-        current_user.username = form.username.data
         current_user.email = form.email.data
         current_user.bio = form.bio.data
         filename = None # Initialize filename
@@ -3423,9 +4096,24 @@ def follow_user(username):
     if user_to_follow == current_user:
         flash('You cannot follow yourself!', 'warning')
         return redirect(url_for('user_profile', username=username))
+
     current_user.follow(user_to_follow)
-    db.session.commit()
-    flash(f'You are now following {username}.', 'success')
+    try:
+        db.session.commit()
+        flash(f'You are now following {username}.', 'success')
+        # Notify the user who was followed
+        create_notification(
+            recipient_user=user_to_follow,
+            sender_user=current_user,
+            type='new_follower'
+        )
+        app.logger.info(f"User {current_user.username} started following {user_to_follow.username}. Notification created for {user_to_follow.username}.")
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error during follow action or notification creation by {current_user.username} for {username}: {e}", exc_info=True)
+        flash('An error occurred while trying to follow the user.', 'danger')
+
     return redirect(url_for('user_profile', username=username))
 
 @app.route('/unfollow/<username>', methods=['POST'])
@@ -3439,6 +4127,84 @@ def unfollow_user(username):
     db.session.commit()
     flash(f'You have unfollowed {username}.', 'info')
     return redirect(url_for('user_profile', username=username))
+
+
+@app.route('/notifications')
+@login_required
+def notifications_page():
+    page = request.args.get('page', 1, type=int)
+
+    # Fetch unread notifications for the current user to mark them as read
+    unread_notifications_to_mark = current_user.notifications_received.filter_by(is_read=False).all()
+    if unread_notifications_to_mark:
+        for notification_instance in unread_notifications_to_mark:
+            notification_instance.is_read = True
+        try:
+            db.session.commit()
+            app.logger.info(f"Marked {len(unread_notifications_to_mark)} notifications as read for user {current_user.id} upon visiting notifications page.")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error marking notifications as read for user {current_user.id} on page visit: {e}", exc_info=True)
+            # Optionally flash a message, though it might be too noisy for an automatic background action
+            # flash("Could not update notification read status.", "warning")
+
+    # Now fetch the paginated list for display (they will all appear as read for this view)
+    notifications_pagination_obj = current_user.notifications_received.order_by(
+        Notification.timestamp.desc() # Now primarily order by timestamp descending, as is_read is less relevant after marking all
+    ).paginate(page=page, per_page=15)
+
+    current_page_notification_instances = notifications_pagination_obj.items
+    processed_notifications_list = [notification.to_dict() for notification in current_page_notification_instances]
+
+    return render_template('notifications.html',
+                           title='My Notifications',
+                           processed_notifications=processed_notifications_list,
+                           notifications_pagination_obj=notifications_pagination_obj)
+
+
+@app.route('/api/notifications/unread_count')
+@login_required
+def api_unread_notification_count():
+    try:
+        count = current_user.notifications_received.filter_by(is_read=False).count()
+        return jsonify({'status': 'success', 'unread_count': count})
+    except Exception as e:
+        app.logger.error(f"Error fetching unread notification count for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Could not fetch unread count.'}), 500
+
+@app.route('/api/notifications/dismiss/<int:notification_id>', methods=['POST'])
+@login_required
+def api_dismiss_notification(notification_id):
+    notification = Notification.query.filter_by(id=notification_id, user_id=current_user.id).first_or_404()
+    try:
+        db.session.delete(notification) # Changed from marking as read to deleting
+        db.session.commit()
+        app.logger.info(f"Notification {notification_id} deleted for user {current_user.id}")
+
+        # Recalculate unread count to send back (and for navbar update)
+        unread_count = current_user.notifications_received.filter_by(is_read=False).count()
+        return jsonify({'status': 'success', 'message': 'Notification deleted.', 'unread_count': unread_count})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting notification {notification_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Could not delete notification.'}), 500
+
+
+@app.route('/api/notifications/mark_all_read', methods=['POST'])
+@login_required
+def api_mark_all_notifications_read():
+    try:
+        unread_notifications = current_user.notifications_received.filter_by(is_read=False).all()
+        for notification in unread_notifications:
+            notification.is_read = True
+        db.session.commit()
+        app.logger.info(f"All unread notifications marked as read for user {current_user.id}")
+        return jsonify({'status': 'success', 'message': 'All notifications marked as read.', 'unread_count': 0})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error marking all notifications as read for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Could not mark all notifications as read.'}), 500
+
 
 @app.route('/user/<username>')
 @login_required
@@ -3473,7 +4239,13 @@ def user_profile(username):
     elif sort_by == 'likes_desc':
         query = query.outerjoin(post_likes).group_by(Post.id).order_by(db.func.count(post_likes.c.user_id).desc(), Post.timestamp.desc())
     elif sort_by == 'comments_desc':
-        query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
+        query = query.outerjoin(Comment, Post.id == Comment.post_id)\
+                       .group_by(Post.id)\
+                       .order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
+    elif sort_by == 'comments_asc':
+         query = query.outerjoin(Comment, Post.id == Comment.post_id)\
+                        .group_by(Post.id)\
+                        .order_by(db.func.count(Comment.id).asc(), Post.timestamp.desc())
     elif sort_by == 'shares_desc':
         SharedPostAlias = aliased(Post, name='shares_alias')
         query = query.outerjoin(SharedPostAlias, Post.shares) \
@@ -3486,11 +4258,24 @@ def user_profile(username):
 
     # Eager load relationships needed by the macro
     query = query.options(
-        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename), # Already have user, but good practice
-        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
-        db.joinedload(Post.likers).load_only(User.id),
-        db.joinedload(Post.dislikers).load_only(User.id),
-        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username)
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename, User.id),
+        db.joinedload(Post.shared_comment).options(
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id),
+            db.selectinload(Comment.dislikers).load_only(User.id)
+        ),
+        db.selectinload(Post.comments).options(
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id),
+            db.selectinload(Comment.dislikers).load_only(User.id),
+            db.selectinload(Comment.replies).options(
+                db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+                db.selectinload(Comment.likers).load_only(User.id),
+                db.selectinload(Comment.dislikers).load_only(User.id)
+            )
+        ),
+        db.selectinload(Post.likers).load_only(User.id),
+        db.selectinload(Post.dislikers).load_only(User.id)
     )
 
     posts = query.paginate(page=page, per_page=10) # Paginate the user's posts
@@ -3509,20 +4294,30 @@ def user_profile(username):
 @app.route('/post/<int:post_id>')
 @login_required
 def view_single_post(post_id):
-    post = Post.query.options( # Eager load necessary data
-        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename),
-        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
-        db.joinedload(Post.likers).load_only(User.id),
-        db.joinedload(Post.dislikers).load_only(User.id),
-        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username)
+    # Apply the same eager loading options as in post_feed
+    post = Post.query.options(
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename, User.id),
+        db.joinedload(Post.shared_comment).options(
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id),
+            db.selectinload(Comment.dislikers).load_only(User.id)
+        ),
+        db.selectinload(Post.comments).options(
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id),
+            db.selectinload(Comment.dislikers).load_only(User.id),
+            db.selectinload(Comment.replies).options(
+                db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+                db.selectinload(Comment.likers).load_only(User.id),
+                db.selectinload(Comment.dislikers).load_only(User.id)
+            )
+        ),
+        db.selectinload(Post.likers).load_only(User.id),
+        db.selectinload(Post.dislikers).load_only(User.id)
     ).get_or_404(post_id)
 
     comment_form = CommentForm()
-    # You might want a dedicated template like 'view_single_post.html'
-    # Or reuse the feed/profile template structure if it makes sense
-    # For simplicity, let's reuse post_feed.html but only pass the single post
-    # A better approach is a dedicated template.
-    return render_template('view_single_post.html', # Create this template
+    return render_template('view_single_post.html',
                            title=f"Post by {post.author.username}",
                            post=post,
                            comment_form=comment_form,
@@ -3532,7 +4327,6 @@ def view_single_post(post_id):
 @login_required
 def create_post():
     form = CreatePostForm()
-    # Fetch upload limits from settings for the template
     try:
         max_photo_mb = int(Setting.get('max_photo_upload_mb', str(DEFAULT_MAX_PHOTO_MB)))
     except (ValueError, TypeError):
@@ -3545,32 +4339,43 @@ def create_post():
     if form.validate_on_submit():
         photo_fn = None
         video_fn = None
-        upload_path = get_post_media_path() # Use helper function
+        upload_path = get_post_media_path()
+        picture_path = None # Initialize for potential cleanup
+        video_path = None   # Initialize for potential cleanup
 
-        # --- Handle Photo Upload ---
         if form.photo.data:
             try:
                 picture_file = form.photo.data
-                # Add file size check here against max_photo_mb * 1024 * 1024
-                # ...
-                ext = os.path.splitext(secure_filename(picture_file.filename))[1]
+                # Basic file size check example (can be more robust)
+                picture_file.seek(0, os.SEEK_END)
+                file_size = picture_file.tell()
+                picture_file.seek(0)
+                if file_size > max_photo_mb * 1024 * 1024:
+                    flash(f'Photo exceeds the maximum size of {max_photo_mb} MB.', 'danger')
+                    # Need to return render_template here to show the form again with error
+                    return render_template('create_post.html', title='New Post', form=form, max_photo_upload_mb=max_photo_mb, max_video_upload_mb=max_video_mb)
+
+                ext = os.path.splitext(secure_filename(picture_file.filename))[1].lower()
                 photo_fn = str(uuid.uuid4()) + ext
                 picture_path = os.path.join(upload_path, photo_fn)
-                # Add image processing/resizing if needed (like profile pics)
                 picture_file.save(picture_path)
                 app.logger.info(f"Post photo saved: {photo_fn}")
             except Exception as e:
                 app.logger.error(f"Error uploading post photo: {e}", exc_info=True)
                 flash("Error uploading photo.", "danger")
-                photo_fn = None # Ensure it's None on error
+                photo_fn = None
 
-        # --- Handle Video Upload ---
-        if form.video.data and not photo_fn: # Only allow one media type for now
+        if form.video.data and not photo_fn:
             try:
                 video_file = form.video.data
-                # Add file size check here against max_video_mb * 1024 * 1024
-                # ...
-                ext = os.path.splitext(secure_filename(video_file.filename))[1]
+                video_file.seek(0, os.SEEK_END)
+                file_size = video_file.tell()
+                video_file.seek(0)
+                if file_size > max_video_mb * 1024 * 1024:
+                    flash(f'Video exceeds the maximum size of {max_video_mb} MB.', 'danger')
+                    return render_template('create_post.html', title='New Post', form=form, max_photo_upload_mb=max_photo_mb, max_video_upload_mb=max_video_mb)
+
+                ext = os.path.splitext(secure_filename(video_file.filename))[1].lower()
                 video_fn = str(uuid.uuid4()) + ext
                 video_path = os.path.join(upload_path, video_fn)
                 video_file.save(video_path)
@@ -3578,41 +4383,155 @@ def create_post():
             except Exception as e:
                 app.logger.error(f"Error uploading post video: {e}", exc_info=True)
                 flash("Error uploading video.", "danger")
-                video_fn = None # Ensure it's None on error
+                video_fn = None
         elif form.video.data and photo_fn:
-             flash("You can upload a photo OR a video, not both.", "warning")
-
+            flash("You can upload a photo OR a video, not both.", "warning")
 
         if not form.text_content.data and not photo_fn and not video_fn:
             flash('A post must have text, a photo, or a video.', 'warning')
         elif form.video.data and photo_fn:
-             # Flash message already shown above, just prevent post creation
-             pass
+            pass # Flash message already shown
         else:
             try:
-                post = Post(user_id=current_user.id,
+                new_post = Post(user_id=current_user.id,
                             text_content=form.text_content.data if form.text_content.data else None,
                             photo_filename=photo_fn,
                             video_filename=video_fn)
-                db.session.add(post)
+                db.session.add(new_post)
                 db.session.commit()
                 flash('Post created!', 'success')
-                return redirect(url_for('user_profile', username=current_user.username)) # Redirect to profile after post
+                app.logger.info(f"Post {new_post.id} created by user {current_user.id}")
+
+                # The 'current_user.followers' relationship should give a list of User objects who follow current_user.
+                # If 'followers' is on the 'User' who *is followed* (i.e., user.followers gives who follows them), this is correct.
+                if current_user.followers: # Check if the collection exists and is not None
+                    for follower in current_user.followers:
+                        if follower.id != current_user.id: # Don't notify self
+                            create_notification(
+                                recipient_user=follower,
+                                sender_user=current_user,
+                                type='new_post_from_followed_user',
+                                post=new_post
+                            )
+                            app.logger.info(f"Notified follower {follower.username} about new post {new_post.id} from {current_user.username}")
+
+                return redirect(url_for('user_profile', username=current_user.username))
             except Exception as e:
                 db.session.rollback()
-                app.logger.error(f"Error saving post to DB: {e}", exc_info=True)
+                app.logger.error(f"Error saving post to DB or notifying followers: {e}", exc_info=True)
                 flash("An error occurred while saving the post.", "danger")
-                # Clean up saved files if DB commit fails
-                if photo_fn and 'picture_path' in locals() and os.path.exists(picture_path): os.remove(picture_path)
-                if video_fn and 'video_path' in locals() and os.path.exists(video_path): os.remove(video_path)
+                if photo_fn and picture_path and os.path.exists(picture_path): os.remove(picture_path)
+                if video_fn and video_path and os.path.exists(video_path): os.remove(video_path)
 
-
-    # For GET request, or if form validation fails
     return render_template('create_post.html',
-                            title='New Post',
-                            form=form,
-                            max_photo_upload_mb=max_photo_mb,
-                            max_video_upload_mb=max_video_mb)
+                           title='New Post',
+                           form=form,
+                           max_photo_upload_mb=max_photo_mb,
+                           max_video_upload_mb=max_video_mb)
+
+@app.route('/api/files/batch_delete', methods=['POST'])
+@login_required
+def api_batch_delete():
+    data = request.get_json()
+    if not data or 'items' not in data or not isinstance(data['items'], list):
+        app.logger.error(f"Batch delete request failed for user {current_user.id}: Invalid payload format. Data: {data}")
+        return jsonify({"status": "error", "message": "Invalid request payload. 'items' array is required."}), 400
+
+    items_to_delete = data['items']
+    if not items_to_delete:
+        return jsonify({"status": "success", "message": "No items specified for deletion."}), 200
+
+    deleted_count = 0
+    errors = []
+    user_upload_path = get_user_upload_path(current_user.id)
+
+    # It's crucial to handle this as a single transaction or be very careful about partial deletions.
+    # For simplicity, we'll try to delete all and report errors.
+    # A more robust solution might group DB operations and commit at the end,
+    # or handle each deletion individually with its own error reporting.
+
+    for item_data in items_to_delete:
+        item_id = item_data.get('id')
+        item_type = item_data.get('type')
+        item_name_for_log = item_data.get('name', f'{item_type} ID {item_id}') # For logging
+
+        if not item_id or not item_type:
+            errors.append({"item": item_name_for_log, "error": "Missing ID or type."})
+            app.logger.warning(f"Batch delete: Skipping item due to missing ID/type for user {current_user.id}. Item data: {item_data}")
+            continue
+
+        try:
+            item_id = int(item_id) # Ensure ID is integer for DB query
+        except ValueError:
+            errors.append({"item": item_name_for_log, "error": "Invalid item ID format."})
+            app.logger.warning(f"Batch delete: Skipping item due to invalid ID format for user {current_user.id}. Item ID: {item_data.get('id')}")
+            continue
+
+        if item_type == 'file':
+            file_record = File.query.get(item_id) # Use get() for PK lookup
+            if not file_record:
+                errors.append({"item": item_name_for_log, "error": "File not found."})
+                app.logger.warning(f"Batch delete: File ID {item_id} not found for user {current_user.id}.")
+                continue
+            if file_record.user_id != current_user.id:
+                errors.append({"item": item_name_for_log, "error": "Permission denied."})
+                app.logger.warning(f"Batch delete: User {current_user.id} lacks permission for file {item_id}.")
+                continue
+
+            try:
+                full_file_path = os.path.join(user_upload_path, file_record.stored_filename)
+                if os.path.exists(full_file_path):
+                    os.remove(full_file_path)
+                db.session.delete(file_record)
+                # Commit after each successful deletion to make it more atomic per item,
+                # or collect all operations and commit once at the end.
+                # Committing per item means partial success is possible.
+                db.session.commit()
+                deleted_count += 1
+                app.logger.info(f"Batch delete: Successfully deleted file '{file_record.original_filename}' (ID: {item_id}) for user {current_user.id}.")
+            except Exception as e:
+                db.session.rollback()
+                error_msg = f"Error deleting file '{file_record.original_filename}': {str(e)}"
+                errors.append({"item": item_name_for_log, "error": error_msg})
+                app.logger.error(f"Batch delete: {error_msg} for user {current_user.id}", exc_info=True)
+
+        elif item_type == 'folder':
+            folder_record = Folder.query.get(item_id) # Use get() for PK lookup
+            if not folder_record:
+                errors.append({"item": item_name_for_log, "error": "Folder not found."})
+                app.logger.warning(f"Batch delete: Folder ID {item_id} not found for user {current_user.id}.")
+                continue
+            if folder_record.user_id != current_user.id:
+                errors.append({"item": item_name_for_log, "error": "Permission denied."})
+                app.logger.warning(f"Batch delete: User {current_user.id} lacks permission for folder {item_id}.")
+                continue
+
+            try:
+                # delete_folder_recursive handles its own DB operations but expects an outer commit.
+                # For batch, we need to adjust or ensure it's compatible.
+                # Let's assume delete_folder_recursive is designed to be called and then committed.
+                delete_folder_recursive(folder_record, current_user.id) # This function should add to session
+                db.session.commit() # Commit after this folder and its contents are processed
+                deleted_count += 1
+                app.logger.info(f"Batch delete: Successfully deleted folder '{folder_record.name}' (ID: {item_id}) and its contents for user {current_user.id}.")
+            except Exception as e:
+                db.session.rollback() # Rollback if delete_folder_recursive or the commit fails
+                error_msg = f"Error deleting folder '{folder_record.name}': {str(e)}"
+                errors.append({"item": item_name_for_log, "error": error_msg})
+                app.logger.error(f"Batch delete: {error_msg} for user {current_user.id}", exc_info=True)
+        else:
+            errors.append({"item": item_name_for_log, "error": f"Unknown item type: {item_type}."})
+            app.logger.warning(f"Batch delete: Unknown item type '{item_type}' for item ID {item_id}, user {current_user.id}.")
+
+    if errors:
+        if deleted_count > 0:
+            message = f"Batch deletion partially completed. {deleted_count} item(s) deleted. {len(errors)} error(s) occurred."
+            return jsonify({"status": "partial_success", "message": message, "errors": errors, "deleted_count": deleted_count}), 207 # Multi-Status
+        else:
+            message = f"Batch deletion failed. {len(errors)} error(s) occurred."
+            return jsonify({"status": "error", "message": message, "errors": errors}), 500
+    else:
+        return jsonify({"status": "success", "message": f"Successfully deleted {deleted_count} item(s)."}), 200
 
 @app.route('/post/<int:post_id>/delete', methods=['POST'])
 @login_required
@@ -3656,6 +4575,335 @@ def delete_post(post_id):
     # Redirect to the feed or the user's profile page after deletion
     return redirect(url_for('post_feed')) # Or perhaps url_for('user_profile', username=current_user.username)
 
+@app.route('/api/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def api_delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+
+    if not (comment.user_id == current_user.id or current_user.is_admin):
+        app.logger.warning(
+            f"User {current_user.id} (Admin: {current_user.is_admin}) "
+            f"attempted to delete comment {comment_id} owned by user {comment.user_id}."
+        )
+        return jsonify({"status": "error", "message": "You do not have permission to delete this comment."}), 403
+
+    try:
+        post_id_of_deleted_comment = comment.post_id # Get post_id before deleting comment
+
+        comment_text_for_log = comment.text_content[:50]
+        db.session.delete(comment)
+        db.session.commit()
+        app.logger.info(
+            f"Comment {comment_id} ('{comment_text_for_log}...') deleted by user {current_user.username} "
+            f"(ID: {current_user.id}, Admin: {current_user.is_admin})."
+        )
+
+        post_comment_count = 0
+        # Query for the post again to get an updated comment list after deletion
+        post = Post.query.get(post_id_of_deleted_comment)
+        if post:
+            post_comment_count = len(post.comments) if post.comments is not None else 0 # Corrected
+
+        return jsonify({
+            "status": "success",
+            "message": "Comment deleted successfully.",
+            "deleted_comment_id": comment_id,
+            "post_comment_count": post_comment_count
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting comment {comment_id} by user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Could not delete comment due to a server error."}), 500
+
+@app.route('/friends')
+@login_required
+def friends_interface():
+    user_friends = current_user.get_friends()
+    message_form = DirectMessageForm()
+
+    try:
+        max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+        max_upload_mb = int(max_upload_mb_str)
+    except (ValueError, TypeError):
+        max_upload_mb = DEFAULT_MAX_UPLOAD_MB_FALLBACK
+        app.logger.warning(f"Invalid max_upload_size_mb setting. Using fallback {max_upload_mb}MB.")
+
+    friend_activity_statuses = {}
+    if user_friends:
+        friend_ids = [friend.id for friend in user_friends]
+        afk_threshold = timedelta(minutes=30)
+        now = datetime.now(timezone.utc) # This is offset-aware
+
+        friends_for_status_check = User.query.filter(User.id.in_(friend_ids)).all()
+        for friend_obj in friends_for_status_check: # Renamed loop variable
+            status_string = "offline"
+            if friend_obj.is_online:
+                friend_last_seen_val = friend_obj.last_seen # Get the value
+
+                # --- DEFENSIVE CONVERSION for friend_last_seen_val ---
+                # This is the critical fix for the traceback line
+                if friend_last_seen_val and friend_last_seen_val.tzinfo is None:
+                    # If last_seen is naive, assume it's UTC and make it offset-aware
+                    friend_last_seen_val = friend_last_seen_val.replace(tzinfo=timezone.utc)
+                # --- END DEFENSIVE CONVERSION ---
+
+                if friend_last_seen_val and (now - friend_last_seen_val) < afk_threshold: # Now comparison is safe
+                    status_string = "online"
+                else:
+                    status_string = "afk"
+            friend_activity_statuses[friend_obj.id] = status_string
+
+    return render_template('friends.html',
+                           title='Direct Messages',
+                           friends=user_friends,
+                           message_form=message_form,
+                           max_upload_mb=max_upload_mb,
+                           initial_friend_statuses=friend_activity_statuses
+                           )
+
+
+@app.route('/api/friends/recent_messages')
+@login_required
+def api_recent_direct_messages():
+    try:
+        # Fetch recent messages where the current user is the receiver
+        # and they are unread, or alternatively, just the latest N messages from distinct senders.
+        # For simplicity, let's fetch the most recent message from each friend
+        # who has sent a message to the current user.
+
+        # Subquery to find the latest message_id for each sender to current_user
+        latest_message_subquery = db.session.query(
+            DirectMessage.sender_id,
+            db.func.max(DirectMessage.timestamp).label('max_timestamp')
+        ).filter(DirectMessage.receiver_id == current_user.id)\
+         .group_by(DirectMessage.sender_id).subquery()
+
+        # Join with DirectMessage again to get the full message details
+        recent_messages = db.session.query(DirectMessage).join(
+            latest_message_subquery,
+            db.and_(
+                DirectMessage.sender_id == latest_message_subquery.c.sender_id,
+                DirectMessage.timestamp == latest_message_subquery.c.max_timestamp,
+                DirectMessage.receiver_id == current_user.id # Ensure it's for the current user
+            )
+        ).options(
+            db.joinedload(DirectMessage.sender).load_only(User.username, User.profile_picture_filename, User.id)
+        ).order_by(DirectMessage.timestamp.desc()).limit(5).all() # Limit to, say, 5 most recent distinct senders
+
+        # We might also want to prioritize unread messages.
+        # A more complex query could be built to fetch specifically unread messages
+        # or a mix. For this example, focusing on latest from each sender.
+
+        messages_data = []
+        for msg in recent_messages:
+            # Only include if the message is unread by the current user for the bubble
+            # Or, always include and let JS decide if bubble was already shown/dismissed.
+            # For now, let's assume we only create bubbles for unread.
+            # However, the current query doesn't filter by `is_read`.
+            # This part needs to align with how `updateNotificationBubbles` in JS works.
+            # If JS manages "already shown" state, we don't need to filter by is_read here.
+
+            # Let's send recent messages, and JS can decide if a bubble is needed.
+            messages_data.append({
+                'message_id': msg.id,
+                'sender_id': msg.sender_id,
+                'sender_username': msg.sender.username,
+                'sender_profile_picture_filename': msg.sender.profile_picture_filename,
+                'content_snippet': (msg.content[:30] + '...' if msg.content and len(msg.content) > 30 else msg.content) if msg.content else "Sent a file",
+                'timestamp': msg.timestamp.isoformat() + 'Z',
+                'is_read': msg.is_read # Send read status
+            })
+
+        return jsonify({'status': 'success', 'recent_messages': messages_data})
+    except Exception as e:
+        current_app.logger.error(f"Error fetching recent direct messages for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Could not fetch recent messages.'}), 500
+
+
+@app.route('/api/direct_chat/history/<string:friend_username>')
+@login_required
+def api_direct_chat_history(friend_username):
+    friend_user = User.query.filter_by(username=friend_username).first()
+    if not friend_user:
+        return jsonify({"status": "error", "message": "Friend not found."}), 404
+
+    if friend_user == current_user:
+        return jsonify({"status": "error", "message": "Cannot chat with yourself."}), 400
+
+    # Check if they are actually friends (mutual follow)
+    if not (current_user.is_following(friend_user) and friend_user.is_following(current_user)):
+        return jsonify({"status": "error", "message": "You are not friends with this user."}), 403
+
+    last_message_id = request.args.get('last_message_id', type=int, default=0)
+    limit = 50 # Number of messages to fetch
+
+    # Query messages between current_user and friend_user
+    messages_query = DirectMessage.query.filter(
+        ((DirectMessage.sender_id == current_user.id) & (DirectMessage.receiver_id == friend_user.id)) |
+        ((DirectMessage.sender_id == friend_user.id) & (DirectMessage.receiver_id == current_user.id))
+    ).options(
+        db.joinedload(DirectMessage.sender).load_only(User.username, User.profile_picture_filename),
+        db.joinedload(DirectMessage.receiver).load_only(User.username, User.profile_picture_filename), # Though less critical if always between current_user and friend_user
+        db.joinedload(DirectMessage.shared_file)
+    ).order_by(DirectMessage.timestamp.desc()) # Fetch newest first for limit, then reverse for display
+
+    if last_message_id > 0:
+        # This logic is for fetching messages *older* than a certain ID (infinite scroll up)
+        messages_query = messages_query.filter(DirectMessage.id < last_message_id)
+
+    messages = messages_query.limit(limit).all()
+    messages.reverse() # Reverse to get them in chronological order for display
+
+    # Mark fetched messages as read by the current_user
+    unread_message_ids_to_mark = []
+    for msg in messages:
+        if msg.receiver_id == current_user.id and not msg.is_read:
+            msg.is_read = True
+            unread_message_ids_to_mark.append(msg.id)
+
+    if unread_message_ids_to_mark:
+        try:
+            db.session.commit()
+            app.logger.info(f"Marked {len(unread_message_ids_to_mark)} direct messages as read for user {current_user.id} from user {friend_user.id}.")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error marking direct messages as read: {e}")
+
+
+    message_dicts = [msg.to_dict(current_user_id_for_context=current_user.id) for msg in messages]
+
+    return jsonify({"status": "success", "messages": message_dicts})
+
+@app.route('/api/direct_chat/send/<string:friend_username>', methods=['POST'])
+@login_required
+def api_direct_chat_send(friend_username):
+    friend_user = User.query.filter_by(username=friend_username).first()
+    if not friend_user:
+        return jsonify({"status": "error", "message": "Recipient not found."}), 404
+
+    if friend_user == current_user:
+        return jsonify({"status": "error", "message": "Cannot send a message to yourself."}), 400
+
+    # Ensure they are friends
+    if not (current_user.is_following(friend_user) and friend_user.is_following(current_user)):
+        return jsonify({"status": "error", "message": "You can only message your friends."}), 403
+
+    content = request.form.get('content', '').strip()
+    file = request.files.get('file')
+    new_file_record = None
+    error_message = None
+    status_code = 200
+    file_path_on_disk = None # For cleanup on error
+
+    if not content and (not file or file.filename == ''):
+        return jsonify({"status": "error", "message": "Message content or file attachment required."}), 400
+
+    # --- Handle File Upload (if present) ---
+    if file and file.filename != '':
+        original_filename = secure_filename(file.filename)
+
+        # File size determination and checks (similar to api_group_chat_send)
+        uploaded_filesize = None
+        try:
+            file.seek(0, os.SEEK_END)
+            uploaded_filesize = file.tell()
+            file.seek(0)
+        except Exception:
+            uploaded_filesize = request.content_length
+
+        if uploaded_filesize is None:
+            return jsonify({"status": "error", "message": "Could not determine file size."}), 400
+
+        # CHECK 1: Server Limit (MAX_CONTENT_LENGTH)
+        hard_limit_bytes = current_app.config.get('MAX_CONTENT_LENGTH')
+        if hard_limit_bytes and uploaded_filesize > hard_limit_bytes:
+            error_message = f'File exceeds server limit ({hard_limit_bytes // (1024*1024)} MB).'
+            status_code = 413
+
+        # CHECK 2: Admin Max Upload Limit
+        if not error_message:
+            try:
+                max_upload_mb_str = Setting.get('max_upload_size_mb', str(DEFAULT_MAX_UPLOAD_MB_FALLBACK))
+                admin_limit_bytes = int(max_upload_mb_str) * 1024 * 1024
+                if uploaded_filesize > admin_limit_bytes:
+                    error_message = f'File exceeds max upload size ({max_upload_mb_str} MB).'
+                    status_code = 413
+            except (ValueError, TypeError):
+                error_message = "Server configuration error for upload limit."
+                status_code = 500
+
+        # CHECK 3: User Storage Limit
+        if not error_message:
+            storage_info = get_user_storage_info(current_user)
+            available_bytes = float('inf') if storage_info['limit_bytes'] == float('inf') else storage_info['limit_bytes'] - storage_info['usage_bytes']
+            if uploaded_filesize > available_bytes:
+                error_message = 'Insufficient storage space for this file.'
+                status_code = 413
+
+        if not error_message:
+            try:
+                _, ext = os.path.splitext(original_filename)
+                stored_filename = str(uuid.uuid4()) + ext
+                user_upload_path = get_user_upload_path(current_user.id)
+                os.makedirs(user_upload_path, exist_ok=True)
+                file_path_on_disk = os.path.join(user_upload_path, stored_filename)
+
+                file.save(file_path_on_disk)
+
+                mime_type, _ = mimetypes.guess_type(file_path_on_disk)
+                mime_type = mime_type or 'application/octet-stream'
+
+                new_file_record = File(
+                    original_filename=original_filename,
+                    stored_filename=stored_filename,
+                    filesize=uploaded_filesize,
+                    mime_type=mime_type,
+                    owner=current_user,
+                    parent_folder_id=None # DM files are not in user's browsable folders
+                )
+                db.session.add(new_file_record)
+                db.session.flush() # Get ID for new_file_record
+            except Exception as e:
+                db.session.rollback()
+                if file_path_on_disk and os.path.exists(file_path_on_disk):
+                    try: os.remove(file_path_on_disk)
+                    except OSError: pass
+                error_message = f"Error processing file: {str(e)}"
+                status_code = 500
+
+    if error_message:
+        return jsonify({"status": "error", "message": error_message}), status_code
+
+    # --- Save Direct Message Record ---
+    try:
+        new_dm = DirectMessage(
+            sender_id=current_user.id,
+            receiver_id=friend_user.id,
+            content=content if content else None,
+            file_id=new_file_record.id if new_file_record else None,
+            is_read=False # New message is initially unread by receiver
+        )
+        db.session.add(new_dm)
+        db.session.commit()
+
+        db.session.refresh(new_dm) # Load relationships for to_dict
+        if new_file_record: db.session.refresh(new_file_record)
+
+        # Return the newly created message data
+        message_data = new_dm.to_dict(current_user_id_for_context=current_user.id)
+
+        return jsonify({"status": "success", "message": message_data}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving direct message for user {current_user.id} to {friend_user.id}: {e}", exc_info=True)
+        # Clean up physical file if it was part of this failed transaction
+        if file_path_on_disk and os.path.exists(file_path_on_disk) and new_file_record: # Only if file was for this DM
+            try: os.remove(file_path_on_disk)
+            except OSError: pass
+        return jsonify({"status": "error", "message": "Error saving message to database."}), 500
+
 @app.route('/post/<int:post_id>/like', methods=['POST'])
 @login_required
 def like_post(post_id):
@@ -3676,6 +4924,8 @@ def like_post(post_id):
         # action remains 'liked'
 
     try:
+        if action == 'liked' and post.author != current_user: # Only notify if liked and not self-like
+            create_notification(recipient_user=post.author, sender_user=current_user, type='like_post', post=post)
         db.session.commit()
         # Use .count() for potentially better performance on large numbers
         like_count = db.session.query(post_likes).filter_by(post_id=post.id).count()
@@ -3721,9 +4971,13 @@ def post_feed():
     elif sort_by == 'likes_asc':
         query = query.outerjoin(post_likes).group_by(Post.id).order_by(db.func.count(post_likes.c.user_id).asc(), Post.timestamp.desc())
     elif sort_by == 'comments_desc':
-        query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
+        query = query.outerjoin(Comment, Post.id == Comment.post_id)\
+                       .group_by(Post.id)\
+                       .order_by(db.func.count(Comment.id).desc(), Post.timestamp.desc())
     elif sort_by == 'comments_asc':
-         query = query.outerjoin(Comment).group_by(Post.id).order_by(db.func.count(Comment.id).asc(), Post.timestamp.desc())
+         query = query.outerjoin(Comment, Post.id == Comment.post_id)\
+                        .group_by(Post.id)\
+                        .order_by(db.func.count(Comment.id).asc(), Post.timestamp.desc())
     elif sort_by == 'shares_desc':
         SharedPostAlias = aliased(Post, name='shares_alias')
         query = query.outerjoin(SharedPostAlias, Post.shares) \
@@ -3736,11 +4990,27 @@ def post_feed():
 
     # Eager load relationships for efficiency in the template macro
     query = query.options(
-        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename),
-        db.joinedload(Post.comments).subqueryload(Comment.author).load_only(User.username, User.profile_picture_filename),
-        db.joinedload(Post.likers).load_only(User.id), # Only need ID to check if current_user liked
-        db.joinedload(Post.dislikers).load_only(User.id), # Only need ID to check if current_user disliked
-        db.joinedload(Post.original_post).joinedload(Post.author).load_only(User.username) # Load original post author if it's a share
+        db.joinedload(Post.author).load_only(User.username, User.profile_picture_filename, User.id),
+        # Eager load the shared_comment and its author if it's a shared comment post
+        db.joinedload(Post.shared_comment).options(
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id), # For like count on shared comment
+            db.selectinload(Comment.dislikers).load_only(User.id) # For dislike count on shared comment
+        ),
+        # Eager load comments on the post
+        db.selectinload(Post.comments).options( # Use selectinload for collections
+            db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+            db.selectinload(Comment.likers).load_only(User.id), # For like counts on comments
+            db.selectinload(Comment.dislikers).load_only(User.id), # For dislike counts on comments
+            db.selectinload(Comment.replies).options( # Eager load replies to comments
+                db.joinedload(Comment.author).load_only(User.username, User.profile_picture_filename, User.id),
+                db.selectinload(Comment.likers).load_only(User.id),
+                db.selectinload(Comment.dislikers).load_only(User.id)
+                # Potentially recursive loading for replies to replies if needed, but can get complex
+            )
+        ),
+        db.selectinload(Post.likers).load_only(User.id), # For post's own like status
+        db.selectinload(Post.dislikers).load_only(User.id) # For post's own dislike status
     )
 
     posts = query.paginate(page=page, per_page=10) # Example pagination
@@ -3773,6 +5043,8 @@ def dislike_post(post_id):
         # action remains 'disliked'
 
     try:
+        if action == 'disliked' and post.author != current_user: # Only notify if disliked and not self-dislike
+            create_notification(recipient_user=post.author, sender_user=current_user, type='dislike_post', post=post)
         db.session.commit()
         like_count = db.session.query(post_likes).filter_by(post_id=post.id).count()
         dislike_count = db.session.query(post_dislikes).filter_by(post_id=post.id).count()
@@ -3792,61 +5064,226 @@ def dislike_post(post_id):
 @login_required
 def add_comment_to_post(post_id):
     post = Post.query.get_or_404(post_id)
-    # Use request.form for standard form submission, request.json for AJAX
     is_ajax = request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html
+
+    parent_comment_id = None
+    text_content = None
 
     if is_ajax:
         data = request.get_json()
         if not data:
-             return jsonify({'status': 'error', 'message': 'Invalid JSON data.'}), 400
-        text_content = data.get('text_content')
-    else: # Handle standard form submission
+            return jsonify({'status': 'error', 'message': 'Invalid JSON data.'}), 400
+        text_content = data.get('text_content', '').strip()
+        parent_comment_id = data.get('parent_comment_id')
+        if parent_comment_id:
+            try:
+                parent_comment_id = int(parent_comment_id)
+            except (ValueError, TypeError):
+                return jsonify({'status': 'error', 'message': 'Invalid parent_comment_id format.'}), 400
+    else:
         form = CommentForm()
         if form.validate_on_submit():
-            text_content = form.text_content.data
+            text_content = form.text_content.data.strip()
+            parent_comment_id_str = request.form.get('parent_comment_id')
+            if parent_comment_id_str:
+                try:
+                    parent_comment_id = int(parent_comment_id_str)
+                except (ValueError, TypeError):
+                    flash('Invalid parent comment reference.', 'danger')
+                    return redirect(request.referrer or url_for('view_single_post', post_id=post_id))
         else:
-            # Handle form validation errors if needed, maybe flash messages
-            flash('Comment could not be posted. Please check the content.', 'danger')
-            return redirect(request.referrer or url_for('post_feed')) # Redirect back
+            for field, errors_list in form.errors.items():
+                for error in errors_list:
+                    flash(f"Comment error: {error}", 'danger')
+            return redirect(request.referrer or url_for('view_single_post', post_id=post_id))
 
-    if not text_content or len(text_content.strip()) == 0:
-        if is_ajax: return jsonify({'status': 'error', 'message': 'Comment text cannot be empty.'}), 400
-        else: flash('Comment text cannot be empty.', 'warning'); return redirect(request.referrer or url_for('post_feed'))
+    if not text_content:
+        message = 'Comment text cannot be empty.'
+        if is_ajax: return jsonify({'status': 'error', 'message': message}), 400
+        else: flash(message, 'warning'); return redirect(request.referrer or url_for('view_single_post', post_id=post_id))
 
-    if len(text_content) > 1000: # Match form validator length
-        if is_ajax: return jsonify({'status': 'error', 'message': 'Comment is too long.'}), 400
-        else: flash('Comment is too long (max 1000 characters).', 'warning'); return redirect(request.referrer or url_for('post_feed'))
+    if len(text_content) > 1000:
+        message = 'Comment is too long (max 1000 characters).'
+        if is_ajax: return jsonify({'status': 'error', 'message': message}), 400
+        else: flash(message, 'warning'); return redirect(request.referrer or url_for('view_single_post', post_id=post_id))
+
+    parent_comment = None
+    if parent_comment_id:
+        parent_comment = Comment.query.filter_by(id=parent_comment_id, post_id=post.id).first()
+        if not parent_comment:
+            message = 'Parent comment not found or does not belong to this post.'
+            if is_ajax: return jsonify({'status': 'error', 'message': message}), 404
+            else: flash(message, 'danger'); return redirect(url_for('view_single_post', post_id=post_id))
 
     try:
-        comment = Comment(user_id=current_user.id, post_id=post.id, text_content=text_content.strip())
-        db.session.add(comment)
+        new_comment = Comment(
+            user_id=current_user.id,
+            post_id=post.id,
+            text_content=text_content,
+            parent_id=parent_comment.id if parent_comment else None
+        )
+        db.session.add(new_comment)
+        if post.author != current_user:
+            create_notification(
+                recipient_user=post.author,
+                sender_user=current_user,
+                type='comment_on_post',
+                post=post,
+                comment=new_comment
+            )
+
+        # Notify parent comment author if it's a reply (and not to themselves)
+        if parent_comment and parent_comment.author != current_user:
+            create_notification(
+                recipient_user=parent_comment.author,
+                sender_user=current_user,
+                type='reply_to_comment',
+                post=post, # The post the original comment belongs to
+                comment=new_comment # The new reply
+            )
         db.session.commit()
-        app.logger.info(f"Comment {comment.id} added to post {post_id} by user {current_user.id}")
+
+        db.session.refresh(new_comment)
+        _ = new_comment.author
+
+        app.logger.info(f"Comment {new_comment.id} {'(reply to ' + str(parent_comment_id) + ')' if parent_comment_id else ''} added to post {post_id} by user {current_user.id}")
 
         if is_ajax:
-            # Return the created comment data for dynamic insertion into the page
             return jsonify({
                 'status': 'success',
-                'message': 'Comment added.',
-                'comment': {
-                    'id': comment.id,
-                    'text_content': comment.text_content,
-                    'timestamp': comment.timestamp.isoformat() + 'Z',
-                    'author_username': current_user.username,
-                    'author_profile_pic': current_user.profile_picture_filename # Or full URL
-                },
-                'comment_count': len(post.comments) # Use len() for a list
+                'message': 'Comment posted successfully.',
+                'comment': new_comment.to_dict(include_author_details=True, include_replies=False),
+                'post_comment_count': len(post.comments) if post.comments is not None else 0,
+                'current_user_id': current_user.id,  # Add this line
+                'current_user_is_admin': current_user.is_admin  # Add this line
             }), 201
-        else:
-             flash('Comment posted!', 'success')
-             return redirect(request.referrer or url_for('post_feed'))
 
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error saving comment for post {post_id} by user {current_user.id}: {e}", exc_info=True)
-        if is_ajax: return jsonify({'status': 'error', 'message': 'Could not save comment.'}), 500
-        else: flash('Error saving comment.', 'danger'); return redirect(request.referrer or url_for('post_feed'))
+        message = 'Could not save comment due to a server error.'
+        if is_ajax: return jsonify({'status': 'error', 'message': message}), 500
+        else: flash(message, 'danger'); return redirect(request.referrer or url_for('view_single_post', post_id=post_id))
 
+
+@app.route('/api/comment/<int:comment_id>/like', methods=['POST'])
+@login_required
+def like_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    action_taken = "none"
+
+    if current_user in comment.dislikers:
+        comment.dislikers.remove(current_user)
+
+    if current_user in comment.likers:
+        comment.likers.remove(current_user)
+        action_taken = "unliked"
+    else:
+        comment.likers.append(current_user)
+        action_taken = "liked"
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "action": action_taken,
+            "comment_id": comment.id,
+            "likes": len(comment.likers),         # Corrected
+            "dislikes": len(comment.dislikers),   # Corrected
+            "is_liked_by_user": current_user in comment.likers,
+            "is_disliked_by_user": current_user in comment.dislikers
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error liking/unliking comment {comment_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Could not process like/unlike for comment."}), 500
+
+
+@app.route('/api/comment/<int:comment_id>/dislike', methods=['POST'])
+@login_required
+def dislike_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    action_taken = "none"
+
+    if current_user in comment.likers:
+        comment.likers.remove(current_user)
+
+    if current_user in comment.dislikers:
+        comment.dislikers.remove(current_user)
+        action_taken = "undisliked"
+    else:
+        comment.dislikers.append(current_user)
+        action_taken = "disliked"
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "action": action_taken,
+            "comment_id": comment.id,
+            "likes": len(comment.likers),         # Corrected
+            "dislikes": len(comment.dislikers),   # Corrected
+            "is_liked_by_user": current_user in comment.likers,
+            "is_disliked_by_user": current_user in comment.dislikers
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error disliking/undisliking comment {comment_id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Could not process dislike/undislike for comment."}), 500
+
+
+@app.route('/api/comment/<int:comment_id>/share', methods=['POST'])
+@login_required
+def share_comment_as_post(comment_id):
+    comment_to_share = Comment.query.get_or_404(comment_id)
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Missing data in request."}), 400
+
+    sharer_text_content = data.get('text_content', '').strip() # User's own text for the share
+
+    # Optional: Validate sharer_text_content length, etc.
+    # if not sharer_text_content: # If you require text from the sharer
+    #     return jsonify({"status": "error", "message": "Your thoughts cannot be empty when sharing."}), 400
+
+    try:
+        new_post = Post(
+            user_id=current_user.id,
+            text_content=sharer_text_content if sharer_text_content else None, # Allow empty sharer text
+            shared_comment_id=comment_to_share.id,
+            timestamp=datetime.utcnow()
+            # photo_filename and video_filename are None for this type of post
+        )
+        db.session.add(new_post)
+
+        # Optional: Increment a share counter on the Comment model
+        # if hasattr(comment_to_share, 'times_shared_as_post'):
+        #     comment_to_share.times_shared_as_post += 1
+        #     db.session.add(comment_to_share)
+        if comment_to_share.author != current_user: # Don't notify if sharing own comment
+            create_notification(
+                recipient_user=comment_to_share.author,
+                sender_user=current_user,
+                type='share_comment',
+                post=comment_to_share.post, # The post the original comment belonged to
+                comment=comment_to_share   # The original comment that was shared
+            )
+        db.session.commit()
+        app.logger.info(f"User {current_user.username} shared comment {comment_to_share.id} as new post {new_post.id}")
+
+        # You might want to return data about the new post
+        return jsonify({
+            "status": "success",
+            "message": "Comment shared successfully as a new post.",
+            "new_post_id": new_post.id,
+            # "new_post_url": url_for('view_single_post', post_id=new_post.id, _external=True) # If needed
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error sharing comment {comment_id} as post for user {current_user.id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Could not share comment as post."}), 500
 
 # --- CORRECTED Share Post Route ---
 @app.route('/post/<int:post_id>/share', methods=['POST'])
@@ -3871,6 +5308,14 @@ def share_post(post_id):
         # photo_filename and video_filename for the share itself are None, as it's sharing the original's media
     )
     db.session.add(shared_post)
+    if original_post.author != current_user: # Don't notify if sharing own original post (though UI prevents this)
+        create_notification(
+            recipient_user=original_post.author,
+            sender_user=current_user,
+            type='share_post',
+            post=original_post # The original post that was shared
+            # The 'shared_post' object itself is the new post by current_user
+        )
     db.session.commit()
 
     return jsonify({
@@ -3888,112 +5333,162 @@ def create_db(app_instance):
     This function is designed to be idempotent.
     """
     with app_instance.app_context():
-        # --- 1. Ensure Folders Exist ---
         try:
-            # Instance folder
             if not os.path.exists(app_instance.instance_path):
                 os.makedirs(app_instance.instance_path)
                 app_instance.logger.info(f"Created instance folder: {app_instance.instance_path}")
 
-            # Upload folder (defined in app.config)
             upload_folder_path = app_instance.config.get('UPLOAD_FOLDER')
             if not upload_folder_path:
-                # Fallback if UPLOAD_FOLDER is not in config for some reason during early init
                 upload_folder_path = os.path.join(app_instance.instance_path, 'uploads')
-                app_instance.config['UPLOAD_FOLDER'] = upload_folder_path # Ensure it's set
-                app_instance.logger.warning(f"UPLOAD_FOLDER not in app.config, using default: {upload_folder_path}")
-
+                app_instance.config['UPLOAD_FOLDER'] = upload_folder_path
             if not os.path.exists(upload_folder_path):
                 os.makedirs(upload_folder_path)
                 app_instance.logger.info(f"Created base upload folder: {upload_folder_path}")
 
-            # --- ADDED: Ensure post media folder exists ---
-            post_media_folder_path = app_instance.config.get('POST_MEDIA_FOLDER')
-            if not post_media_folder_path:
-                post_media_folder_path = os.path.join(app_instance.instance_path, 'uploads', 'post_media')
-                app_instance.config['POST_MEDIA_FOLDER'] = post_media_folder_path
-                app_instance.logger.warning(f"POST_MEDIA_FOLDER not in app.config, using default: {post_media_folder_path}")
+            # Ensure post media static folder exists
+            static_post_media_path = os.path.join(app_instance.root_path, 'static', 'uploads', 'post_media')
+            if not os.path.exists(static_post_media_path):
+                 os.makedirs(static_post_media_path, exist_ok=True)
+                 app_instance.logger.info(f"Created static post media folder: {static_post_media_path}")
 
-            if not os.path.exists(post_media_folder_path):
-                os.makedirs(post_media_folder_path)
-                app_instance.logger.info(f"Created post media folder: {post_media_folder_path}")
-            # --- END ADDED ---
+            # Ensure user-specific profile picture static folder exists (if not done elsewhere)
+            static_profile_pics_path = os.path.join(app_instance.root_path, 'static', 'uploads', 'profile_pics')
+            if not os.path.exists(static_profile_pics_path):
+                 os.makedirs(static_profile_pics_path, exist_ok=True)
+                 app_instance.logger.info(f"Created static profile picture folder: {static_profile_pics_path}")
+
 
         except OSError as e:
             app_instance.logger.error(f"OSError creating instance or upload folders: {e}", exc_info=True)
-            # Depending on severity, you might want to raise the error or exit
-            # For now, we'll log and continue, as DB creation might still be possible
-            # if instance_path itself is writable.
 
-        # --- 2. Database URI and Path ---
-        # Ensure the DB is in the instance folder for portability and security
-        db_path_in_instance = os.path.join(app_instance.instance_path, DB_NAME) # DB_NAME should be a global constant
-
-        # Crucially update the app's config if it's not already pointing to the instance path
-        # This ensures SQLAlchemy uses the correct path, especially if create_db is called early.
+        db_path_in_instance = os.path.join(app_instance.instance_path, DB_NAME)
         expected_db_uri = f'sqlite:///{db_path_in_instance}'
         if app_instance.config.get('SQLALCHEMY_DATABASE_URI') != expected_db_uri:
             app_instance.config['SQLALCHEMY_DATABASE_URI'] = expected_db_uri
             app_instance.logger.info(f"Updated SQLALCHEMY_DATABASE_URI to: {expected_db_uri}")
-            # Re-initialize db with the app if it was initialized before this config change
-            # This depends on how `db` is initialized. If `db = SQLAlchemy()` then `db.init_app(app_instance)`
-            # If `db = SQLAlchemy(app_instance)`, this update should be fine.
+            # db.init_app(app_instance) # If db was initialized globally without app
 
-        db_exists = os.path.exists(db_path_in_instance)
-
-        # --- 3. Create Tables if Database is New ---
-        if not db_exists:
-            app_instance.logger.info(f"Database file not found at {db_path_in_instance}. Creating database and all tables...")
-            try:
-                db.create_all() # `db` is your SQLAlchemy instance
-                app_instance.logger.info("Database and tables created successfully.")
-                # After creating tables, we will proceed to seed all settings.
-            except Exception as e:
-                db.session.rollback()
-                app_instance.logger.error(f"Failed to create database/tables: {e}", exc_info=True)
-                return # Stop if DB creation fails
+        if not os.path.exists(db_path_in_instance):
+            app_instance.logger.info(f"Database file not found at {db_path_in_instance}. Creating tables...")
         else:
-            app_instance.logger.info(f"Database file found at {db_path_in_instance}. Checking structure and settings...")
-            # If DB exists, still run create_all() - it's safe and creates missing tables.
-            try:
-                db.create_all()
-                app_instance.logger.info("db.create_all() run on existing database (creates missing tables if any).")
-            except Exception as e:
-                app_instance.logger.error(f"Error running db.create_all() on existing database: {e}", exc_info=True)
-                # Continue to settings check even if this fails, as tables might mostly be okay.
+            app_instance.logger.info(f"Database file found at {db_path_in_instance}. Ensuring all tables exist...")
 
-        # --- 4. Seed/Verify Essential Settings ---
-        app_instance.logger.info("Verifying and seeding essential application settings...")
+        try:
+            db.create_all() # This will create all tables defined in models if they don't exist
+            app_instance.logger.info("Database tables checked/created successfully.")
+        except Exception as e:
+            db.session.rollback() # Should not be necessary if create_all is before data ops
+            app_instance.logger.error(f"Failed to create/check database tables: {e}", exc_info=True)
+            return
+
         settings_changed_in_db = False
         try:
             for key, default_value in DEFAULT_SETTINGS.items():
-                # Setting.get() is assumed to work correctly within app_context
                 current_value = Setting.get(key)
                 if current_value is None:
                     app_instance.logger.info(f"Setting '{key}' not found. Seeding with default: '{default_value}'.")
-                    Setting.set(key, default_value) # Setting.set() handles add/update
+                    Setting.set(key, default_value)
                     settings_changed_in_db = True
-
             if settings_changed_in_db:
                 db.session.commit()
                 app_instance.logger.info("Committed new/updated default settings to the database.")
             else:
-                app_instance.logger.info("All essential settings are already present in the database.")
-
+                app_instance.logger.info("All essential settings are already present.")
         except Exception as e:
             db.session.rollback()
             app_instance.logger.error(f"Error verifying/seeding settings: {e}", exc_info=True)
 
-        # --- 5. (Optional) Further Schema/Column Checks for Existing DBs ---
-        # This part can be extensive. For now, db.create_all() handles missing tables.
-        # If you need to check for missing columns in *existing* tables,
-        # you'd use SQLAlchemy's inspection tools (inspector.get_columns),
-        # which is more advanced and often handled by migration tools like Alembic in larger apps.
-        # For simplicity in this context, we rely on db.create_all() for table presence
-        # and assume model definitions are the source of truth for columns in new tables.
-
         app_instance.logger.info("Database initialization and settings check complete.")
 
+class DirectMessage(db.Model):
+    __tablename__ = 'direct_message'
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    content = db.Column(db.Text, nullable=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('file.id', ondelete='SET NULL'), nullable=True, index=True)
+    edited_at = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True) # For soft deletes
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False, index=True) # To track read status
+
+    # Relationships
+    sender = db.relationship('User', foreign_keys=[sender_id], backref=db.backref('sent_direct_messages_rel', lazy='dynamic'))
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref=db.backref('received_direct_messages_rel', lazy='dynamic'))
+
+    shared_file = db.relationship('File', foreign_keys=[file_id], backref=db.backref('direct_message_shares', lazy='joined', uselist=False))
+
+    def __repr__(self):
+        return f'<DirectMessage {self.id} from {self.sender_id} to {self.receiver_id}>'
+
+    def to_dict(self, current_user_id_for_context=None):
+        """
+        Converts the direct message to a dictionary.
+        current_user_id_for_context helps determine if the message is 'outgoing' or 'incoming'
+        from the perspective of the user requesting the data.
+        """
+        sender_username = self.sender.username if self.sender else None
+        sender_profile_pic = self.sender.profile_picture_filename if self.sender else None
+        receiver_username = self.receiver.username if self.receiver else None
+
+        # Determine message direction if context is provided
+        direction = None
+        if current_user_id_for_context:
+            if self.sender_id == current_user_id_for_context:
+                direction = 'outgoing'
+            elif self.receiver_id == current_user_id_for_context:
+                direction = 'incoming'
+
+        data = {
+            'id': self.id,
+            'sender_id': self.sender_id,
+            'sender_username': sender_username,
+            'sender_profile_picture_filename': sender_profile_pic,
+            'receiver_id': self.receiver_id,
+            'receiver_username': receiver_username,
+            'timestamp': self.timestamp.isoformat() + 'Z',
+            'content': self.content,
+            'file_id': self.file_id,
+            'shared_file': None,
+            'is_edited': bool(self.edited_at),
+            'edited_at': self.edited_at.isoformat() + 'Z' if self.edited_at else None,
+            'is_deleted': self.is_deleted,
+            'is_read': self.is_read,
+            'direction': direction # Add direction based on context
+        }
+
+        if self.shared_file:
+            file_data = {
+                'id': self.shared_file.id,
+                'original_filename': self.shared_file.original_filename,
+                'mime_type': self.shared_file.mime_type,
+                'filesize': self.shared_file.filesize,
+                'is_editable': is_file_editable(self.shared_file.original_filename, self.shared_file.mime_type),
+                'view_url': url_for('view_file', file_id=self.shared_file.id, _external=False) if self.shared_file.mime_type in current_app.config.get('VIEWABLE_MIMES', {}) else None,
+                'download_url': url_for('download_file', file_id=self.shared_file.id, _external=False)
+            }
+            # Add text file preview similar to GroupChatMessage if desired
+            if self.shared_file.mime_type == 'text/plain':
+                try:
+                    file_owner_user_id = self.shared_file.user_id # Get the owner of the file
+                    file_path = os.path.join(get_user_upload_path(file_owner_user_id), self.shared_file.stored_filename)
+                    if os.path.exists(file_path):
+                        with codecs.open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                            content_plus_one = f.read(501)
+                            preview_content = content_plus_one[:500]
+                            file_data['preview_content'] = preview_content
+                            file_data['has_more_content'] = len(content_plus_one) > 500
+                    else:
+                        file_data['preview_content'] = "[Preview unavailable: File missing]"
+                        file_data['has_more_content'] = False
+                except Exception as e:
+                    current_app.logger.warning(f"Could not read preview for DM txt file {self.shared_file.id}: {e}")
+                    file_data['preview_content'] = "[Error reading preview]"
+                    file_data['has_more_content'] = False
+            data['shared_file'] = file_data
+        return data
 
 class OllamaChatMessage(db.Model):
     """Model for storing individual ollama chat messages per user."""
@@ -4001,11 +5496,10 @@ class OllamaChatMessage(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     role = db.Column(db.String(10), nullable=False) # 'user' or 'assistant'
     content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Add relationship back to User (optional but useful)
     # The backref allows accessing messages via user.ollama_chat_messages
-    user = db.relationship('User', backref=db.backref('ollama_chat_messages', lazy='dynamic', order_by='OllamaChatMessage.timestamp', cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f'<OllamaChatMessage {self.id} (User: {self.user_id}, Role: {self.role})>'
@@ -4091,21 +5585,14 @@ class GroupChatMessage(db.Model):
     __tablename__ = 'group_chat_message' # Explicit table name is good practice
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True) # Added ondelete
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     content = db.Column(db.Text, nullable=True) # Text content of the message
     file_id = db.Column(db.Integer, db.ForeignKey('file.id', ondelete='SET NULL'), nullable=True, index=True) # Added ondelete, allows keeping file if msg deleted
     edited_at = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
-    # Use explicit foreign_keys for clarity, especially with multiple FKs to User potentially
-    sender = db.relationship('User',
-                             foreign_keys=[user_id],
-                             backref=db.backref('group_chat_messages',
-                                                lazy='dynamic',
-                                                order_by='GroupChatMessage.timestamp',
-                                                cascade="all, delete-orphan")) # Cascade delete messages if user is deleted
 
     # Use lazy='joined' to potentially reduce queries when accessing file info often
     shared_file = db.relationship('File',
@@ -4186,7 +5673,94 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(INSTANCE_FOLDE
 
 # --- Run Application ---
 if __name__ == '__main__':
-    create_db(app)
-    configure_mail_from_db(app)
-    mail.init_app(app)
+    # --- Directory Creation ---
+    # Use the app.config value for profile pictures directory
+    # This assumes 'app' is your Flask app instance and is configured before this block
+    profile_pics_dir_from_config = app.config.get('PROFILE_PICS_FOLDER')
+    if profile_pics_dir_from_config:
+        if not os.path.exists(profile_pics_dir_from_config):
+            os.makedirs(profile_pics_dir_from_config)
+            print(f"INFO: Created directory: {profile_pics_dir_from_config}")
+        else:
+            print(f"INFO: Directory already exists: {profile_pics_dir_from_config}")
+    else:
+        print("WARNING: app.config['PROFILE_PICS_FOLDER'] is not set. Cannot create profile_pics directory.")
+
+    # Assuming NOTE_FOLDER is a globally defined variable
+    if 'NOTE_FOLDER' in globals() or 'NOTE_FOLDER' in locals():
+        if not os.path.exists(NOTE_FOLDER):
+            os.makedirs(NOTE_FOLDER)
+            print(f"INFO: Created directory: {NOTE_FOLDER}")
+        else:
+            print(f"INFO: Directory already exists: {NOTE_FOLDER}")
+    else:
+        print("WARNING: Global variable NOTE_FOLDER is not defined. Cannot create notes directory.")
+
+    # --- Database Initialization ---
+    print("INFO: Attempting database initialization within app_context...")
+    with app.app_context():
+        inspector = inspect(db.engine)
+        # Ensure the table name matches your AdminSettings.__tablename__ or default convention
+        admin_settings_table_name = AdminSettings.__table__.name # Get table name from model
+        admin_settings_table_exists = inspector.has_table(admin_settings_table_name)
+
+        if not admin_settings_table_exists:
+            print(f"INFO: Database table '{admin_settings_table_name}' not found. Attempting to create all tables now...")
+            try:
+                db.create_all()
+                print("SUCCESS: db.create_all() executed.")
+                if inspect(db.engine).has_table(admin_settings_table_name):
+                    print(f"SUCCESS: '{admin_settings_table_name}' table confirmed to exist after creation.")
+                else:
+                    print(f"CRITICAL_ERROR: '{admin_settings_table_name}' table STILL DOES NOT EXIST after db.create_all(). Check model name or other issues.")
+            except Exception as e_create:
+                print(f"CRITICAL_ERROR: Failed to run db.create_all(): {e_create}")
+        else:
+            print(f"INFO: Database table '{admin_settings_table_name}' already exists.")
+
+        if inspect(db.engine).has_table(admin_settings_table_name):
+            current_settings_row = AdminSettings.query.first()
+            if current_settings_row is None:
+                print(f"INFO: No admin settings row found in '{admin_settings_table_name}' table. Initializing one now.")
+                default_settings = AdminSettings(
+                    allow_registration=True, default_storage_limit_mb=1024, max_upload_size_mb=100,
+                    ollama_api_url=None, ollama_model=None, mail_server=None, mail_port=None,
+                    mail_use_tls=True, mail_use_ssl=False, mail_username=None, mail_password_hashed=None,
+                    mail_default_sender_name='PyCloud Notifications', mail_default_sender_email='noreply@example.com' # Change this
+                )
+                db.session.add(default_settings)
+                try:
+                    db.session.commit()
+                    print("SUCCESS: Default admin settings row created and committed.")
+                except Exception as e_commit_new_row:
+                    db.session.rollback()
+                    print(f"CRITICAL_ERROR: Failed to commit new admin settings row: {e_commit_new_row}")
+            else:
+                print("INFO: Admin settings row already exists. Checking if updates are needed for new fields...")
+                updated = False
+                default_values_for_update = {
+                    'allow_registration': True, 'default_storage_limit_mb': 1024, 'max_upload_size_mb': 100,
+                    'ollama_api_url': None, 'ollama_model': None, 'mail_server': None, 'mail_port': None,
+                    'mail_use_tls': True, 'mail_use_ssl': False, 'mail_username': None, 'mail_password_hashed': None,
+                    'mail_default_sender_name': 'PyCloud Notifications', 'mail_default_sender_email': 'noreply@example.com' # Change this
+                }
+                for key, default_value in default_values_for_update.items():
+                    if not hasattr(current_settings_row, key) or \
+                       (getattr(current_settings_row, key) is None and key in ['allow_registration', 'default_storage_limit_mb', 'max_upload_size_mb', 'mail_use_tls', 'mail_use_ssl', 'mail_default_sender_name', 'mail_default_sender_email']):
+                        print(f"INFO: Updating missing/None admin setting: {key} to '{default_value}'")
+                        setattr(current_settings_row, key, default_value)
+                        updated = True
+                if updated:
+                    try:
+                        db.session.commit()
+                        print("SUCCESS: Existing admin settings updated with default values for new/missing fields.")
+                    except Exception as e_commit_update:
+                        db.session.rollback()
+                        print(f"ERROR: Failed to commit updates to existing admin settings: {e_commit_update}")
+                else:
+                    print("INFO: Admin settings row exists and no new default fields needed to be set or updated.")
+        else:
+            print(f"CRITICAL_INFO: '{admin_settings_table_name}' table does not exist, cannot populate settings. Uploads will likely fail.")
+
+    print("INFO: Starting Flask development server...")
     app.run(debug=True, host='0.0.0.0', port=8080)
