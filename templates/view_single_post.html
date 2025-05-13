@@ -3,26 +3,33 @@
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
-{% block content %}
-<div class="single-post-container" style="max-width: 700px; margin: 20px auto;"> {# Optional container for centering #}
-    {#
-        Check if 'post' variable is available.
-        In your route, you pass 'post=post' to render_template.
-    #}
-    {% if post %}
-        {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
-    {% else %}
-        <p>Post not found or unable to display.</p>
-    {% endif %}
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+    {# Link to the new view_single_post.css file #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/view_single_post.css') }}">
+{% endblock %}
 
-    {# Optional: Add a link to go back to the feed or user's profile #}
-    <div style="margin-top: 20px; text-align: center;">
-        <a href="{{ request.referrer or url_for('post_feed') }}" class="btn btn-secondary">&laquo; Go Back</a>
+{% block content %}
+<div class="vsp-page-container"> {# Main wrapper for the page content #}
+    {# The .single-post-container class from the original inline style is now vsp-post-wrapper #}
+    <div class="vsp-post-wrapper">
+        {% if post %}
+            {# The display_post macro uses pm- prefixed classes internally #}
+            {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+        {% else %}
+            <p class="vsp-not-found-message">Post not found or unable to display.</p> {# Specific class for error message #}
+        {% endif %}
+    </div>
+
+    {# "Go Back" link container and link with specific classes #}
+    <div class="vsp-back-link-container">
+        <a href="{{ request.referrer or url_for('post_feed') }}" class="btn btn-secondary vsp-back-link">&laquo; Go Back</a> {# Kept btn, btn-secondary, added specific #}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }} {# Include scripts from base.html #}
-    <script src="{{ url_for('static', filename='posts.js') }}"></script> {# Link to posts.js for like/comment functionality #}
+    <script src="{{ url_for('static', filename='js/posts.js') }}"></script> {# Link to the new posts.js #}
 {% endblock %}
