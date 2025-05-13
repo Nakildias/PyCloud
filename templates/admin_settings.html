@@ -2,180 +2,167 @@
 
 {% block title %}Admin Settings - {{ super() }}{% endblock %}
 
+{% block head_extensions %}
+    {{ super() if super }} {# Good practice if base might have extensions #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
 {% block content %}
-    <h2>Administrator Settings</h2>
+<div class="admin-page-container admin-settings-page">
+    <div class="admin-page-header">
+        <h2>Administrator Settings</h2>
+    </div>
 
-    <form method="POST" action="{{ url_for('admin_settings') }}" novalidate>
-        {{ form.hidden_tag() }} {# Required for CSRF protection #}
-
-        <fieldset style="margin-bottom: 20px;">
-            <legend>General</legend>
-            {# Registration Toggle #}
-            <div class="form-check" style="margin-bottom: 10px;">
-                {{ form.allow_registration(class="form-check-input") }}
-                {{ form.allow_registration.label(class="form-check-label") }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show admin-alert" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            {% if form.allow_registration.errors %}
-                <ul class="errors">
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('admin_settings') }}" novalidate class="admin-form">
+        {{ form.hidden_tag() }}
+
+        <fieldset class="admin-fieldset">
+            <legend class="admin-legend">General</legend>
+            <div class="admin-form-group admin-form-check-group">
+                {{ form.allow_registration(class="admin-form-check-input") }}
+                {{ form.allow_registration.label(class="admin-form-check-label") }}
+                {% if form.allow_registration.errors %}
+                <ul class="admin-form-errors">
                     {% for error in form.allow_registration.errors %}<li>{{ error }}</li>{% endfor %}
                 </ul>
-            {% endif %}
+                {% endif %}
+            </div>
         </fieldset>
 
-        <fieldset style="margin-bottom: 20px;">
-            <legend>File Storage</legend>
-            {# Default Storage Limit #}
-            <div class="form-group">
-                 {{ form.default_storage_limit_mb.label }}
-                 {{ form.default_storage_limit_mb(class="form-control", style="max-width: 150px;") }} MB
-                 <small class="form-text text-muted">Default storage space allocated per user (Enter 0 for unlimited).</small>
+        <fieldset class="admin-fieldset">
+            <legend class="admin-legend">File Storage</legend>
+            <div class="admin-form-group">
+                {{ form.default_storage_limit_mb.label(class="admin-form-label") }}
+                {{ form.default_storage_limit_mb(class="admin-form-control admin-form-input-short", placeholder="e.g., 1024") }}
+                <small class="admin-form-text"></small>
                 {% if form.default_storage_limit_mb.errors %}
-                    <ul class="errors">
-                        {% for error in form.default_storage_limit_mb.errors %}<li>{{ error }}</li>{% endfor %}
-                    </ul>
+                <ul class="admin-form-errors">
+                    {% for error in form.default_storage_limit_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
                 {% endif %}
             </div>
-            <div class="form-group">
-                 {{ form.max_upload_size_mb.label }}
-                 {{ form.max_upload_size_mb(class="form-control", style="max-width: 150px;") }} MB
-                 <small class="form-text text-muted">
-                     {% if form.max_upload_size_mb.description %}
-                         {{ form.max_upload_size_mb.description }}
-                     {% else %}
-                          Maximum size allowed for a single file upload.
-                     {% endif %}
-                 </small>
+            <div class="admin-form-group">
+                {{ form.max_upload_size_mb.label(class="admin-form-label") }}
+                {{ form.max_upload_size_mb(class="admin-form-control admin-form-input-short", placeholder="e.g., 100") }}
+                <small class="admin-form-text">
+                    {% if form.max_upload_size_mb.description %}
+                        {{ form.max_upload_size_mb.description }}
+                    {% else %}
+
+                    {% endif %}
+                </small>
                 {% if form.max_upload_size_mb.errors %}
-                    <ul class="errors">
-                        {% for error in form.max_upload_size_mb.errors %}<li>{{ error }}</li>{% endfor %}
-                    </ul>
+                <ul class="admin-form-errors">
+                    {% for error in form.max_upload_size_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
                 {% endif %}
             </div>
         </fieldset>
 
-        <fieldset style="margin-bottom: 20px;">
-            <legend>User Management</legend>
-            {# User Management Link #}
-            <div class="form-group">
-                 <a href="{{ url_for('admin_list_users') }}" class="btn btn-secondary btn-sm">Manage Users</a>
+        <fieldset class="admin-fieldset">
+            <legend class="admin-legend">User Management</legend>
+            <div class="admin-form-group">
+                <a href="{{ url_for('admin_list_users') }}" class="admin-btn admin-btn-secondary admin-btn-sm">Manage Users</a>
             </div>
         </fieldset>
 
-        {# --- Ollama Settings Fieldset --- #}
-        <fieldset style="margin-bottom: 20px;">
-            <legend>Ollama Integration (AI Chat)</legend>
-
-            <div class="form-group">
-                 {{ form.ollama_api_url.label }}
-                 {{ form.ollama_api_url(class="form-control", placeholder="e.g., http://localhost:11434") }}
-                 <small class="form-text text-muted">
+        <fieldset class="admin-fieldset">
+            <legend class="admin-legend">Ollama Integration (AI Chat)</legend>
+            <div class="admin-form-group">
+                {{ form.ollama_api_url.label(class="admin-form-label") }}
+                {{ form.ollama_api_url(class="admin-form-control", placeholder="e.g., http://localhost:11434") }}
+                <small class="admin-form-text">
                     {% if form.ollama_api_url.description %}
                         {{ form.ollama_api_url.description }}
                     {% else %}
                         URL for your Ollama instance. Leave blank to disable Ollama integration.
                     {% endif %}
-                 </small>
+                </small>
                 {% if form.ollama_api_url.errors %}
-                    <ul class="errors">
-                        {% for error in form.ollama_api_url.errors %}<li>{{ error }}</li>{% endfor %}
-                    </ul>
+                <ul class="admin-form-errors">
+                    {% for error in form.ollama_api_url.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
                 {% endif %}
             </div>
-
-            <div class="form-group">
-                 {{ form.ollama_model.label }}
-                 {{ form.ollama_model(class="form-control", placeholder="e.g., llama3") }}
-                 <small class="form-text text-muted">
+            <div class="admin-form-group">
+                {{ form.ollama_model.label(class="admin-form-label") }}
+                {{ form.ollama_model(class="admin-form-control", placeholder="e.g., llama3") }}
+                <small class="admin-form-text">
                     {% if form.ollama_model.description %}
                         {{ form.ollama_model.description }}
                     {% else %}
                         The name of the Ollama model to use. Required if URL is set.
                     {% endif %}
-                 </small>
+                </small>
                 {% if form.ollama_model.errors %}
-                    <ul class="errors">
-                        {% for error in form.ollama_model.errors %}<li>{{ error }}</li>{% endfor %}
-                    </ul>
+                <ul class="admin-form-errors">
+                    {% for error in form.ollama_model.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
                 {% endif %}
             </div>
         </fieldset>
 
-        {# --- NEW: Email (SMTP) Settings Fieldset --- #}
-        <fieldset style="margin-bottom: 20px;">
-            <legend>Email (SMTP) IMPORTANT: Restart PyCloud after changing those settings.</legend>
-
-            <div class="form-group">
-                {{ form.mail_server.label }}
-                {{ form.mail_server(class="form-control", placeholder="e.g., smtp.gmail.com") }}
-                {% if form.mail_server.errors %}
-                    <ul class="errors">{% for error in form.mail_server.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+        <fieldset class="admin-fieldset">
+            <legend class="admin-legend">Email (SMTP) <span class="admin-legend-note">IMPORTANT: Restart PyCloud after changing these settings.</span></legend>
+            <div class="admin-form-group">
+                {{ form.mail_server.label(class="admin-form-label") }}
+                {{ form.mail_server(class="admin-form-control", placeholder="e.g., smtp.gmail.com") }}
+                {% if form.mail_server.errors %}<ul class="admin-form-errors">{% for error in form.mail_server.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-
-            <div class="form-group">
-                {{ form.mail_port.label }}
-                {{ form.mail_port(class="form-control", style="max-width: 100px;", placeholder="e.g., 587 or 465") }}
-                {% if form.mail_port.errors %}
-                    <ul class="errors">{% for error in form.mail_port.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+             <div class="admin-form-group">
+                {{ form.mail_port.label(class="admin-form-label") }}
+                {{ form.mail_port(class="admin-form-control admin-form-input-short", placeholder="e.g., 587 or 465") }}
+                {% if form.mail_port.errors %}<ul class="admin-form-errors">{% for error in form.mail_port.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-
-            <div class="form-check" style="margin-bottom: 5px;">
-                {{ form.mail_use_tls(class="form-check-input") }}
-                {{ form.mail_use_tls.label(class="form-check-label") }}
+            <div class="admin-form-group admin-form-check-group">
+                {{ form.mail_use_tls(class="admin-form-check-input") }}
+                {{ form.mail_use_tls.label(class="admin-form-check-label") }}
+                {% if form.mail_use_tls.errors %}<ul class="admin-form-errors">{% for error in form.mail_use_tls.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-            {% if form.mail_use_tls.errors %}
-                <ul class="errors">{% for error in form.mail_use_tls.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-            {% endif %}
-
-            <div class="form-check" style="margin-bottom: 10px;">
-                {{ form.mail_use_ssl(class="form-check-input") }}
-                {{ form.mail_use_ssl.label(class="form-check-label") }}
+            <div class="admin-form-group admin-form-check-group">
+                {{ form.mail_use_ssl(class="admin-form-check-input") }}
+                {{ form.mail_use_ssl.label(class="admin-form-check-label") }}
+                {% if form.mail_use_ssl.errors %}<ul class="admin-form-errors">{% for error in form.mail_use_ssl.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-            {% if form.mail_use_ssl.errors %}
-                <ul class="errors">{% for error in form.mail_use_ssl.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-            {% endif %}
-
-            <div class="form-group">
-                {{ form.mail_username.label }}
-                {{ form.mail_username(class="form-control", placeholder="Your SMTP username/email") }}
-                {% if form.mail_username.errors %}
-                    <ul class="errors">{% for error in form.mail_username.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+            <div class="admin-form-group">
+                {{ form.mail_username.label(class="admin-form-label") }}
+                {{ form.mail_username(class="admin-form-control", placeholder="Your SMTP username/email") }}
+                {% if form.mail_username.errors %}<ul class="admin-form-errors">{% for error in form.mail_username.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-
-            <div class="form-group">
-                {{ form.mail_password.label }}
-                {{ form.mail_password(class="form-control", placeholder="Your SMTP password") }}
-                <small class="form-text text-muted">Leave blank if you do not want to update the password.</small>
-                {% if form.mail_password.errors %}
-                    <ul class="errors">{% for error in form.mail_password.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+            <div class="admin-form-group">
+                {{ form.mail_password.label(class="admin-form-label") }}
+                {{ form.mail_password(class="admin-form-control", placeholder="Your SMTP password") }}
+                <small class="admin-form-text">Leave blank if you do not want to update the password.</small>
+                {% if form.mail_password.errors %}<ul class="admin-form-errors">{% for error in form.mail_password.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-
-            <div class="form-group">
-                {{ form.mail_default_sender_name.label }}
-                {{ form.mail_default_sender_name(class="form-control", placeholder="e.g., PyCloud Notifications") }}
-                <small class="form-text text-muted">The "From" name displayed in emails.</small>
-                {% if form.mail_default_sender_name.errors %}
-                    <ul class="errors">{% for error in form.mail_default_sender_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+            <div class="admin-form-group">
+                {{ form.mail_default_sender_name.label(class="admin-form-label") }}
+                {{ form.mail_default_sender_name(class="admin-form-control", placeholder="e.g., PyCloud Notifications") }}
+                <small class="admin-form-text">The "From" name displayed in emails.</small>
+                {% if form.mail_default_sender_name.errors %}<ul class="admin-form-errors">{% for error in form.mail_default_sender_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
-
-            <div class="form-group">
-                {{ form.mail_default_sender_email.label }}
-                {{ form.mail_default_sender_email(class="form-control", placeholder="e.g., noreply@yourdomain.com") }}
-                <small class="form-text text-muted">The "From" email address.</small>
-                {% if form.mail_default_sender_email.errors %}
-                    <ul class="errors">{% for error in form.mail_default_sender_email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                {% endif %}
+            <div class="admin-form-group">
+                {{ form.mail_default_sender_email.label(class="admin-form-label") }}
+                {{ form.mail_default_sender_email(class="admin-form-control", placeholder="e.g., noreply@yourdomain.com") }}
+                <small class="admin-form-text">The "From" email address.</small>
+                {% if form.mail_default_sender_email.errors %}<ul class="admin-form-errors">{% for error in form.mail_default_sender_email.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
             </div>
         </fieldset>
-        {# --- END: Email (SMTP) Settings Fieldset --- #}
 
-        <div class="form-group" style="margin-top: 20px;">
-            {{ form.submit(class="btn btn-primary") }}
+        <div class="admin-form-actions">
+            {{ form.submit(class="admin-btn admin-btn-primary") }}
         </div>
     </form>
-
+</div>
 {% endblock %}
