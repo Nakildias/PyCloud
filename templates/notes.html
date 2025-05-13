@@ -2,34 +2,41 @@
 
 {% block title %}My Notes - {{ super() }}{% endblock %}
 
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notes.css') }}">
+{% endblock %}
+
 {% block content %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>My Notes</h2>
-        <a href="{{ url_for('new_note') }}" class="btn btn-primary">Create New Note</a>
+<div class="nl-page-container"> {# Main wrapper for the page content #}
+    <div class="nl-header-bar"> {# Specific class for the header containing title and button #}
+        <h2 class="nl-page-title">My Notes</h2> {# Specific class for the page title #}
+        <a href="{{ url_for('new_note') }}" class="btn btn-primary nl-btn-create-new">Create New Note</a> {# Kept btn, btn-primary, added specific #}
     </div>
 
     {% if notes %}
-        <ul class="notes-list" style="list-style: none; padding: 0;">
+        <ul class="nl-notes-list"> {# Prefixed class, was notes-list #}
             {% for note in notes %}
-                <li style="background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 5px; padding: 15px; margin-bottom: 10px;">
-                    <h3 style="margin-top: 0; margin-bottom: 5px;">
-                        <a href="{{ url_for('view_note', note_id=note.id) }}">{{ note.title }}</a>
+                <li class="nl-notes-list-item"> {# Prefixed class, was direct style or generic li #}
+                    <h3 class="nl-item-title"> {# Prefixed class #}
+                        <a href="{{ url_for('view_note', note_id=note.id) }}" class="nl-item-title-link">{{ note.title }}</a> {# Prefixed class #}
                     </h3>
-                    <small style="color: #aaa;">Created: {{ note.timestamp.strftime('%Y-%m-%d %H:%M') }} UTC</small>
+                    <small class="nl-item-meta">Created: {{ note.timestamp.strftime('%Y-%m-%d %H:%M') }} UTC</small> {# Prefixed class #}
                     {# Optional: Show snippet of content #}
-                    {# <p style="margin-top: 10px;">{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p> #}
-                    <div style="margin-top: 10px;">
-                        <a href="{{ url_for('edit_note', note_id=note.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                    {# <p class="nl-item-snippet">{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p> #} {# Example of prefixed snippet class #}
+                    <div class="nl-item-actions"> {# Prefixed class #}
+                        <a href="{{ url_for('edit_note', note_id=note.id) }}" class="btn btn-secondary btn-sm nl-btn-edit">Edit</a> {# Kept btn, btn-sm, added specific #}
                         {# Delete button using a mini-form to send POST #}
-                        <form action="{{ url_for('delete_note', note_id=note.id) }}" method="POST" style="display: inline; margin-left: 5px;" onsubmit="return confirm('Are you sure you want to delete this note?');">
+                        <form action="{{ url_for('delete_note', note_id=note.id) }}" method="POST" class="nl-delete-form" onsubmit="return confirm('Are you sure you want to delete this note?');"> {# Prefixed class #}
                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/> {# If using CSRFProtect extension #}
-                             <button type="submit" class="btn btn-danger btn-sm">Delete</button> {# Add btn-danger style if needed #}
+                             <button type="submit" class="btn btn-danger btn-sm nl-btn-delete">Delete</button> {# Kept btn, btn-sm, added specific #}
                         </form>
                     </div>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>You haven't created any notes yet. <a href="{{ url_for('new_note') }}">Create one now!</a></p>
+        <p class="nl-no-notes-message">You haven't created any notes yet. <a href="{{ url_for('new_note') }}" class="nl-link-create-first">Create one now!</a></p> {# Prefixed class #}
     {% endif %}
+</div>
 {% endblock %}
