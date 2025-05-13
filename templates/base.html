@@ -4,58 +4,117 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>{% block title %}PyCloud{% endblock %}</title>
-    <style>
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base_emb_chat.css') }}">
+    {% block head_extensions %}{% endblock %}
 </head>
-<body {% if request.endpoint in ['ollama_chat', 'group_chat'] %}class="chat-page"{% endif %}>
-<nav>
-    <ul>
+<body class="base-body {% if request.endpoint in ['ollama_chat', 'group_chat', 'direct_chat_interface'] %}base-body-chat-page base-body-no-container-padding{% elif request.endpoint in ['direct_chat_interface_embedded'] %}base-body-chat-page base-body-no-container-padding base-body-has-embedded-chat{% endif %} {% block body_class %}{% endblock %}"> {# ADDED body_class BLOCK #}
+<nav class="base-nav">
+    <ul class="base-nav-list">
         {% if current_user.is_authenticated %}
-            <li><a href="{{ url_for('list_files') }}">Files</a></li>
-            <li><a href="{{ url_for('post_feed') }}">Feed</a></li> {# NEW LINK TO POST FEED #}
-            <li><a href="{{ url_for('list_notes') }}">Notes</a></li>
-            <li><a href="{{ url_for('group_chat') }}">Chat</a></li>
-            {% if settings.ollama_enabled %}
-                <li><a href="{{ url_for('ollama_chat') }}">Ollama</a></li>
-            {% endif %}
-             {% if current_user.is_admin %}
-                <li><a href="{{ url_for('admin_settings') }}">Admin Settings</a></li>
-             {% endif %}
-            <li><a href="{{ url_for('user_profile', username=current_user.username) }}">My Profile</a></li>
-            <li><a href="{{ url_for('logout') }}">Logout ({{ current_user.username }})</a></li>
+            <li class="base-nav-item {% if request.endpoint == 'notifications_page' %}active{% endif %}">
+                <a href="{{ url_for('notifications_page') }}" class="base-nav-link">
+                    <img src="{{ url_for('static', filename='icons/empty-notification.svg') }}" alt="" class="base-nav-icon">
+                    <span id="base-notification-unread-count" class="notification-badge" style="display: none;"></span>
+                </a>
+            </li>
+            {% set cloud_active = request.endpoint in ['list_files', 'list_notes', 'ollama_chat'] %}
+            <li class="base-nav-item base-nav-dropdown {% if cloud_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    <img src="{{ url_for('static', filename='icons/cloud.svg') }}" alt="" class="base-nav-icon">
+                    Cloud <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'list_files' %}class="active"{% endif %}><a href="{{ url_for('list_files') }}" class="base-nav-dropdown-item-link">Files</a></li>
+                    <li {% if request.endpoint == 'list_notes' %}class="active"{% endif %}><a href="{{ url_for('list_notes') }}" class="base-nav-dropdown-item-link">Notes</a></li>
+                    {% if settings.ollama_enabled %}
+                        <li {% if request.endpoint == 'ollama_chat' %}class="active"{% endif %}><a href="{{ url_for('ollama_chat') }}" class="base-nav-dropdown-item-link">Ollama</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% set social_active = request.endpoint in ['post_feed', 'group_chat', 'direct_chat_interface'] %}
+            <li class="base-nav-item base-nav-dropdown {% if social_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    <img src="{{ url_for('static', filename='icons/group.svg') }}" alt="" class="base-nav-icon">
+                    Social <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'post_feed' %}class="active"{% endif %}><a href="{{ url_for('post_feed') }}" class="base-nav-dropdown-item-link">Feed</a></li>
+                    <li {% if request.endpoint == 'group_chat' %}class="active"{% endif %}><a href="{{ url_for('group_chat') }}" class="base-nav-dropdown-item-link">Group Chat</a></li>
+                    <li {% if request.endpoint == 'friends_interface' %}class="active"{% endif %}><a href="{{ url_for('friends_interface') }}" class="base-nav-dropdown-item-link">Friends</a></li>
+                </ul>
+            </li>
+            {% set user_dropdown_active = (request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
+                                          (request.endpoint == 'admin_settings' and current_user.is_admin) %}
+            <li class="base-nav-item base-nav-dropdown {% if user_dropdown_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    {% if current_user.profile_picture_filename %}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_picture_filename) }}" alt="" class="base-nav-user-pfp">
+                    {% else %}
+                        <span class="base-nav-user-pfp-placeholder">{{ current_user.username[0]|upper if current_user.username else 'U' }}</span>
+                    {% endif %}
+                    {{ current_user.username }}
+                    <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username %}class="active"{% endif %}>
+                        <a href="{{ url_for('user_profile', username=current_user.username) }}" class="base-nav-dropdown-item-link">My Profile</a>
+                    </li>
+                    {% if current_user.is_admin %}
+                        <li {% if request.endpoint == 'admin_settings' or request.endpoint.startswith('admin_') %}class="active"{% endif %}><a href="{{ url_for('admin_settings') }}" class="base-nav-dropdown-item-link">Admin Settings</a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('logout') }}" class="base-nav-dropdown-item-link">Logout</a></li>
+                </ul>
+            </li>
         {% else %}
-             <li><a href="{{ url_for('login') }}">Login</a></li>
+             <li class="base-nav-item {% if request.endpoint == 'login' %}active{% endif %}"><a href="{{ url_for('login') }}" class="base-nav-link">Login</a></li>
              {% if settings.allow_registration %}
-                 <li><a href="{{ url_for('register') }}">Register</a></li>
+                 <li class="base-nav-item {% if request.endpoint == 'register' %}class="active"{% endif %}"><a href="{{ url_for('register') }}" class="base-nav-link">Register</a></li>
              {% endif %}
         {% endif %}
     </ul>
 </nav>
 
-<div class="container">
+<div class="base-container {% if request.endpoint == 'direct_chat_interface' %}base-container-no-padding{% endif %}">
     {% block content %}
     {% endblock %}
 </div>
 
-<div id="toast-container"></div>
+<div id="base-toast-container" class="base-toast-container-wrapper"></div>
 
-<script src="{{ url_for('static', filename='toast.js') }}"></script>
+{% if current_user.is_authenticated %}
+<div id="base-embedded-chat-container" class="base-embedded-chat-container-wrapper">
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
 <script>
     const flashedMessages = {{ get_flashed_messages(with_categories=true)|tojson }};
-    document.addEventListener('DOMContentLoaded', function() {
-        if (flashedMessages && flashedMessages.length > 0) {
-            flashedMessages.forEach(function(flash) {
-                const category = flash[0];
-                const message = flash[1];
-                showToast(message, category);
-            });
-        }
-    });
+    const CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+    const CURRENT_USER_USERNAME = "{{ current_user.username if current_user.is_authenticated else '' }}";
+    const CURRENT_USER_PFP_FILENAME = "{{ current_user.profile_picture_filename if current_user.is_authenticated and current_user.profile_picture_filename else '' }}";
+    const CURRENT_USER_IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.is_admin else 'false' }};
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    const STATIC_PFP_PATH_BASE = "{{ url_for('static', filename='uploads/profile_pics/') }}";
+    const STATIC_ICONS_PATH_BASE = "{{ url_for('static', filename='icons/') }}";
+    const USER_PROFILE_URL_BASE = "{{ url_for('user_profile', username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const MAX_UPLOAD_MB_CONFIG = {{ settings.max_upload_mb | default(100) }};
+    const EMB_DM_HISTORY_API_URL_BASE = "{{ url_for('api_direct_chat_history', friend_username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const EMB_DM_SEND_API_URL_BASE = "{{ url_for('api_direct_chat_send', friend_username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const EMB_DM_RECENT_MESSAGES_API_URL = "{{ url_for('api_recent_direct_messages') }}";
+    const API_UNREAD_NOTIFICATION_COUNT_URL = "{{ url_for('api_unread_notification_count') }}";
+    const NOTIFICATION_SOUND_URL = "{{ url_for('static', filename='sounds/notification.wav') }}";
 </script>
 
-{% block scripts %}{% endblock %}
+{% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/base_friend_chat.js') }}"></script>
+{% else %}
+    <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
+{% endif %}
 
+{% block scripts %}
+{% endblock %}
 </body>
 </html>
