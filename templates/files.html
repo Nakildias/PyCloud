@@ -1,903 +1,267 @@
 {# templates/files.html #}
 {% extends "base.html" %}
 
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+{% endblock %}
+
 {% block title %}{{ title }} - {{ super() }}{% endblock %} {# Dynamic Title based on current folder #}
 
 {% block content %}
+<div class="fl-page-container"> {# Main wrapper for the files page content #}
     {# --- Page Header & Breadcrumbs --- #}
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px; gap: 15px;">
-        <h2 style="margin: 0;">
-             {# Breadcrumbs Navigation #}
-             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb" style="padding: 0; margin: 0; background-color: transparent; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; align-items: center; font-size: 1.1em;">
-                    <li class="breadcrumb-item">
-                        <a href="{{ url_for('list_files') }}">/</a>
+    <div class="fl-header-bar">
+        <h2 class="fl-page-title">
+             <nav aria-label="breadcrumb" class="fl-breadcrumb-nav">
+                <ol class="fl-breadcrumb">
+                    <li class="fl-breadcrumb-item">
+                        <a href="{{ url_for('list_files') }}">My Files</a>
                     </li>
                     {% for crumb in breadcrumbs %}
-                        <li class="breadcrumb-item" aria-current="page">
-                           <span style="margin: 0 3px;">&raquo;</span> <a href="{{ url_for('list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+                        <li class="fl-breadcrumb-item" aria-current="page">
+                           <a href="{{ url_for('list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
                         </li>
                     {% endfor %}
                 </ol>
              </nav>
         </h2>
-        {# Storage Usage Display #}
-        <p style="margin: 0; font-size: 0.9em; color: #ccc;">
-            Usage: {{ usage_mb }} MB / {{ limit_display }} {{ limit_type_indicator }}
+        <p class="fl-storage-usage-display">
+            {{ usage_mb }} MB / {{ limit_display }} {{ limit_type_indicator }}
         </p>
     </div>
 
     {# --- Action Buttons Area --- #}
-    <div style="margin-bottom: 20px; min-height: 40px; display: flex; gap: 10px; align-items: center;"> {# Reserve space & Use Flex #}
-        <button id="btn-show-create-folder" class="btn btn-secondary btn-sm">New Folder</button>
-        {# PASTE BUTTON - Initially Hidden #}
-        <button id="btn-paste" class="btn btn-primary btn-sm" style="display: none;">Paste</button>
+    <div class="fl-actions-toolbar-top">
+        <button id="fl-btn-show-create-folder" class="btn btn-secondary btn-sm fl-btn-show-create-folder">New Folder</button>
+        <button id="fl-btn-paste" class="btn btn-primary btn-sm fl-btn-paste" style="display: none;">Paste</button>
 
-        {# Hidden Form for Creating a New Folder #}
-        <form id="form-create-folder" method="POST" action="{{ url_for('create_folder') }}" style="display: none; background-color: var(--bg-color); padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); max-width: 500px;" novalidate>
+        <div id="fl-multi-select-actions-toolbar" class="fl-multi-select-actions-toolbar" style="display: none;">
+            <button id="fl-btn-delete-selected" class="btn btn-danger btn-sm fl-btn-delete-selected">Delete Selected</button>
+            <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">Cut Selected</button>
+            <button id="fl-btn-copy-selected" class="btn btn-secondary btn-sm fl-btn-copy-selected">Copy Selected</button>
+        </div>
+
+        <form id="fl-form-create-folder" method="POST" action="{{ url_for('create_folder') }}" class="fl-form-create-folder" style="display: none;" novalidate>
              {{ create_folder_form.hidden_tag() }}
              <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
-             <div style="display: flex; gap: 10px; align-items: center;">
-                 <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
-                     {{ create_folder_form.name(class="form-control form-control-sm", placeholder="New folder name...", required=True, autocomplete="off") }}
+             <div class="fl-create-folder-form-inner">
+                 <div class="form-group fl-form-group-foldername" style="flex-grow: 1; margin-bottom: 0;">
+                     {{ create_folder_form.name(class="form-control form-control-sm fl-input-foldername", placeholder="New folder name...", required=True, autocomplete="off") }}
                  </div>
-                 {{ create_folder_form.submit(class="btn btn-primary btn-sm") }}
-                 <button type="button" id="btn-cancel-create-folder" class="btn btn-secondary btn-sm">Cancel</button>
+                 {{ create_folder_form.submit(class="btn btn-primary btn-sm fl-btn-submit-foldername") }}
+                 <button type="button" id="fl-btn-cancel-create-folder" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
              </div>
         </form>
     </div>
-
 
     {# --- Upload Form Section --- #}
-    <div class="upload-section" id="drop-zone" style="margin-bottom: 30px; padding: 20px;">
-        <h3>Upload New File {{ "to '" + current_folder.name + "'" if current_folder else "to Root" }}</h3>
-            <p>Drag files here or use the button below</p> {# Add guidance text #}
-        <form id="upload-form" method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" novalidate>
+    <div class="fl-upload-section" id="fl-drop-zone">
+        <h3 class="fl-upload-title">Upload New File {{ "to '" + current_folder.name + "'" if current_folder else "to Root" }}</h3>
+        <p class="fl-upload-guidance">Drag files here or use the button below</p>
+        <form id="fl-upload-form" method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" novalidate class="fl-upload-form-element">
              {{ upload_form.hidden_tag() }}
-             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
-             {# Wrap the custom label and hidden input for centering #}
-             <div class="file-upload-wrapper" style="text-align: center; margin-bottom: 10px;">
-             {{ upload_form.file(id="file-upload-input", class="visually-hidden") }}
-                <label for="file-upload-input" class="btn btn-secondary btn-sm">
+             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}" id="fl-upload-parent-folder-id">
+             <div class="fl-upload-input-wrapper">
+                {{ upload_form.file(id="fl-file-upload-input", class="visually-hidden fl-input-file-actual") }}
+                <label for="fl-file-upload-input" class="btn btn-secondary btn-sm fl-btn-browse-files">
                     Browse Files...
                 </label>
-
              </div>
-             <div class="form-group" style="text-align: center;">
+             <div class="fl-upload-info-group">
                  {% if upload_form.file.errors %}
-                    <ul class="errors" style="text-align: left;">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul> {# Keep errors left-aligned #}
+                    <ul class="errors fl-upload-errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
                  {% endif %}
-                 {# Display the admin-defined limit passed from the route #}
-                 <small>Max size per file: {{ max_upload_mb }} MB</small>
-             </div>
-             <div class="form-group">
-                 {# --- {{ upload_form.file.label }}<br> --- #}
-                 {% if upload_form.file.errors %}
-                    <ul class="errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                 {% endif %}
-                 {% set max_size_mb = (config.MAX_CONTENT_LENGTH / (1024*1024))|int if config.MAX_CONTENT_LENGTH else 'N/A' %}
+                 <small class="fl-upload-size-limit">Max size per file: {{ max_upload_mb }} MB</small>
              </div>
         </form>
     </div>
 
-
     {# --- Folder & File List Section --- #}
-    {# --- <h3>Contents {{ "of '" + current_folder.name + "'" if current_folder else "of /" }}</h3> --- #}
-    <table id="file-list-table" style="width: 100%; border-collapse: collapse;">
-        <thead>
-            <tr style="border-bottom: 1px solid var(--border-color);">
-                <th style="text-align: left; padding: 8px;">Name</th>
-                <th style="text-align: right; padding: 8px;">Size</th>
-                <th style="text-align: center; padding: 8px;">Modified</th>
-                <th style="text-align: center; padding: 8px; width: 120px;">Actions</th> {# Adjusted width #}
-            </tr>
-        </thead>
-        <tbody>
-            {# List Subfolders #}
-            {% for folder in subfolders %}
-            <tr class="folder-row item-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}"> {# Consolidated data attributes #}
-                <td style="padding: 8px;">
-                    <span style="margin-right: 5px; color: var(--primary-color); font-weight: bold;">📁</span>
-                    <span class="itemname-display" id="foldername-{{ folder.id }}">
-                        <a href="{{ url_for('list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
-                    </span>
-                    <input type="text" class="itemname-input foldername-input" id="foldername-input-{{ folder.id }}" style="display: none; width: 85%; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--primary-color); padding: 2px 4px; border-radius: 3px;" value="{{ folder.name }}">
-                </td>
-                <td style="text-align: right; padding: 8px;">--</td>
-                <td style="text-align: center; padding: 8px;">{{ folder.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td class="actions-cell"> {# Use the CSS class #}
-                    <div class="context-menu-container">
-                        <button class="btn-context-menu" aria-label="Actions for {{ folder.name }}">...</button>
-                        <div class="context-menu" id="context-menu-folder-{{ folder.id }}">
-                            <button class="menu-item menu-item-copy">Copy</button> {# NEW #}
-                            <button class="menu-item menu-item-cut">Cut</button>   {# NEW #}
-                            <div class="menu-separator"></div>                     {# NEW #}
-                            <button class="menu-item menu-item-rename-folder">Rename</button>
-                            <button class="menu-item menu-item-archive-folder">Archive</button>
-                            <div class="menu-separator"></div>
-                            <button class="menu-item menu-item-delete-folder menu-item-danger">Delete</button>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
+    <div class="fl-file-list-container" id="fl-file-list-container-id"> {# Added ID for JS if needed #}
+        <table id="fl-file-list-table" class="fl-file-list-table-element">
+            <thead>
+                <tr class="fl-table-header-row">
+                    <th class="fl-th fl-th-checkbox">
+                        <input type="checkbox" id="fl-select-all-checkbox" aria-label="Select all items" class="fl-select-all-checkbox-input">
+                    </th>
+                    <th class="fl-th fl-th-name">Name</th>
+                    <th class="fl-th fl-th-size">Size</th>
+                    <th class="fl-th fl-th-modified">Modified</th>
+                    <th class="fl-th fl-th-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for folder in subfolders %}
+                <tr class="fl-item-row fl-folder-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}">
+                    <td class="fl-td fl-td-checkbox">
+                        <input type="checkbox" class="fl-item-checkbox" data-item-id="{{ folder.id }}" data-item-type="folder" aria-label="Select folder {{ folder.name }}">
+                    </td>
+                    <td class="fl-td fl-td-name">
+                        <span class="fl-item-icon fl-item-icon-folder">📁</span>
+                        <span class="fl-itemname-display" id="fl-foldername-display-{{ folder.id }}">
+                            <a href="{{ url_for('list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
+                        </span>
+                        <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
+                    </td>
+                    <td class="fl-td fl-td-size">--</td>
+                    <td class="fl-td fl-td-modified">{{ folder.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+<td class="fl-td fl-td-actions fl-actions-cell">
+    <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
+        <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ folder.name }}" onclick="toggleItemMenu(this)">
+            {# Make sure toggleItemMenu(this) is implemented in files.js #}
+            <img src="{{ url_for('static', filename='icons/hamburger-menu.svg') }}" alt="Menu">
+        </button>
+        <div class="pm-post-menu-dropdown" style="display:none;"> {# Class from base.css, handles dropdown styling #}
+            {# Action items now use 'unified-action-button' for styling from base.css #}
+            {# Original 'fl-menu-item-*' classes are kept for JavaScript event handling #}
+            <button class="unified-action-button small pm-menu-item fl-menu-item-copy">Copy</button>
+            <button class="unified-action-button small pm-menu-item fl-menu-item-cut">Cut</button>
+            <div class="pm-menu-separator"></div> {# You may need to define .pm-menu-separator in base.css if not already present #}
+            <button class="unified-action-button small pm-menu-item fl-menu-item-rename-folder">Rename</button>
+            <button class="unified-action-button small pm-menu-item fl-menu-item-archive-folder">Archive</button>
+            <div class="pm-menu-separator"></div>
+            <button class="unified-action-button small danger pm-menu-item fl-menu-item-delete-folder">Delete</button>
+        </div>
+    </div>
+</td>
+                </tr>
+                {% endfor %}
 
-            {# List Files #}
-            {% for file in files %}
-            {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
-            {% set file_ext = file.original_filename.split('.')[-1]|lower %}
-            {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
-
-            <tr class="file-row item-row" data-item-id="{{ file.id }}" data-item-type="file" data-item-name="{{ file.original_filename|escape }}" data-is-public="{{ 'true' if file.is_public else 'false' }}" data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}" data-public-id="{{ file.public_id }}" data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}" data-is-editable="{{ 'true' if file.is_editable else 'false' }}"> {# ADDED data-is-editable HERE #}
-                <td style="padding: 8px;">
-                            <span style="margin-right: 5px; opacity: 0.7;">
-                                 {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %} {# Add/remove as needed #}
-                                 {% set audio_extensions = ['mp3', 'ogg', 'wav'] %} {# Add/remove as needed #}
-                                 {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %} {# Add/remove as needed #}
-                                 {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %} {# Add/remove as needed #}
-                                 {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %} {# Add/remove as needed #}
-                                 {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %} {# Add/remove as needed #}
-                                 {% if file_ext in video_extensions %}<span title="Video">🎬</span>
-                                 {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
-                                 {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
-                                 {% elif file_ext in package_extensions %}<span title="Package">📦</span>
-                                 {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
-                                 {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
-                                 {% elif file_ext in script_extensions %}<span title="Script">📜</span>
-                                 {% elif file.is_editable %}<span title="Editable">📝</span>
-                                 {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
-                                 {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
-                                 {% elif is_viewable %}<span title="Viewable">📺</span>  {# Corrected from if to elif #}
-                                 {% elif is_extractable %}<span title="Extractable">📚</span>
-                                 {% else %}[&nbsp;]
-                                 {% endif %}
-                            </span>
-                    <span class="itemname-display" id="filename-{{ file.id }}">
-                        {% if is_viewable %}
-                            <a href="{{ url_for('view_file', file_id=file.id) }}" target="_blank" title="View File">{{ file.original_filename }}</a>
-                        {% else %}
-                            {{ file.original_filename }}
+                {% for file in files %}
+                {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
+                {% set file_ext = file.original_filename.split('.')[-1]|lower %}
+                {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
+                <tr class="fl-item-row fl-file-row" data-item-id="{{ file.id }}" data-item-type="file" data-item-name="{{ file.original_filename|escape }}" data-is-public="{{ 'true' if file.is_public else 'false' }}" data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}" data-public-id="{{ file.public_id }}" data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}" data-is-editable="{{ 'true' if file.is_editable else 'false' }}">
+                    <td class="fl-td fl-td-checkbox">
+                        <input type="checkbox" class="fl-item-checkbox" data-item-id="{{ file.id }}" data-item-type="file" aria-label="Select file {{ file.original_filename }}">
+                    </td>
+                    <td class="fl-td fl-td-name">
+                        <span class="fl-item-icon fl-item-icon-file">
+                             {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %}
+                             {% set audio_extensions = ['mp3', 'ogg', 'wav'] %}
+                             {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %}
+                             {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %}
+                             {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %}
+                             {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %}
+                             {% if file_ext in video_extensions %}<span title="Video">🎬</span>
+                             {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
+                             {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
+                             {% elif file_ext in package_extensions %}<span title="Package">📦</span>
+                             {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
+                             {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
+                             {% elif file_ext in script_extensions %}<span title="Script">📜</span>
+                             {% elif file.is_editable %}<span title="Editable">📝</span>
+                             {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
+                             {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
+                             {% elif is_viewable %}<span title="Viewable">📺</span>
+                             {% elif is_extractable %}<span title="Extractable">📚</span>
+                             {% else %}[&nbsp;]
+                             {% endif %}
+                        </span>
+                        <span class="fl-itemname-display" id="fl-filename-display-{{ file.id }}">
+                            {% if is_viewable %}
+                                <a href="{{ url_for('view_file', file_id=file.id) }}" class="fl-viewable-file-link" data-filename="{{ file.original_filename|escape }}" title="View File">{{ file.original_filename }}</a>
+                            {% else %}
+                                {{ file.original_filename }}
+                            {% endif %}
+                        </span>
+                        <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-{{ file.id }}" value="{{ file.original_filename }}">
+                    </td>
+                    <td class="fl-td fl-td-size">
+                        {% if file.filesize == 0 %} 0 B
+                        {% elif file.filesize < 1024 %} {{ file.filesize }} B
+                        {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
+                        {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
                         {% endif %}
-                    </span>
-                    <input type="text" class="itemname-input filename-input" id="filename-input-{{ file.id }}" style="display: none; width: 85%; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--primary-color); padding: 2px 4px; border-radius: 3px;" value="{{ file.original_filename }}">
-                </td>
-                <td style="text-align: right; padding: 8px;">
-                    {% if file.filesize == 0 %} 0 B
-                    {% elif file.filesize < 1024 %} {{ file.filesize }} B
-                    {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
-                    {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
-                    {% endif %}
-                </td>
-                <td style="text-align: center; padding: 8px;">
-                    {{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}
-                </td>
-                <td class="actions-cell"> {# Use the CSS class #}
-                    <div class="context-menu-container">
-                        <button class="btn-context-menu" aria-label="Actions for {{ file.original_filename }}">...</button>
-                        <div class="context-menu" id="context-menu-file-{{ file.id }}">
-                            {% if file.is_editable %}
-                            <button class="menu-item menu-item-edit">Edit</button>
-                            {% endif %}
-                         <a href="{{ url_for('download_file', file_id=file.id) }}" class="menu-item" download="{{ file.original_filename }}">Download</a>
-                            <button class="menu-item menu-item-copy">Copy</button> {# NEW #}
-                            <button class="menu-item menu-item-cut">Cut</button>   {# NEW #}
-                            <div class="menu-separator"></div>                     {# NEW #}
-                            <button class="menu-item menu-item-rename">Rename</button>
-                            {% if is_extractable %}
-                                <button class="menu-item menu-item-extract">Extract</button>
-                            {% endif %}
-                            <button class="menu-item menu-item-share-toggle">
-                                {% if file.is_public %} Unshare {% if file.public_password_hash %}🔒{% endif %} {% else %} Share {% endif %}
-                            </button>
-                            <div class="menu-separator"></div>
-                            <button class="menu-item menu-item-delete menu-item-danger">Delete</button>
-                        </div>
-                    </div>
-                    {# Share Link display is separate and toggled by JS #}
-                </td>
-             </tr>
-             {# Share Link Display Row (Remains unchanged) #}
-             <tr class="share-link-row" id="share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %} background-color: #2e2e2e;">
-                 <td colspan="4" style="padding: 5px 8px;">
-                     <div class="share-link-display" id="share-link-{{ file.id }}">
-                         {% if file.is_public and file.public_id %}
-                         <label for="share-url-{{ file.id }}" style="font-size: 0.8em; margin-right: 5px;">
-                             Link {% if file.public_password_hash %}🔒{% endif %}:
-                         </label>
-                         <input type="text" id="share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm share-link-input" style="width: 60%; font-size: 0.8em; ..." title="Public share link">
-                         <button class="btn btn-sm btn-copy-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" style="margin-left: 5px;">Copy</button>
-                         {% endif %}
-                     </div>
-                 </td>
-             </tr>
-            {% endfor %}
+                    </td>
+                    <td class="fl-td fl-td-modified">{{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+<td class="fl-td fl-td-actions fl-actions-cell">
+    <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
+        <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ file.original_filename }}" onclick="toggleItemMenu(this)">
+            {# Make sure toggleItemMenu(this) is implemented in files.js as described before #}
+            <img src="{{ url_for('static', filename='icons/hamburger-menu.svg') }}" alt="Menu">
+        </button>
+        <div class="pm-post-menu-dropdown" style="display:none;"> {# Class from base.css, handles dropdown styling #}
+            {# Action items now use 'unified-action-button' for styling from base.css #}
+            {# Original 'fl-menu-item-*' classes are kept for JavaScript event handling #}
 
-            {# Empty folder message #}
-            {% if not subfolders and not files %}
-            <tr><td colspan="4" style="text-align: center; padding: 20px; color: #aaa;">This folder is empty.</td></tr>
+            {% if file.is_editable %}
+            <button class="unified-action-button small pm-menu-item fl-menu-item-edit">Edit</button>
             {% endif %}
-        </tbody>
-    </table>
-    <div id="action-status" style="margin-top: 10px; color: var(--info-color); min-height: 1.2em; font-style: italic;"></div>
+            <a href="{{ url_for('download_file', file_id=file.id) }}" class="unified-action-button small pm-menu-item fl-menu-item-download" download="{{ file.original_filename }}">Download</a>
+            <button class="unified-action-button small pm-menu-item fl-menu-item-copy">Copy</button>
+            <button class="unified-action-button small pm-menu-item fl-menu-item-cut">Cut</button>
+            <div class="pm-menu-separator"></div> {# Assumes .pm-menu-separator is styled in base.css or files.css #}
+            <button class="unified-action-button small pm-menu-item fl-menu-item-rename">Rename</button>
+            {% if is_extractable %}
+                <button class="unified-action-button small pm-menu-item fl-menu-item-extract">Extract</button>
+            {% endif %}
+            <button class="unified-action-button small pm-menu-item fl-menu-item-share-toggle">
+                {% if file.is_public %} Unshare {% if file.public_password_hash %}🔒{% endif %} {% else %} Share {% endif %}
+            </button>
+            <div class="pm-menu-separator"></div>
+            <button class="unified-action-button small danger pm-menu-item fl-menu-item-delete">Delete</button> {# Retain 'danger' for styling delete buttons #}
+        </div>
+    </div>
+</td>
+                 </tr>
+                 <tr class="fl-share-link-row" id="fl-share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %}">
+                     <td colspan="5" class="fl-share-link-cell">
+                         <div class="fl-share-link-display-area" id="fl-share-link-display-{{ file.id }}">
+                             {% if file.is_public and file.public_id %}
+                             <label for="fl-share-url-{{ file.id }}" class="fl-share-link-label">
+                                 Link {% if file.public_password_hash %}🔒{% endif %}:
+                             </label>
+                             <input type="text" id="fl-share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm fl-share-link-input" title="Public share link">
+                             <button class="btn btn-sm fl-btn-copy-share-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}">Copy</button>
+                             {% endif %}
+                         </div>
+                     </td>
+                 </tr>
+                {% endfor %}
 
+                {% if not subfolders and not files %}
+                <tr class="fl-empty-folder-row"><td colspan="5" class="fl-empty-folder-message">This folder is empty.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <div id="fl-action-status" class="fl-action-status-bar"></div>
+
+    {# File Viewer Modal - IDs are kept for JS, classes prefixed #}
+    <div id="fl-file-viewer-modal" class="fl-modal" style="display: none;">
+        <div class="fl-modal-content">
+            <div class="fl-modal-header">
+                <h5 id="fl-modal-filename" class="fl-modal-title-text">File Name</h5>
+                <button type="button" id="fl-btn-close-modal" class="fl-modal-close-button" aria-label="Close">&times;</button>
+            </div>
+            <div class="fl-modal-body">
+                <img id="fl-file-viewer-image" src="" alt="File preview" class="fl-modal-media fl-modal-image" />
+                <video id="fl-file-viewer-video" controls src="" class="fl-modal-media fl-modal-video"></video>
+                <audio id="fl-file-viewer-audio" controls src="" class="fl-modal-media fl-modal-audio"></audio>
+                <iframe id="fl-file-viewer-iframe" src="about:blank" class="fl-modal-iframe"></iframe>
+                <div id="fl-file-viewer-unsupported" class="fl-modal-unsupported-message">
+                    <p>Preview not available for this file type.</p>
+                    <p id="fl-unsupported-filename"></p>
+                    <a href="#" id="fl-unsupported-download-link" class="btn btn-primary btn-sm fl-btn-download-unsupported" download>Download File</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-{# Optional: Add CSS if not in static/style.css #}
-<style>
-    .item-row.cut-item {
-        opacity: 0.6;
-        /* Optional: add specific styling like italic text */
-        /* font-style: italic; */
-    }
-</style>
+{{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-
-    // === CSRF Token Setup ===
-    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
-    if (!csrfToken) {
-        console.warn('CSRF token meta tag not found. Actions might fail.');
-        // Show toast immediately if CSRF is missing, as many actions will fail
-        showToast('Critical Error: Missing security token. Page actions may fail.', 'danger', 10000); // Longer duration
-    }
-
-    // === Element References ===
-    const fileTable = document.getElementById('file-list-table');
-    const pasteButton = document.getElementById('btn-paste');
-    const dropZone = document.getElementById('drop-zone');
-    const uploadForm = document.getElementById('upload-form');
-    const parentFolderInput = uploadForm ? uploadForm.querySelector('input[name="parent_folder_id"]') : null;
-    const currentFolderId = parentFolderInput ? parentFolderInput.value : null; // Get current folder ID
-    const fileUploadInput = document.getElementById('file-upload-input');
-
-    // === Create Folder Form Toggle Logic ===
-    const btnShowCreateFolder = document.getElementById('btn-show-create-folder');
-    const formCreateFolder = document.getElementById('form-create-folder');
-    const btnCancelCreateFolder = document.getElementById('btn-cancel-create-folder');
-    const inputFolderName = formCreateFolder ? formCreateFolder.querySelector('input[name="name"]') : null;
-    if (btnShowCreateFolder && formCreateFolder && btnCancelCreateFolder && inputFolderName) {
-        btnShowCreateFolder.addEventListener('click', () => { formCreateFolder.style.display = 'block'; btnShowCreateFolder.style.display = 'none'; inputFolderName.value = ''; inputFolderName.focus(); });
-        btnCancelCreateFolder.addEventListener('click', () => { formCreateFolder.style.display = 'none'; btnShowCreateFolder.style.display = ''; });
-    }
-
-    // === Clipboard State ===
-    let clipboardData = {{ clipboard_json | safe }}; // Initialize from backend session
-    console.log("Initial clipboard data from session:", clipboardData);
-
-    // --- Helper Functions ---
-
-    // Helper to process fetch responses and extract error messages
-    function handleFetchErrors(response) {
-        if (!response.ok) {
-            // Try to parse JSON error first
-            return response.json()
-                .then(errData => {
-                    // Throw an error with the message from JSON if available
-                    throw new Error(errData.message || `Request failed with status ${response.status}`);
-                })
-                .catch(() => {
-                    // If JSON parsing fails or no message, use status text
-                    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
-                });
-        }
-        // If response is OK, parse JSON
-        return response.json();
-    }
-
-    // Helper for copying text to clipboard (uses toasts now)
-    async function copyToClipboard(text, buttonElement) {
-        try {
-            await navigator.clipboard.writeText(text);
-            showToast('Link copied to clipboard!', 'success');
-            // Optional: Briefly change button text (less necessary with toast)
-            // const originalText = buttonElement.textContent; buttonElement.textContent = 'Copied!'; buttonElement.disabled = true;
-            // setTimeout(() => { buttonElement.textContent = originalText; buttonElement.disabled = false; }, 1500);
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-            showToast('Failed to copy link.', 'danger');
-        }
-    }
-
-    // --- Update Paste Button Visibility ---
-    function updatePasteButtonVisibility() {
-        if (pasteButton) {
-            pasteButton.style.display = clipboardData ? 'inline-block' : 'none';
-        }
-    }
-
-    // --- Visual Cue for Cut Items ---
-    function updateCutItemVisuals() {
-        // Remove 'cut-item' class from all rows first
-        fileTable.querySelectorAll('.item-row').forEach(row => row.classList.remove('cut-item'));
-
-        // Add 'cut-item' class if clipboard operation is 'cut'
-        if (clipboardData && clipboardData.operation === 'cut') {
-            clipboardData.items.forEach(item => {
-                const row = fileTable.querySelector(`.item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
-                if (row) {
-                    row.classList.add('cut-item');
-                }
-            });
-        }
-    }
-
-    // --- Upload Handling (Drag & Drop / Browse) ---
-    function handleFiles(files) {
-        if (!csrfToken) {
-             showToast('Cannot upload: Missing security token.', 'danger');
-             return;
-        }
-        const parentFolderId = parentFolderInput ? parentFolderInput.value : ''; // Ensure parentFolderInput exists
-        let uploadPromises = [];
-        const totalFiles = files.length;
-        let currentFileIndex = 0;
-
-        // Show initial toast
-        showToast(`Starting upload of ${totalFiles} file(s)...`, 'info', 3000);
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('parent_folder_id', parentFolderId);
-
-            // Optional: Show progress per file (more complex, basic example below)
-            // showToast(`Uploading ${file.name}...`, 'info', 2000);
-
-            const uploadPromise = fetch("{{ url_for('upload_file') }}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: formData
-            })
-            .then(response => { // Use handleFetchErrors for consistency
-                 return handleFetchErrors(response); // Will throw error if response not ok
-            })
-            .then(data => {
-                 if (data.status === 'success') {
-                     return { success: true, file: file.name, message: data.message };
-                 } else {
-                     // Should be caught by handleFetchErrors, but handle defensively
-                     throw new Error(data.message || `Upload failed for ${file.name}`);
-                 }
-            })
-            .catch(error => {
-                 console.error(`Error uploading ${file.name}:`, error);
-                 // Return an error object for Promise.allSettled
-                 return { success: false, file: file.name, message: error.message };
-            });
-            uploadPromises.push(uploadPromise);
-        }
-
-        // Wait for all uploads to complete
-        Promise.allSettled(uploadPromises)
-            .then(results => {
-                let successfulUploads = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-                let failedUploads = totalFiles - successfulUploads;
-
-                if (failedUploads > 0) {
-                    const firstErrorResult = results.find(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-                    const errorMsg = firstErrorResult ? (firstErrorResult.reason ? firstErrorResult.reason.message : firstErrorResult.value.message) : 'Unknown error';
-                    showToast(`Upload finished: ${successfulUploads} succeeded, ${failedUploads} failed. Error: ${errorMsg}`, 'warning', 7000); // Warning toast
-                } else {
-                    showToast(`All ${successfulUploads} files uploaded successfully! Reloading...`, 'success', 3000);
-                }
-                // Reload after a delay to show message
-                setTimeout(() => { location.reload(); }, failedUploads > 0 ? 5000 : 2500);
-            });
-    }
-
-    // Setup Drag & Drop Listeners
-    if (dropZone && parentFolderInput && csrfToken) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-        });
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-        });
-        dropZone.addEventListener('drop', (e) => {
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFiles(files);
-            }
-        }, false);
-    } else {
-        if (!dropZone) console.error("Drop zone element not found.");
-        if (!parentFolderInput) console.error("Parent folder input not found in upload form.");
-        // CSRF error already handled at the top
-    }
-
-    // Setup Auto-Upload via Browse Button
-    if (fileUploadInput) {
-        fileUploadInput.addEventListener('change', function(event) {
-            const files = event.target.files;
-            if (files && files.length > 0) {
-                handleFiles(files); // Use the same upload handler
-                event.target.value = null; // Reset input for same-file selection
-            }
-        });
-    } else {
-        console.error("File input element #file-upload-input not found.");
-    }
-
-    // --- Clipboard Actions ---
-    function setClipboard(items, operation) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        // showToast('Updating clipboard...', 'info', 1500); // Optional brief feedback
-
-        fetch(`/api/files/clipboard/set`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ items: items, operation: operation })
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-            if (data.status === 'success') {
-                clipboardData = { items: items, operation: operation }; // Update local state
-                showToast(data.message || `${items.length} item(s) ${operation === 'cut' ? 'cut' : 'copied'} to clipboard.`, 'success');
-                updatePasteButtonVisibility();
-                updateCutItemVisuals();
-            } else {
-                // Should be caught by handleFetchErrors, but handle defensively
-                throw new Error(data.message || `Failed to ${operation} items.`);
-            }
-        })
-        .catch(error => {
-            console.error(`Error setting clipboard for ${operation}:`, error);
-            showToast(`Clipboard Error: ${error.message}`, 'danger');
-            clipboardData = null; // Clear local state on error
-            updatePasteButtonVisibility();
-            updateCutItemVisuals();
-        });
-    }
-
-    function handlePaste() {
-        if (!clipboardData) {
-            showToast('Clipboard is empty.', 'info');
-            return;
-        }
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-
-        const operation = clipboardData.operation;
-        showToast(`Pasting ${clipboardData.items.length} item(s)...`, 'info', 3000);
-
-        fetch(`/api/files/clipboard/paste`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ target_folder_id: currentFolderId })
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-            clipboardData = null; // Clear local state after backend call
-            updatePasteButtonVisibility();
-            updateCutItemVisuals();
-
-            if (data.status === 'success') {
-                showToast(data.message || 'Paste successful! Reloading...', 'success');
-                setTimeout(() => { location.reload(); }, 1500);
-            } else {
-                // Handle partial/full failure messages from backend
-                let errorMsg = data.message || 'Paste operation failed.';
-                if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
-                    errorMsg = `Paste failed for some items: ${data.errors.join(', ')}`;
-                }
-                showToast(errorMsg, 'warning'); // Use warning for partial/full failures
-                // No automatic reload on failure
-            }
-        })
-        .catch(error => {
-            clipboardData = null; // Clear local state on error
-            updatePasteButtonVisibility();
-            updateCutItemVisuals();
-            console.error('Error during paste operation:', error);
-            showToast(`Paste Error: ${error.message}`, 'danger');
-        });
-    }
-
-    // --- Rename Functions ---
-    function handleRenameButtonClick(menuItemOrButton, itemType) {
-        const row = menuItemOrButton.closest('.item-row');
-        if (!row) return;
-        const id = row.dataset.itemId;
-        const currentName = row.dataset.itemName;
-        const displayElement = row.querySelector('.itemname-display');
-        const inputField = row.querySelector('.itemname-input');
-
-        if (displayElement && inputField) {
-            closeAllContextMenus();
-            // Hide other rename inputs
-            fileTable.querySelectorAll('.itemname-input').forEach(inp => {
-                 if (inp !== inputField && inp.style.display !== 'none') { resetRenameInput(inp); }
-            });
-            inputField.value = currentName;
-            displayElement.style.display = 'none';
-            inputField.style.display = 'inline-block';
-            inputField.focus();
-            inputField.select();
-        } else { console.error("Rename elements not found for ID:", id); }
-    }
-
-    function handleRenameInputBlurOrEnter(inputField) {
-        if (inputField.style.display === 'none') return;
-        const row = inputField.closest('.item-row');
-        if (!row) return;
-        const itemType = row.dataset.itemType;
-        const id = row.dataset.itemId;
-        const originalName = row.dataset.itemName;
-        const newName = inputField.value.trim();
-
-        resetRenameInput(inputField); // Hide input, show display span
-
-        if (newName && newName !== originalName) {
-            const displayElement = row.querySelector('.itemname-display');
-            saveNewName(itemType, id, newName, displayElement, row);
-        } else if (!newName) {
-            showToast('Name cannot be empty.', 'warning');
-            resetRenameInput(inputField); // Still reset
-        }
-        // If newName === originalName, do nothing (already reset)
-    }
-
-    function resetRenameInput(inputField) {
-        const row = inputField.closest('.item-row');
-        if (!row) return;
-        const displayElement = row.querySelector('.itemname-display');
-        if (displayElement) displayElement.style.display = '';
-        inputField.style.display = 'none';
-    }
-
-    function saveNewName(itemType, id, newName, displayElement, rowElement) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        // showToast(`Renaming to "${newName}"...`, 'info', 1500); // Optional brief feedback
-        let url = itemType === 'folder' ? `/files/folder/rename/${id}` : `/files/rename/${id}`;
-
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ new_name: newName })
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-            if (data.status === 'success' && data.new_name) {
-                showToast(data.message || `Rename successful!`, 'success');
-                const nameContainer = (itemType === 'folder' && displayElement) ? displayElement.querySelector('a') : displayElement;
-                if (nameContainer) nameContainer.textContent = data.new_name;
-                if (rowElement) rowElement.dataset.itemName = data.new_name; // Update the main data attribute
-            } else {
-                // Should be caught by handleFetchErrors, but handle defensively
-                throw new Error(data.message || 'Rename operation failed.');
-            }
-          })
-          .catch(error => {
-             console.error(`Error renaming ${itemType}:`, error);
-             showToast(`Rename Error: ${error.message}`, 'danger');
-             // Revert display name in UI on error
-             if (displayElement && rowElement) {
-                 const originalName = rowElement.dataset.itemName;
-                 const nameContainer = (itemType === 'folder' && displayElement) ? displayElement.querySelector('a') : displayElement;
-                 if (nameContainer && originalName) nameContainer.textContent = originalName;
-             }
-          });
-    }
-
-    // --- Share/Unshare Functions ---
-    function handleShareFile(fileId, shareToggleButton) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        // showToast(`Sharing file...`, 'info', 1500); // Optional feedback
-
-        const addPassword = confirm("Protect this share link with a password?");
-        let password = null;
-        if (addPassword) {
-            password = prompt("Enter password (leave blank for none):");
-            if (password === null) { showToast('Share cancelled.', 'info'); return; } // User cancelled prompt
-        }
-        const payload = {};
-        if (password !== null && password !== "") { payload.password = password; }
-
-        fetch(`/files/share/${fileId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-             if (data.status === 'success') {
-                 showToast(data.message || 'File shared!', 'success');
-                 updateShareUI(fileId, true, data.share_url, data.password_protected, shareToggleButton);
-             } else {
-                 throw new Error(data.message || 'Failed to share file.');
-             }
-         })
-         .catch(error => {
-             console.error('Error during share fetch:', error);
-             showToast(`Share Error: ${error.message}`, 'danger');
-         });
-    }
-
-    function handleUnshareFile(fileId, shareToggleButton) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        // showToast(`Unsharing file...`, 'info', 1500); // Optional feedback
-
-        fetch(`/files/unshare/${fileId}`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-             if (data.status === 'success') {
-                 showToast(data.message || 'Sharing disabled.', 'success');
-                 updateShareUI(fileId, false, null, false, shareToggleButton);
-             } else {
-                 throw new Error(data.message || 'Failed to unshare file.');
-             }
-         })
-         .catch(error => {
-             console.error('Error during unshare fetch:', error);
-             showToast(`Unshare Error: ${error.message}`, 'danger');
-         });
-    }
-
-    // (updateShareUI function remains the same as it only updates the UI)
-    function updateShareUI(fileId, isShared, shareUrl, passwordProtected, shareToggleButton) {
-        const linkRow = document.getElementById(`share-link-row-${fileId}`);
-        const linkDisplayDiv = linkRow ? linkRow.querySelector('.share-link-display') : null;
-        const row = document.querySelector(`.item-row[data-item-id="${fileId}"][data-item-type="file"]`);
-
-        if (shareToggleButton) { shareToggleButton.innerHTML = isShared ? `Unshare ${passwordProtected ? '&#128274;' : ''}` : 'Share'; }
-        if(row){ row.dataset.isPublic = isShared ? 'true' : 'false'; row.dataset.isPasswordProtected = passwordProtected ? 'true' : 'false'; row.dataset.shareUrl = shareUrl || ''; }
-        if (linkDisplayDiv) linkDisplayDiv.innerHTML = '';
-        if (linkRow) linkRow.style.display = 'none';
-
-        if (isShared && linkRow && linkDisplayDiv && shareUrl) {
-            const label = document.createElement('label'); label.htmlFor = `share-url-${fileId}`; label.style.fontSize = '0.8em'; label.style.marginRight = '5px'; label.innerHTML = 'Link ' + (passwordProtected ? '&#128274;' : '') + ':';
-            const input = document.createElement('input'); input.type = 'text'; input.readOnly = true; input.value = shareUrl; input.id = `share-url-${fileId}`; input.className = 'form-control-sm share-link-input'; input.style.width = '60%'; input.style.fontSize = '0.8em'; input.style.backgroundColor = 'var(--bg-color)'; input.style.color = 'var(--text-color)'; input.style.border = '1px solid var(--border-color)'; input.title = 'Public share link'; input.setAttribute('aria-label', 'Share Link');
-            const copyBtn = document.createElement('button'); copyBtn.className = 'btn btn-sm btn-copy-link'; copyBtn.dataset.link = shareUrl; copyBtn.textContent = 'Copy'; copyBtn.style.marginLeft = '5px';
-            linkDisplayDiv.appendChild(label); linkDisplayDiv.appendChild(input); linkDisplayDiv.appendChild(copyBtn);
-            linkRow.style.display = '';
-        }
-    }
-
-
-    // --- Archive/Extract Functions ---
-    function handleArchiveFolder(folderId, folderName) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        if (!confirm(`Archive the folder "${folderName}"? This might take a while.`)) return;
-
-        showToast('Archiving folder... (this may take a moment)', 'info', 10000); // Longer info toast
-
-        fetch(`/files/folder/archive/${folderId}`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-            if (data.status === 'success') {
-                showToast(data.message || 'Folder archived! Reloading...', 'success');
-                setTimeout(() => { location.reload(); }, 1500);
-            } else {
-                throw new Error(data.message || 'Failed to archive folder.');
-            }
-        })
-        .catch(error => {
-            console.error('Error archiving folder:', error);
-            showToast(`Archive Error: ${error.message}`, 'danger');
-        });
-    }
-
-    function handleExtractFile(fileId, fileName) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        if (!confirm(`Extract the archive "${fileName}" here? Existing files might be overwritten.`)) return;
-
-        showToast('Extracting archive... (this may take a moment)', 'info', 10000); // Longer info toast
-
-        fetch(`/files/extract/${fileId}`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-            if (data.status === 'success') {
-                showToast(data.message || 'Archive extracted! Reloading...', 'success');
-                setTimeout(() => { location.reload(); }, 1500);
-            } else {
-                // Handle specific error cases like storage limit from backend
-                if (data.message && data.message.toLowerCase().includes('insufficient storage')) {
-                     showToast(data.message, 'warning', 7000); // Warning for storage limit
-                } else {
-                     throw new Error(data.message || 'Failed to extract archive.');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error extracting archive:', error);
-            showToast(`Extract Error: ${error.message}`, 'danger');
-        });
-    }
-
-    // --- Delete Functions ---
-    function handleDeleteFile(fileId, fileName, menuItem) {
-         if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-         if (!confirm(`Are you sure you want to permanently delete '${fileName}'?`)) return;
-
-         // showToast('Deleting file...', 'info', 1500); // Optional feedback
-
-         fetch(`/files/delete/${fileId}`, {
-             method: 'POST',
-             headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-         })
-         .then(handleFetchErrors) // Use helper
-         .then(data => {
-             if (data.status === 'success') {
-                 showToast(data.message || `File '${fileName}' deleted!`, 'success');
-                 menuItem.closest('tr').remove();
-                 const shareRow = document.getElementById(`share-link-row-${fileId}`);
-                 if(shareRow) shareRow.remove();
-             } else {
-                 throw new Error(data.message || 'Failed to delete file.');
-             }
-         })
-         .catch(error => {
-             console.error('Error deleting file:', error);
-             showToast(`Delete Error: ${error.message}`, 'danger');
-         });
-     }
-
-    function handleDeleteFolder(folderId, folderName, menuItem) {
-        if (!csrfToken) { showToast('Error: Missing security token.', 'danger'); return; }
-        if (!confirm(`WARNING: This will permanently delete the folder '${folderName}' and ALL its contents (files and subfolders). Are you absolutely sure?`)) return;
-
-        // showToast('Deleting folder...', 'info', 3000); // Optional feedback
-
-        fetch(`/files/folder/delete/${folderId}`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
-        })
-        .then(handleFetchErrors) // Use helper
-        .then(data => {
-             if (data.status === 'success') {
-                 showToast(data.message || `Folder '${folderName}' deleted!`, 'success');
-                 menuItem.closest('tr').remove();
-             } else {
-                 throw new Error(data.message || 'Failed to delete folder.');
-             }
-        })
-        .catch(error => {
-            console.error('Error deleting folder:', error);
-            showToast(`Delete Error: ${error.message}`, 'danger');
-        });
-    }
-
-
-    // --- Context Menu Logic ---
-    function closeAllContextMenus(exceptMenu = null) {
-        document.querySelectorAll('.context-menu').forEach(menu => {
-            if (menu !== exceptMenu) { menu.style.display = 'none'; }
-        });
-    }
-
-    // --- Main Event Listener Setup ---
-    if (fileTable) {
-        const tableBody = fileTable.querySelector('tbody');
-        if (tableBody) {
-            // --- Event Delegation for Clicks ---
-            tableBody.addEventListener('click', function(event) {
-                const target = event.target;
-                const row = target.closest('.item-row');
-                const isContextMenuButton = target.classList.contains('btn-context-menu');
-                const isMenuItem = target.classList.contains('menu-item');
-                const isCopyLinkButton = target.classList.contains('btn-copy-link');
-
-                // Close menus if clicking outside specific interactive elements
-                if (!isMenuItem && !isContextMenuButton && !isCopyLinkButton && !target.closest('.context-menu-container') && !target.classList.contains('itemname-input')) {
-                     closeAllContextMenus();
-                }
-
-                // Handle Hamburger Button Click
-                if (isContextMenuButton) {
-                    const menu = target.nextElementSibling;
-                    if (menu && menu.classList.contains('context-menu')) {
-                        const isVisible = menu.style.display === 'block';
-                        closeAllContextMenus(); // Close others first
-                        menu.style.display = isVisible ? 'none' : 'block';
-                    }
-                    event.stopPropagation(); // Prevent document click listener from closing it immediately
-                }
-                // Handle Menu Item Clicks
-                else if (isMenuItem && row) {
-                    const itemId = row.dataset.itemId;
-                    const itemType = row.dataset.itemType;
-                    const itemName = row.dataset.itemName;
-                    const isPublic = row.dataset.isPublic === 'true';
-                    const isEditable = row.getAttribute('data-is-editable') === 'true'; // Use getAttribute for robustness
-
-                    // Copy Action
-                    if (target.classList.contains('menu-item-copy')) {
-                        setClipboard([{ id: itemId, type: itemType }], 'copy');
-                    }
-                    // Cut Action
-                    else if (target.classList.contains('menu-item-cut')) {
-                        setClipboard([{ id: itemId, type: itemType }], 'cut');
-                    }
-                    // Edit Action
-                    else if (target.classList.contains('menu-item-edit')) {
-                        if (itemType === 'file' && isEditable) {
-                            window.location.href = `/files/edit/${itemId}`;
-                        } else {
-                            showToast('This item cannot be edited.', 'info');
-                        }
-                    }
-                    // File Actions
-                    else if (itemType === 'file') {
-                        if (target.classList.contains('menu-item-rename')) { handleRenameButtonClick(target, 'file'); }
-                        else if (target.classList.contains('menu-item-extract')) { handleExtractFile(itemId, itemName); }
-                        else if (target.classList.contains('menu-item-share-toggle')) { if(isPublic) { handleUnshareFile(itemId, target); } else { handleShareFile(itemId, target); } }
-                        else if (target.classList.contains('menu-item-delete')) { handleDeleteFile(itemId, itemName, target); }
-                    }
-                    // Folder Actions
-                    else if (itemType === 'folder') {
-                         if (target.classList.contains('menu-item-rename-folder')) { handleRenameButtonClick(target, 'folder'); }
-                         else if (target.classList.contains('menu-item-archive-folder')) { handleArchiveFolder(itemId, itemName); }
-                         else if (target.classList.contains('menu-item-delete-folder')) { handleDeleteFolder(itemId, itemName, target); }
-                    }
-
-                    closeAllContextMenus(); // Close menu after action selected
-                }
-                 // Handle Copy Link Button
-                 else if (isCopyLinkButton) {
-                     copyToClipboard(target.dataset.link, target);
-                 }
-            }); // End tableBody click listener
-
-            // --- Event Delegation for Rename Input Actions ---
-            tableBody.addEventListener('focusout', function(event) {
-                 if (event.target.classList.contains('itemname-input')) {
-                     // Delay slightly to allow click on another element before blur triggers
-                     setTimeout(() => {
-                         // Check if focus is still within the input (e.g., user clicked inside it)
-                         if (document.activeElement !== event.target) {
-                             handleRenameInputBlurOrEnter(event.target);
-                         }
-                     }, 150);
-                 }
-            });
-            tableBody.addEventListener('keydown', function(event) {
-                 if (event.target.classList.contains('itemname-input')) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault(); // Prevent form submission if inside one
-                        handleRenameInputBlurOrEnter(event.target);
-                    } else if (event.key === 'Escape') {
-                        resetRenameInput(event.target); // Cancel rename on Escape
-                    }
-                 }
-            });
-
-        } else { console.error("Could not find tbody within #file-list-table"); }
-    } else { console.error("Could not find #file-list-table element"); }
-
-     // Global listener to close menus when clicking outside
-     document.addEventListener('click', function(event) {
-         // Close menus if the click is not on a menu button and not inside a menu container
-         if (!event.target.classList.contains('btn-context-menu') && !event.target.closest('.context-menu-container')) {
-             closeAllContextMenus();
-         }
-     });
-
-     // Listener for the main Paste button
-     if (pasteButton) {
-         pasteButton.addEventListener('click', handlePaste);
-     }
-
-     // Initial setup for paste button visibility and cut item styling
-     updatePasteButtonVisibility();
-     updateCutItemVisuals();
-
-}); // End DOMContentLoaded
+    window.PyCloud_ClipboardData = {{ clipboard_json | default('null') | safe }};
+    window.PyCloud_UploadFileURL = "{{ url_for('upload_file') }}";
+    // Pass any other necessary config for files.js, e.g., viewable mimes if checked in JS
+    window.PyCloud_Config = {
+        VIEWABLE_MIMES_IFRAME: {{ config.get('VIEWABLE_MIMES_IFRAME', []) | tojson | safe }}
+    };
 </script>
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files.js') }}"></script>
 {% endblock %}
