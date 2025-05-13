@@ -3,129 +3,137 @@
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
-{% block content %}
-<div class="profile-page-container">
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_profile.css') }}">
+{% endblock %}
 
-    <div class="profile-header">
+{% block content %}
+<div class="up-page-container"> {# Main wrapper for the page content #}
+
+    <div class="up-profile-header"> {# Was profile-header #}
         {# --- Column 1: Profile Picture --- #}
-        <div class="profile-picture-area">
+        <div class="up-picture-area"> {# Was profile-picture-area #}
             {% if profile_picture_url %}
-                <img src="{{ profile_picture_url }}" alt="{{ user.username }}'s Profile Picture" class="profile-picture">
+                <img src="{{ profile_picture_url }}" alt="{{ user.username }}'s Profile Picture" class="up-picture"> {# Was profile-picture #}
             {% else %}
-                <div class="profile-picture-placeholder">
+                <div class="up-picture-placeholder"> {# Was profile-picture-placeholder #}
                     {{ user.username[0]|upper }}
                 </div>
             {% endif %}
         </div>
 
         {# --- Column 2: Main Info (includes Left and Right sub-columns) --- #}
-        <div class="profile-info-main">
+        <div class="up-info-main"> {# Was profile-info-main #}
 
             {# --- Sub-Column A: Left Side (Username, Stats, Buttons) --- #}
-            <div class="profile-info-left">
-                <h2 class="profile-username">{{ user.username }}</h2>
-                <div class="profile-stats">
-                    <span>Followers: <strong>{{ user.followers.count() }}</strong></span>
-                    <span style="margin: 0 10px;">|</span>
-                    <span>Following: <strong>{{ user.followed.count() }}</strong></span>
+            <div class="up-info-left"> {# Was profile-info-left #}
+                <h2 class="up-username">{{ user.username }}</h2> {# Was profile-username #}
+                <div class="up-stats"> {# Was profile-stats #}
+                    <span>Followers: <strong class="up-stat-value">{{ user.followers.count() }}</strong></span>
+                    <span class="up-stat-separator">|</span>
+                    <span>Following: <strong class="up-stat-value">{{ user.followed.count() }}</strong></span>
                 </div>
-                <p class="profile-member-since">Member since {{ member_since_date }} ({{ member_for }})</p>
-                <div class="profile-actions">
+                <p class="up-member-since">Member since {{ member_since_date }} ({{ member_for }})</p> {# Was profile-member-since #}
+                <div class="up-actions-bar"> {# Was profile-actions #}
                     {% if current_user.id == user.id %}
-                        <a href="{{ url_for('edit_profile') }}" class="btn btn-secondary btn-sm">Edit Profile</a>
-                        <a href="{{ url_for('create_post') }}" class="btn btn-primary btn-sm">New Post</a>
+                        <a href="{{ url_for('edit_profile') }}" class="btn btn-secondary btn-sm up-btn-edit-profile">Edit Profile</a>
+                        <a href="{{ url_for('create_post') }}" class="btn btn-primary btn-sm up-btn-new-post">New Post</a>
                     {% else %}
-                        {# Follow/Unfollow Button #}
                         {% set is_following = current_user.is_following(user) %}
-                        <form method="POST" action="{{ url_for('follow_user', username=user.username) if not is_following else url_for('unfollow_user', username=user.username) }}" style="display: inline;">
+                        <form method="POST" action="{{ url_for('follow_user', username=user.username) if not is_following else url_for('unfollow_user', username=user.username) }}" class="up-follow-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <button type="submit" class="btn {{ 'btn-danger' if is_following else 'btn-primary' }} btn-sm">
+                            <button type="submit" class="btn {{ 'btn-danger' if is_following else 'btn-primary' }} btn-sm up-btn-follow-toggle">
                                 {{ 'Unfollow' if is_following else 'Follow' }}
                             </button>
                         </form>
                     {% endif %}
                 </div>
-            </div>{# End profile-info-left #}
+            </div>{# End up-info-left #}
 
             {# --- Sub-Column B: Right Side (Bio Box, Links Box) --- #}
-            <div class="profile-info-right">
-
-                {# Box for Bio (Scrollable) #}
+            <div class="up-info-right"> {# Was profile-info-right #}
                 {% if user.bio %}
-                <div class="profile-bio-box"> {# New container for bio box styling #}
-                    {# Removed explicit <p> tag, applying styles to container #}
+                <div class="up-bio-box"> {# Was profile-bio-box #}
                     {{ user.bio }}
                 </div>
                 {% endif %}
 
-                {# Box for Links #}
                 {% set has_links = user.github_url or user.spotify_url or user.youtube_url or user.twitter_url or user.steam_url or user.twitch_url or user.discord_server_url or user.reddit_url %}
                 {% if has_links %}
-                <div class="profile-links-box"> {# New container for links box styling #}
-                    <div class="profile-header-links">
-                        <ul>
-                            {# Link items remain the same inside here #}
-                            {% if user.github_url %}<li><a href="{{ user.github_url }}" target="_blank" rel="noopener noreferrer" title="GitHub"><img src="{{ url_for('static', filename='icons/github.svg') }}" alt="GitHub" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.spotify_url %}<li><a href="{{ user.spotify_url }}" target="_blank" rel="noopener noreferrer" title="Spotify"><img src="{{ url_for('static', filename='icons/spotify.svg') }}" alt="Spotify" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.youtube_url %}<li><a href="{{ user.youtube_url }}" target="_blank" rel="noopener noreferrer" title="YouTube"><img src="{{ url_for('static', filename='icons/youtube.svg') }}" alt="YouTube" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.twitter_url %}<li><a href="{{ user.twitter_url }}" target="_blank" rel="noopener noreferrer" title="X (Twitter)"><img src="{{ url_for('static', filename='icons/twitter.svg') }}" alt="X (Twitter)" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.steam_url %}<li><a href="{{ user.steam_url }}" target="_blank" rel="noopener noreferrer" title="Steam"><img src="{{ url_for('static', filename='icons/steam.svg') }}" alt="Steam" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.twitch_url %}<li><a href="{{ user.twitch_url }}" target="_blank" rel="noopener noreferrer" title="Twitch"><img src="{{ url_for('static', filename='icons/twitch.svg') }}" alt="Twitch" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.discord_server_url %}<li><a href="{{ user.discord_server_url }}" target="_blank" rel="noopener noreferrer" title="Discord Server"><img src="{{ url_for('static', filename='icons/discord.svg') }}" alt="Discord Server" class="profile-link-icon"></a></li>{% endif %}
-                            {% if user.reddit_url %}<li><a href="{{ user.reddit_url }}" target="_blank" rel="noopener noreferrer" title="Reddit"><img src="{{ url_for('static', filename='icons/reddit.svg') }}" alt="Reddit" class="profile-link-icon"></a></li>{% endif %}
-                        </ul>
-                    </div>
+                <div class="up-links-box"> {# Was profile-links-box #}
+                    <ul class="up-links-list"> {# Was profile-header-links ul #}
+                        {% if user.github_url %}<li><a href="{{ user.github_url }}" target="_blank" rel="noopener noreferrer" title="GitHub"><img src="{{ url_for('static', filename='icons/github.svg') }}" alt="GitHub" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.spotify_url %}<li><a href="{{ user.spotify_url }}" target="_blank" rel="noopener noreferrer" title="Spotify"><img src="{{ url_for('static', filename='icons/spotify.svg') }}" alt="Spotify" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.youtube_url %}<li><a href="{{ user.youtube_url }}" target="_blank" rel="noopener noreferrer" title="YouTube"><img src="{{ url_for('static', filename='icons/youtube.svg') }}" alt="YouTube" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.twitter_url %}<li><a href="{{ user.twitter_url }}" target="_blank" rel="noopener noreferrer" title="X (Twitter)"><img src="{{ url_for('static', filename='icons/twitter.svg') }}" alt="X (Twitter)" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.steam_url %}<li><a href="{{ user.steam_url }}" target="_blank" rel="noopener noreferrer" title="Steam"><img src="{{ url_for('static', filename='icons/steam.svg') }}" alt="Steam" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.twitch_url %}<li><a href="{{ user.twitch_url }}" target="_blank" rel="noopener noreferrer" title="Twitch"><img src="{{ url_for('static', filename='icons/twitch.svg') }}" alt="Twitch" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.discord_server_url %}<li><a href="{{ user.discord_server_url }}" target="_blank" rel="noopener noreferrer" title="Discord Server"><img src="{{ url_for('static', filename='icons/discord.svg') }}" alt="Discord Server" class="up-link-icon"></a></li>{% endif %}
+                        {% if user.reddit_url %}<li><a href="{{ user.reddit_url }}" target="_blank" rel="noopener noreferrer" title="Reddit"><img src="{{ url_for('static', filename='icons/reddit.svg') }}" alt="Reddit" class="up-link-icon"></a></li>{% endif %}
+                    </ul>
                 </div>
                 {% endif %}
+            </div> {# End up-info-right #}
+        </div> {# End of up-info-main #}
+    </div> {# End of up-profile-header #}
 
-            </div> {# End profile-info-right #}
-
-        </div> {# End of .profile-info-main #}
-    </div> {# End of .profile-header #}
-
-    {# The profile-details section remains for other content below the header #}
-    <div class="profile-details">
-        {# --- User's Posts Section --- #}
-        <div class="user-posts-section">
-            <h3>{{ user.username }}'s Posts</h3>
-             <div class="profile-sort-options feed-sort-options"> {# Re-use feed-sort-options for similar styling #}
-                <span class="sort-label">Sort by:</span>
-                <a href="{{ url_for('user_profile', username=user.username, sort='recent_desc') }}" class="sort-link {% if current_sort == 'recent_desc' %}active{% endif %}">Lastest</a> |
-                <a href="{{ url_for('user_profile', username=user.username, sort='recent_asc') }}" class="sort-link {% if current_sort == 'recent_asc' %}active{% endif %}">Oldest</a> |
-                <a href="{{ url_for('user_profile', username=user.username, sort='likes_desc') }}" class="sort-link {% if current_sort == 'likes_desc' %}active{% endif %}">Most Liked</a> |
-                <a href="{{ url_for('user_profile', username=user.username, sort='comments_desc') }}" class="sort-link {% if current_sort == 'comments_desc' %}active{% endif %}">Most Commented</a> |
-                <a href="{{ url_for('user_profile', username=user.username, sort='shares_desc') }}" class="sort-link {% if current_sort == 'shares_desc' %}active{% endif %}">Most Shared</a>
-</div>
-                {# Add more sort links as needed #}
+    <div class="up-profile-details-content"> {# Was profile-details #}
+        <div class="up-posts-section"> {# Was user-posts-section #}
+            <div class="up-posts-section-header"> {# Was section-header-with-sort #}
+                <h3 class="up-posts-section-title">{{ user.username }}'s Posts</h3> {# Specific class for this h3 #}
+                {# Sort options structure copied from post_feed.html, using up- prefixes #}
+                <div class="up-sort-options"> {# Was profile-sort-options feed-sort-options #}
+                    <div class="up-sort-dropdown">
+                        <button class="up-sort-dropdown-toggle">
+                            {% if current_sort == 'recent_desc' %}Latest
+                            {% elif current_sort == 'recent_asc' %}Oldest
+                            {% elif current_sort == 'likes_desc' %}Most Liked
+                            {% elif current_sort == 'comments_desc' %}Most Commented
+                            {% elif current_sort == 'shares_desc' %}Most Shared
+                            {% else %}Sort Posts
+                            {% endif %}
+                            <img src="{{ url_for('static', filename='icons/chevron-down.svg') }}" alt="Sort options" class="up-sort-arrow-icon">
+                        </button>
+                        <div class="up-sort-dropdown-menu">
+                            <a href="{{ url_for('user_profile', username=user.username, sort='recent_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'recent_desc' %}active{% endif %}">Latest</a>
+                            <a href="{{ url_for('user_profile', username=user.username, sort='recent_asc') }}" class="up-sort-dropdown-item {% if current_sort == 'recent_asc' %}active{% endif %}">Oldest</a>
+                            <a href="{{ url_for('user_profile', username=user.username, sort='likes_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'likes_desc' %}active{% endif %}">Most Liked</a>
+                            <a href="{{ url_for('user_profile', username=user.username, sort='comments_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'comments_desc' %}active{% endif %}">Most Commented</a>
+                            <a href="{{ url_for('user_profile', username=user.username, sort='shares_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'shares_desc' %}active{% endif %}">Most Shared</a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {% if posts and posts.items %}
-                <div class="posts-list">
+                <div class="up-posts-list-container"> {# Was posts-list, now specific #}
                     {% for post in posts.items %}
-                        {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }} {# Pass comment_form #}
+                        {# display_post macro uses pm- prefixed classes #}
+                        {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
                     {% endfor %}
                 </div>
 
-                {# Pagination Links for Profile Posts #}
                 {% if posts.has_prev or posts.has_next %}
-                <nav aria-label="User posts navigation" class="pagination-nav">
-                    <ul class="pagination">
-                        <li class="page-item {% if not posts.has_prev %}disabled{% endif %}">
-                            <a class="page-link" href="{{ url_for('user_profile', username=user.username, page=posts.prev_num, sort=current_sort) if posts.has_prev else '#' }}" aria-label="Previous">
+                <nav aria-label="User posts navigation" class="pagination-nav up-pagination-nav"> {# General + specific #}
+                    <ul class="pagination up-pagination-list"> {# General + specific #}
+                        <li class="page-item up-page-item {% if not posts.has_prev %}disabled{% endif %}">
+                            <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.prev_num, sort=current_sort) if posts.has_prev else '#' }}" aria-label="Previous">
                                 &laquo; Previous
                             </a>
                         </li>
                         {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                             {% if page_num %}
-                                <li class="page-item {% if posts.page == page_num %}active{% endif %}">
-                                    <a class="page-link" href="{{ url_for('user_profile', username=user.username, page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                                <li class="page-item up-page-item {% if posts.page == page_num %}active{% endif %}">
+                                    <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=page_num, sort=current_sort) }}">{{ page_num }}</a>
                                 </li>
                             {% else %}
-                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                <li class="page-item up-page-item disabled"><span class="page-link up-page-link">...</span></li>
                             {% endif %}
                         {% endfor %}
-                        <li class="page-item {% if not posts.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="{{ url_for('user_profile', username=user.username, page=posts.next_num, sort=current_sort) if posts.has_next else '#' }}" aria-label="Next">
+                        <li class="page-item up-page-item {% if not posts.has_next %}disabled{% endif %}">
+                            <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.next_num, sort=current_sort) if posts.has_next else '#' }}" aria-label="Next">
                                 Next &raquo;
                             </a>
                         </li>
@@ -133,7 +141,7 @@
                 </nav>
                 {% endif %}
             {% else %}
-                <p>{{ user.username }} hasn't made any posts yet.</p>
+                <p class="up-no-posts-message">{{ user.username }} hasn't made any posts yet.</p> {# Specific class #}
             {% endif %}
         </div>
     </div>
@@ -142,6 +150,5 @@
 
 {% block scripts %}
     {{ super() }}
-    <script src="{{ url_for('static', filename='posts.js') }}"></script>
-    {# Existing profile styles are in user_profile.html, will add post-specific styles to style.css #}
+    <script src="{{ url_for('static', filename='js/posts.js') }}"></script>
 {% endblock %}
