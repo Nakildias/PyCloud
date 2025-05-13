@@ -3,235 +3,64 @@
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ollama_chat.css') }}">
+{% endblock %}
+
 {% block content %}
-    <div id="ollama-chat-history">
+    {# Main container for chat history, ID updated, class added #}
+    <div id="oc-chat-history" class="oc-chat-history-area">
         {% if ollama_chat_history %}
             {% for message in ollama_chat_history %}
-                 {# Updated structure for initial messages #}
-                 <div class="ollama-chat-message {{ message.role }}">
-                    <div class="message-header">
-                        <strong class="message-sender">{{ message.role|capitalize }}:</strong>
+                 <div class="oc-message oc-message-role-{{ message.role }}"> {# Prefixed class, dynamic role class #}
+                    <div class="oc-message-header">
+                        <strong class="oc-message-sender">{{ message.role|capitalize }}:</strong>
                         {% if message.timestamp %}
-                            <span class="message-timestamp" data-timestamp="{{ message.timestamp }}"></span> {# JS will format #}
+                            {# data-timestamp kept for JS #}
+                            <span class="oc-message-timestamp" data-timestamp="{{ message.timestamp }}"></span>
                         {% endif %}
                     </div>
-                    <div class="message-content" style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</div>
+                    <div class="oc-message-content">{{ message.content }}</div> {# Prefixed class #}
                 </div>
             {% endfor %}
         {% else %}
-            <p id="empty-history-msg" style="color: #aaa; text-align: center; margin: auto;">
+            {# Updated ID and class for empty message #}
+            <p id="oc-empty-history-msg" class="oc-empty-history-message">
                 Ollama chat history is empty. Start by sending a message.
             </p>
         {% endif %}
     </div>
 
-    <form id="ollama-chat-form" method="POST" action="#" novalidate>
+    {# Chat input form, ID updated, class added #}
+    <form id="oc-chat-form" method="POST" action="#" novalidate class="oc-chat-form-element">
         {{ form.hidden_tag() }}
-        <div class="chat-input-inner">
-            <button type="button" id="clear-history-button" class="btn" aria-label="Clear chat history">
-                <img src="{{ url_for('static', filename='icons/trash.svg') }}" alt="Clear History" width="20" height="20" style="display: block; margin: auto;">
+        <div class="oc-chat-input-inner"> {# Prefixed class #}
+            {# Clear history button, ID updated, class added #}
+            <button type="button" id="oc-clear-history-button" class="btn oc-btn-clear-history" aria-label="Clear chat history">
+                <img src="{{ url_for('static', filename='icons/trash.svg') }}" alt="Clear History" class="oc-icon-clear"> {# Prefixed class for icon styling #}
             </button>
-            {{ form.message(class="form-control", rows="1", placeholder="Type your message...", id="message") }}
-            <button type="submit" id="send-button" class="btn btn-primary" aria-label="Send message">
-                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" width="20" height="20" style="display: block; margin: auto;">
+            {# Textarea for message input, ID updated, class added, kept form-control #}
+            {{ form.message(class="form-control oc-message-textarea", rows="1", placeholder="Type your message...", id="oc-message-textarea") }}
+            {# Send button, ID updated, class added #}
+            <button type="submit" id="oc-send-button" class="btn btn-primary oc-btn-send" aria-label="Send message">
+                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" class="oc-icon-send"> {# Prefixed class for icon styling #}
             </button>
         </div>
+        {# Removed file-name-display as it wasn't styled or used in JS #}
     </form>
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // --- Element References (same as before) ---
-    const ollamaChatHistoryDiv = document.getElementById('ollama-chat-history');
-    const messageTextarea = document.getElementById('message');
-    const ollamaChatForm = document.getElementById('ollama-chat-form');
-    const sendButton = document.getElementById('send-button');
-    const clearHistoryButton = document.getElementById('clear-history-button');
-    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
+    {{ super() }} {# Include scripts from base.html if any #}
 
-    if (!ollamaChatHistoryDiv || !messageTextarea || !ollamaChatForm || !sendButton) {
-        console.error("Ollama Chat Error: Could not find essential chat elements.");
-        if (typeof showToast === 'function') {
-            showToast("Error initializing Ollama chat UI.", "danger", 10000);
-        }
-        return;
-    }
-
-    // --- Helper Functions ---
-    function scrollOllamaChatToBottom() {
-        setTimeout(() => {
-            if (ollamaChatHistoryDiv) {
-                ollamaChatHistoryDiv.scrollTop = ollamaChatHistoryDiv.scrollHeight;
-            }
-        }, 1);
-    }
-
-    function resizeTextarea(textarea) {
-        requestAnimationFrame(() => {
-            textarea.style.height = 'auto';
-            const newScrollHeight = textarea.scrollHeight;
-            textarea.style.height = (newScrollHeight + 2) + 'px';
-        });
-    }
-
-    /**
-     * Formats an ISO timestamp string into a locale-friendly string.
-     * (Copied/adapted from group_chat.js)
-     */
-    function formatTimestamp(isoString) {
-        try {
-            const date = new Date(isoString);
-            if (isNaN(date.getTime())) {
-                console.warn("[Ollama Chat] Invalid timestamp received:", isoString);
-                return 'Invalid Date';
-            }
-            return date.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-        } catch (e) {
-            console.error("[Ollama Chat] Error formatting timestamp:", isoString, e);
-            return 'Invalid Date';
-        }
-    }
-
-    /**
-     * Adds a message visually to the chat history div.
-     * Structure now includes a header for role and timestamp.
-     * @param {string} role - 'user', 'assistant', 'thinking', or 'error'.
-     * @param {string} content - The message text content.
-     * @param {string|null} timestampStr - ISO string for the timestamp. Null if no timestamp.
-     * @param {string|null} elementId - Optional ID to assign to the message div.
-     * @returns {HTMLDivElement|null} The created message div or null on error.
-     */
-    function addMessageToHistory(role, content, timestampStr, elementId = null) {
-        if (!ollamaChatHistoryDiv) {
-            console.error("addMessageToHistory: ollamaChatHistoryDiv not found!");
-            return null;
-        }
-        const emptyHistoryMsg = document.getElementById('empty-history-msg');
-        if (emptyHistoryMsg && emptyHistoryMsg.parentNode === ollamaChatHistoryDiv) {
-            ollamaChatHistoryDiv.removeChild(emptyHistoryMsg);
-        }
-
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('ollama-chat-message', role); // e.g. ollama-chat-message user
-        if (elementId) {
-            messageDiv.id = elementId;
-        }
-
-        // Header for Role (Sender) and Timestamp
-        const headerDiv = document.createElement('div');
-        headerDiv.classList.add('message-header');
-
-        const roleStrong = document.createElement('strong');
-        roleStrong.classList.add('message-sender'); // Class for styling
-        roleStrong.textContent = (role === 'thinking') ? 'System' : (role.charAt(0).toUpperCase() + role.slice(1));
-        headerDiv.appendChild(roleStrong);
-
-        if (timestampStr) {
-            const timestampSpan = document.createElement('span');
-            timestampSpan.classList.add('message-timestamp');
-            timestampSpan.textContent = formatTimestamp(timestampStr);
-            headerDiv.appendChild(timestampSpan);
-        }
-        messageDiv.appendChild(headerDiv);
-
-        // Content
-        const contentDiv = document.createElement('div');
-        contentDiv.classList.add('message-content'); // Class for styling
-        // These styles were previously on the main messageDiv, moving to contentDiv
-        contentDiv.style.whiteSpace = 'pre-wrap';
-        contentDiv.style.wordWrap = 'break-word';
-        contentDiv.textContent = content;
-        messageDiv.appendChild(contentDiv);
-
-        ollamaChatHistoryDiv.appendChild(messageDiv);
-        scrollOllamaChatToBottom();
-        return messageDiv;
-    }
-
-    async function handleFormSubmit(event) {
-        event.preventDefault();
-        if (!csrfToken) {
-            addMessageToHistory('error', 'Security token missing.', new Date().toISOString()); return;
-        }
-        const userMessage = messageTextarea.value.trim();
-        if (!userMessage) { return; }
-
-        messageTextarea.disabled = true;
-        sendButton.disabled = true;
-        messageTextarea.value = '';
-        resizeTextarea(messageTextarea);
-
-        addMessageToHistory('user', userMessage, new Date().toISOString()); // Add user msg with timestamp
-        const thinkingIndicatorId = `thinking-${Date.now()}`;
-        // Add "thinking" message without a timestamp initially, or with a client timestamp
-        let thinkingDiv = addMessageToHistory('thinking', 'Ollama is thinking...', new Date().toISOString(), thinkingIndicatorId);
-
-
-        try {
-            const response = await fetch("{{ url_for('api_ollama_chat_send') }}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ message: userMessage })
-            });
-            const data = await response.json();
-
-            const indicatorToRemove = document.getElementById(thinkingIndicatorId);
-            if (indicatorToRemove) {
-                indicatorToRemove.remove(); // Remove the "thinking" message
-            }
-
-            if (response.ok && data.status === 'success') {
-                addMessageToHistory('assistant', data.ai_message, new Date().toISOString()); // Add AI response with new timestamp
-            } else {
-                 addMessageToHistory('error', data.message || 'Unknown error occurred.', new Date().toISOString());
-            }
-            scrollOllamaChatToBottom();
-
-        } catch (error) {
-            console.error("Fetch error:", error);
-            const indicatorToRemove = document.getElementById(thinkingIndicatorId);
-            if (indicatorToRemove) {
-                indicatorToRemove.remove();
-            }
-            const errorMsg = `Network or connection error: ${error.message}`;
-            addMessageToHistory('error', errorMsg, new Date().toISOString());
-            scrollOllamaChatToBottom();
-        } finally {
-            messageTextarea.disabled = false;
-            sendButton.disabled = false;
-            messageTextarea.focus();
-        }
-    }
-
-    // --- Initialize Textarea & Attach Listeners (same as before) ---
-    resizeTextarea(messageTextarea);
-    messageTextarea.addEventListener('input', function() { resizeTextarea(this); });
-    messageTextarea.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            if (!sendButton.disabled) ollamaChatForm.requestSubmit(sendButton);
-        }
-        resizeTextarea(this);
-    });
-    ollamaChatForm.addEventListener('submit', handleFormSubmit);
-
-    clearHistoryButton.addEventListener('click', function() {
-        if (confirm('Are you sure you want to clear the entire Ollama chat history? This cannot be undone.')) {
-            window.location.href = "{{ url_for('clear_ollama_chat_history') }}";
-        }
-    });
-
-    // --- Format initial timestamps ---
-    document.querySelectorAll('#ollama-chat-history .message-timestamp').forEach(span => {
-        const isoString = span.dataset.timestamp;
-        if (isoString) {
-            span.textContent = formatTimestamp(isoString);
-        }
-    });
-
-    scrollOllamaChatToBottom();
-});
-</script>
+    <script>
+        // Define a global configuration object or individual variables
+        window.ollamaChatConfig = {
+            apiSendUrl: "{{ url_for('api_ollama_chat_send') }}",
+            clearHistoryUrl: "{{ url_for('clear_ollama_chat_history') }}"
+            // Add any other dynamic values your script might need
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/ollama_chat.js') }}"></script>
 {% endblock %}
