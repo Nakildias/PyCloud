@@ -3,67 +3,56 @@
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/group_chat.css') }}">
+{% endblock %}
+
 {% block content %}
-    {# The main container automatically gets flex properties from body.chat-page .container CSS #}
+    {# The main container automatically gets flex properties from body.base-body-chat-page .base-container CSS #}
 
     {# Chat History Display Area - CSS handles flex-grow and centering #}
-    <div id="chat-history"> {# Removed inline styles, CSS handles layout #}
+    <div id="gc-chat-history" class="gc-chat-history-area"> {# Updated ID and added class #}
         {# Messages will be loaded here by JavaScript #}
         {% if not chat_history %}
-            <p id="empty-chat-msg" style="color: #aaa; text-align: center; margin: auto;">
+            <p id="gc-empty-chat-msg" class="gc-empty-chat-message"> {# Updated ID and added class #}
                 Chat history is empty. Start the conversation!
-            </p> {# Adjusted margin for flex centering #}
+            </p>
         {% endif %}
     </div>
 
-    {# Hidden Edit Input Field - We'll position and show this via JS #}
-    <div id="edit-message-container" style="display: none; position: fixed; bottom: var(--input-bar-height); left: 0; right: 0; background-color: rgba(42, 42, 42, 0.95); padding: 10px; z-index: 105; border-top: 1px solid var(--border-color);">
-        <div style="max-width: 800px; margin: 0 auto; display: flex; gap: 10px;">
-            <input type="text" id="edit-message-input" class="form-control" placeholder="Edit message..." style="flex-grow: 1;">
-            <button id="save-edit-button" class="btn btn-primary btn-sm">Save</button>
-            <button id="cancel-edit-button" class="btn btn-secondary btn-sm">Cancel</button>
+    {# Hidden Edit Input Field - Positioned and shown via JS #}
+    <div id="gc-edit-message-container" class="gc-edit-message-container" style="display: none;"> {# Updated ID and added class #}
+        <div class="gc-edit-message-inner"> {# Added inner wrapper for styling #}
+            <input type="text" id="gc-edit-message-input" class="form-control gc-edit-input-field" placeholder="Edit message..."> {# Updated ID and added class, kept form-control #}
+            <button id="gc-save-edit-button" class="btn btn-primary btn-sm gc-btn-save-edit">Save</button> {# Updated ID and added class #}
+            <button id="gc-cancel-edit-button" class="btn btn-secondary btn-sm gc-btn-cancel-edit">Cancel</button> {# Updated ID and added class #}
         </div>
     </div>
 
-
     {# Message Input Form - Sticky via CSS #}
-    <form id="chat-form" method="POST" action="{{ url_for('api_group_chat_send') }}" enctype="multipart/form-data" novalidate>
+    <form id="gc-chat-form" method="POST" action="{{ url_for('api_group_chat_send') }}" enctype="multipart/form-data" novalidate class="gc-chat-form-element"> {# Updated ID and added class #}
         {{ form.hidden_tag() }} {# CSRF token #}
 
-        <div class="chat-input-inner"> {# *** ADDED GEMINI-STYLE INNER WRAPPER *** #}
-
+        <div class="gc-chat-input-inner">
             {# File Input (Visually hidden, triggered by label styled as button) #}
-            {{ form.file(id="file-input", class="visually-hidden") }}
-             <label for="file-input" class="btn" title="Attach File (Max: {{ max_upload_mb }} MB)">
-                 {# ADD the image tag here #}
-                 <img src="{{ url_for('static', filename='icons/upload.svg') }}" alt="Attach file" >
-                 {# The size is controlled by CSS now #}
+            {{ form.file(id="gc-file-input", class="visually-hidden gc-file-input-actual") }} {# Updated ID and added class #}
+             <label for="gc-file-input" class="btn gc-btn-file-attach" title="Attach File (Max: {{ max_upload_mb }} MB)"> {# Added class #}
+                 <img src="{{ url_for('static', filename='icons/upload.svg') }}" alt="Attach file" class="gc-icon-upload"> {# Added class #}
              </label>
-            {# Removed file-name-display span #}
-            {# WTForms file errors should ideally be shown via toast messages #}
-
-            {# Text Area - Now inside the flex wrapper #}
-            {# Removed the outer .form-group div #}
-            {{ form.content(class="form-control", rows="1", placeholder="Type your message...", id="message-input") }} {# Use rows="1", CSS handles height #}
-            {# WTForms content errors should ideally be shown via toast messages #}
-
+            {# Text Area #}
+            {{ form.content(class="form-control gc-message-input-textarea", rows="1", placeholder="Type your message...", id="gc-message-input") }} {# Updated ID and added class, kept form-control #}
             {# Submit Button #}
-            {# Removed the outer flex div #}
-            <button type="submit" id="send-button" class="btn btn-primary" aria-label="Send message">
-                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" width="20" height="20" style="display: block; margin: auto;">
+            <button type="submit" id="gc-send-button" class="btn btn-primary gc-btn-send" aria-label="Send message"> {# Updated ID and added class #}
+                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" class="gc-icon-send"> {# Added class #}
             </button>
-
-        </div> {# *** CLOSE INNER WRAPPER *** #}
-
-        {# Removed the old #chat-status div - Feedback should use toasts #}
-
+        </div>
     </form>
-
 {% endblock %}
 
 {% block scripts %}
 {# Link to the dedicated JS file #}
-<script src="{{ url_for('static', filename='group_chat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/group_chat.js') }}"></script>
 
 {# Inline script to pass initial data - Remains the same #}
 <script>
@@ -72,13 +61,13 @@
     const csrfToken = "{{ csrf_token() }}";
     const historyApiUrl = "{{ url_for('api_group_chat_history') }}";
     const sendApiUrl = "{{ url_for('api_group_chat_send') }}";
-    // Add new API URLs
-    const editApiUrlBase = "{{ url_for('api_group_chat_edit_message', message_id=0) }}".slice(0, -1); // Remove trailing 0
-    const deleteApiUrlBase = "{{ url_for('api_group_chat_delete_message', message_id=0) }}".slice(0, -1); // Remove trailing 0
-
+    const editApiUrlBase = "{{ url_for('api_group_chat_edit_message', message_id=0) }}".slice(0, -1);
+    const deleteApiUrlBase = "{{ url_for('api_group_chat_delete_message', message_id=0) }}".slice(0, -1);
+    const isAdmin = {{ current_user.is_admin|tojson }}; // Pass admin status
 
     document.addEventListener('DOMContentLoaded', () => {
-        initChat(initialChatHistory, currentUserId, csrfToken, historyApiUrl, sendApiUrl, editApiUrlBase, deleteApiUrlBase);
+        // Call initChat with all necessary parameters, including isAdmin
+        initChat(initialChatHistory, currentUserId, csrfToken, historyApiUrl, sendApiUrl, editApiUrlBase, deleteApiUrlBase, isAdmin);
     });
 </script>
 {% endblock %}
