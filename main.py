@@ -1606,7 +1606,7 @@ def admin_settings():
         form.populate_obj(settings_obj) # Populate DB object from form
         # Handle password separately if it's a special field
         if form.mail_password.data: # Assuming you have a set_mail_password method
-             settings_obj.set_mail_password(form.mail_password.data)
+             settings_obj.mail_password = form.mail_password.data
 
     default_mail_settings = {
         'MAIL_SERVER': 'smtp.example.com',
