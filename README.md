@@ -10,14 +10,18 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### User profiles ( Bio, profile picture & more ) *NEW*
 ### Social Media Posting *NEW*
 ### Changeable email ( For user ) *NEW*
+### Notifications for friend invite, messages, new posts
+### Disable(Banning) / Delete users
+### Batch selection for files
+### Friends & Friend Chat
 # Upcoming features
 ### Email verification
-### Friends & Friend Chat
-### Notifications for friend invite, messages, new posts
+
+
 ### Rate limiting password reset
 ### Separated Upload Limit for group chat
 ### Wipe entire Group Chat in admin settings
-### Disable(Banning) / Delete users
-### Batch selection for files
+
+
 ### Drag files around
 ### & More
