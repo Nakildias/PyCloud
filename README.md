@@ -25,3 +25,7 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 
 ### Drag files around
 ### & More
+
+# Known bugs that will be corrected in near future
+### Files checkbox doesn't work properly
+### Audio Player not working with chromium based browsers
