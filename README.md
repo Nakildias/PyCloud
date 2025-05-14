@@ -29,5 +29,5 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 
 # Known bugs that will be corrected in near future
 ### Files checkbox doesn't work properly FIXED
-### Audio Player not working with chromium based browsers
+### Audio Player not working with chromium based browsers FIXED
 ### Unarchiving un archive with subfolders will cause files to not go into appropriate folders
