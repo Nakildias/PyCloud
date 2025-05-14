@@ -713,6 +713,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Add event listeners to individual item checkboxes
+    if (itemCheckboxes.length > 0) {
+        itemCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllCheckboxState();       // Update the state of the "select all" checkbox
+                updateMultiSelectActionsVisibility(); // Update the visibility of the action buttons
+            });
+        });
+    }
+
     if (fileTable && fileTable.querySelector('tbody')) {
         const tableBody = fileTable.querySelector('tbody');
 
