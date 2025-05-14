@@ -1,0 +1,13 @@
+[Unit]
+Description=PyCloud Service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/pycloud #Default Directory
+User=changeme
+Group=changeme
+WorkingDirectory=/home/changeme/.local/share/PyCloud/ #Change changeme to your username
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
