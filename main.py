@@ -5763,4 +5763,6 @@ if __name__ == '__main__':
             print(f"CRITICAL_INFO: '{admin_settings_table_name}' table does not exist, cannot populate settings. Uploads will likely fail.")
 
     print("INFO: Starting Flask development server...")
+    configure_mail_from_db(app)
+    mail.init_app(app
     app.run(debug=True, host='0.0.0.0', port=8080)
