@@ -5764,5 +5764,5 @@ if __name__ == '__main__':
 
     print("INFO: Starting Flask development server...")
     configure_mail_from_db(app)
-    mail.init_app(app
+    mail.init_app(app)
     app.run(debug=True, host='0.0.0.0', port=8080)
