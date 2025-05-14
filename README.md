@@ -14,6 +14,7 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### Disable(Banning) / Delete users
 ### Batch selection for files
 ### Friends & Friend Chat
+### Code color syntax in file editor thanks to Codemirror https://codemirror.net/
 # Upcoming features
 ### Email verification
 
