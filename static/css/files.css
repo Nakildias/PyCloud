@@ -526,6 +526,7 @@
 .fl-modal-audio {
     width: 100%;
     height: auto;
+    min-height: 40px; /* Fixes Invisible Player on chromium based browsers */
     max-height: none; /* Override if .fl-modal-media is too restrictive */
 }
 .fl-modal-video {
