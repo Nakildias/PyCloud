@@ -17,7 +17,7 @@ server {
     server_name pycloud.yourdomain.com;
     ssl_certificate /etc/letsencrypt/live/pycloud.yourdomain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/pycloud.yourdomain.com/privkey.pem;
-
+    client_max_body_size 8192M; # Change this with whatever you want max size per file to be
 
     location / {
         proxy_pass http://192.168.1.XXX:8080; # Change this to your IP/PORT where pycloud is running locally.
