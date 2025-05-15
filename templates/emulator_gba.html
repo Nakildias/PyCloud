@@ -1,0 +1,102 @@
+{# templates/emulator_gba.html #}
+{% extends "base.html" %}
+
+{% block title %}GBA Emulator - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/emulator_gba.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block body_class %}gba-emulator-page{% endblock %}
+
+{% block content %}
+    <div class="gba-emulator-main-container">
+
+        <main>
+            <section class="gba-emulator-display-section">
+                <div id="emulator-container">
+                    <canvas id="gba-canvas" width="240" height="160"></canvas>
+
+            </section>
+
+            <div class="gba-emulator-control-panel">
+                <section class="gba-emulator-controls-section">
+                    <h2 class="controls-section-title">Game Management  <p id="status-message">Status: Waiting for ROM...</p></h2>
+                    <div class="gba-emulator-control-group gba-emulator-rom-management">
+                        <label for="rom-file-input" class="gba-emulator-custom-file-upload file-gba-emulator-control-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="gba-emulator-button-icon"><path d="M12.0007 10.5865L16.9504 5.63672L18.3646 7.05093L13.4149 12.0007L18.3646 16.9504L16.9504 18.3646L12.0007 13.4149L7.05093 18.3646L5.63672 16.9504L10.5865 12.0007L5.63672 7.05093L7.05093 5.63672L12.0007 10.5865Z"></path></svg> Load ROM
+                        </label>
+                        <input type="file" id="rom-file-input" accept=".gba,.zip,.gbc,.gb">
+                        <span id="rom-file-name" class="gba-emulator-rom-file-name-display">No ROM selected</span>
+                    </div>
+                </section>
+
+                <section class="gba-emulator-controls-section">
+                    <h2 class="controls-section-title">Emulation Controls</h2>
+                    <div class="gba-emulator-control-group gba-emulator-emulation-actions">
+                        <button id="start-button" class="gba-emulator-control-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="gba-emulator-button-icon"><path d="M8 5V19L19 12L8 5Z"></path></svg>
+                            Start
+                        </button>
+                        <button id="pause-button" class="gba-emulator-control-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="gba-emulator-button-icon"><path d="M6 19H10V5H6V19ZM14 5V19H18V5H14Z"></path></svg>
+                            Pause
+                        </button>
+                        <button id="reset-button" class="gba-emulator-control-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="gba-emulator-button-icon"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12H4C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C9.50028 4 7.29337 5.04945 5.85001 6.64999L7.5 8H2V2.5L4.03249 4.53248C5.78932 2.77566 8.72223 2 12 2Z"></path></svg>
+                            Reset
+                        </button>
+                        <button id="show-controls-modal-button" class="gba-emulator-control-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="gba-emulator-button-icon"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 15H13V17H11V15ZM11 7H13V13H11V7Z"></path></svg>
+                            View Controls
+                        </button>
+                    </div>
+                </section>
+
+                <section class="gba-emulator-controls-section">
+                    <h2 class="controls-section-title">Save States</h2>
+                    <div class="gba-emulator-control-group gba-emulator-save-load-management">
+                        <button id="save-state-button" class="gba-emulator-control-button">Save State</button>
+                        <button id="load-state-button" class="gba-emulator-control-button">Load State</button>
+                        <button id="download-state-button" class="gba-emulator-control-button">Download State File</button>
+                        <label for="load-state-file-input" class="gba-emulator-custom-file-upload file-gba-emulator-control-button">Load State File</label>
+                        <input type="file" id="load-state-file-input" accept=".ss0,.state,.st*,*" style="display:none;">
+                        <span id="state-file-name-display" class="gba-emulator-rom-file-name-display">No State File selected</span>
+                    </div>
+                </section>
+
+                    </div>
+                </section>
+            </div>
+
+            <div id="controls-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <button id="close-controls-modal-button" class="modal-close-button">&times;</button>
+                    <div id="keyboard-controls-content">
+                        <h2>Keyboard Controls</h2>
+                        <div class="gba-emulator-controls-grid">
+                            <div class="gba-emulator-control-mapping"><strong>A Button:</strong> <kbd>X</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>B Button:</strong> <kbd>Z</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>L Shoulder:</strong> <kbd>A</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>R Shoulder:</strong> <kbd>S</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>Start:</strong> <kbd>Enter</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>Select:</strong> <kbd>Right Shift</kbd> or <kbd>Backspace</kbd></div>
+                            <div class="gba-emulator-control-mapping"><strong>D-Pad Up:</strong> <kbd>↑</kbd> (Arrow Up)</div>
+                            <div class="gba-emulator-control-mapping"><strong>D-Pad Down:</strong> <kbd>↓</kbd> (Arrow Down)</div>
+                            <div class="gba-emulator-control-mapping"><strong>D-Pad Left:</strong> <kbd>←</kbd> (Arrow Left)</div>
+                            <div class="gba-emulator-control-mapping"><strong>D-Pad Right:</strong> <kbd>→</kbd> (Arrow Right)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </main>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/emulator_gba_core.js') }}" type="module"></script>
+    <script src="{{ url_for('static', filename='js/gba_main.js') }}" type="module"></script>
+{% endblock %}
