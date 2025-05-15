@@ -15,7 +15,7 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### Batch selection for files
 ### Friends & Friend Chat
 ### Code color syntax in file editor thanks to [MirrorCode](https://codemirror.net/)
-### GBA Emulator thanks to [mGBA](https://github.com/mgba-emu/mgba), [emscripten](https://github.com/emscripten-core/emscripten)
+### GBA Emulator thanks to [mGBA](https://github.com/mgba-emu/mgba), [emscripten](https://github.com/emscripten-core/emscripten), [GBA-wasm](https://github.com/kxkx5150/GBA-wasm)
 > I do not provide the GBA Bios, find it somewhere else and put it in 
 >> ./PyCloud/static/bios/gba_bios.bin 
 >>> or if installed /home/username/.local/share/PyCloud/static/bios/gba_bios.bin
