@@ -5671,6 +5671,85 @@ class GroupChatMessage(db.Model):
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(INSTANCE_FOLDER_PATH, DB_NAME)}'
 
 
+@app.after_request
+def add_coop_coep_headers(response):
+    """
+    Add Cross-Origin Opener Policy (COOP) and Cross-Origin Embedder Policy (COEP)
+    headers. These are necessary for SharedArrayBuffer, which is often used by
+    WASM modules (like mGBA WASM) for features like multithreading. [7, 2, 8, 9]
+    """
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    return response
+
+
+# EMULATORS #
+#GBA EMULATOR
+
+# Configuration for ROM uploads (optional, client-side handling is also common)
+GBA_ROM_UPLOAD_FOLDER = 'emulator/gba/roms'
+app.config['GBA_ROM_UPLOAD_FOLDER'] = GBA_ROM_UPLOAD_FOLDER # Correct assignment to a key
+os.makedirs(app.config['GBA_ROM_UPLOAD_FOLDER'], exist_ok=True)
+
+@app.after_request
+def add_coop_coep_headers(response):
+    """
+    Add Cross-Origin Opener Policy (COOP) and Cross-Origin Embedder Policy (COEP)
+    headers. These are necessary for SharedArrayBuffer, which is often used by
+    WASM modules (like mGBA WASM) for features like multithreading. [7, 2, 8, 9]
+    """
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    return response
+
+@app.route('/emulator_gba')
+@login_required
+def emulator_gba():
+    """
+    Serves the main HTML page that will host the GBA emulator.
+    """
+    return render_template('emulator_gba.html')
+
+# Optional: Server-side ROM upload handling
+@app.route('/emulator_gba/upload_rom', methods=['POST'])
+@login_required
+def upload_gba_rom():
+    if 'rom_file' not in request.files:
+        return jsonify({'error': 'No ROM file part in the request'}), 400
+
+    file = request.files['rom_file']
+
+    if file.filename == '':
+        return jsonify({'error': 'No ROM file selected'}), 400
+
+    if file and (file.filename.endswith('.gba') or file.filename.endswith('.zip')):
+        filename = file.filename # Sanitize in a real app
+        filepath = os.path.join(app.config['GBA_ROM_UPLOAD_FOLDER'], filename)
+        try:
+            file.save(filepath)
+            return jsonify({
+                'message': 'ROM uploaded successfully',
+                'rom_name': filename,
+                'rom_url': f'/roms/{filename}' # Client will fetch this
+            }), 200
+        except Exception as e:
+            return jsonify({'error': f'Failed to save ROM: {str(e)}'}), 500
+    else:
+        return jsonify({'error': 'Invalid file type. Please upload a.gba or.zip file'}), 400
+
+@app.route('/emulator_gba/roms/<filename>')
+@login_required
+def serve_gba_rom(filename):
+    """
+    Serves uploaded ROM files from the GBA_ROM_UPLOAD_FOLDER.
+    """
+    return send_from_directory(app.config['GBA_ROM_UPLOAD_FOLDER'], filename)
+
+
+
+
+
+
 # --- Run Application ---
 if __name__ == '__main__':
     # --- Directory Creation ---
