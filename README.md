@@ -14,7 +14,7 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### Disable(Banning) / Delete users
 ### Batch selection for files
 ### Friends & Friend Chat
-### Code color syntax in file editor thanks to Codemirror https://codemirror.net/
+### Code color syntax in file editor thanks to [MirrorCode](https://codemirror.net/) https://codemirror.net/
 ### GBA Emulator thanks to [mGBA](https://github.com/mgba-emu/mgba), [emscripten](https://github.com/emscripten-core/emscripten)
 > I do not provide the GBA Bios, find it somewhere else and put it in 
 >> ./PyCloud/static/bios/gba_bios.bin 
