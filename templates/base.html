@@ -23,7 +23,7 @@
             <li class="base-nav-item base-nav-dropdown {% if cloud_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     <img src="{{ url_for('static', filename='icons/cloud.svg') }}" alt="" class="base-nav-icon">
-                    Cloud <span class="base-nav-arrow-down">▼</span>
+                    Services <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'list_files' %}class="active"{% endif %}><a href="{{ url_for('list_files') }}" class="base-nav-dropdown-item-link">Files</a></li>
@@ -43,6 +43,16 @@
                     <li {% if request.endpoint == 'post_feed' %}class="active"{% endif %}><a href="{{ url_for('post_feed') }}" class="base-nav-dropdown-item-link">Feed</a></li>
                     <li {% if request.endpoint == 'group_chat' %}class="active"{% endif %}><a href="{{ url_for('group_chat') }}" class="base-nav-dropdown-item-link">Group Chat</a></li>
                     <li {% if request.endpoint == 'friends_interface' %}class="active"{% endif %}><a href="{{ url_for('friends_interface') }}" class="base-nav-dropdown-item-link">Friends</a></li>
+                </ul>
+            </li>
+            {% set gaming_active = request.endpoint in ['emulator_gba', 'emulator_nes', 'emulator_gb'] %}
+            <li class="base-nav-item base-nav-dropdown {% if gaming_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    <img src="{{ url_for('static', filename='icons/controller.svg') }}" alt="" class="base-nav-icon">
+                    Retro Gaming <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
                 </ul>
             </li>
             {% set user_dropdown_active = (request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
