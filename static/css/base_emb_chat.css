@@ -7,6 +7,9 @@
 :root {
     /* Text color for received messages in embedded chat, if different from global */
     --dc-text-color: var(--text-color, #e0e0e0);
+    --emb-status-online: var(--success-color, #2ecc71);
+    --emb-status-afk: var(--warning-color, #f39c12);
+    --emb-status-offline: #6c757d; /* Or var(--placeholder-color) */
 }
 
 /* Ensure box-sizing for all embedded elements if not universally set */
@@ -120,27 +123,62 @@
 .emb-chat-header .emb-user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px; /* Increased gap to accommodate status text properly */
     overflow: hidden; /* For long usernames */
+    flex-grow: 1; /* Allow user info to take available space */
 }
+
+/* New wrapper for PFP and Status Indicator */
+.emb-pfp-status-wrapper {
+    position: relative;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
 .emb-chat-header .emb-pfp { /* PFP in chat box header */
-    width: 32px;
-    height: 32px;
+    width: 36px;  /* Slightly larger PFP for clarity with status */
+    height: 36px;
     border-radius: 50%;
     object-fit: cover;
+    display: block; /* Ensure it's a block for positioning context */
 }
 .emb-chat-header .emb-placeholder-pfp { /* Placeholder PFP in chat box header */
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background-color: var(--accent-color-muted, #555); /* Use a muted accent or theme color */
+    background-color: var(--accent-color-muted, #555);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1em;
+    font-size: 1.1em; /* Adjusted for new PFP size */
     font-weight: 500;
 }
+
+/* Status Indicator (Dot) */
+.emb-status-indicator {
+    width: 12px; /* Size of the status dot */
+    height: 12px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: -1px; /* Position adjustment */
+    right: -1px;  /* Position adjustment */
+    border: 2px solid var(--bg-color, #1a1a1a); /* Border color matches header background */
+    box-sizing: border-box;
+}
+.emb-status-indicator.online { background-color: var(--emb-status-online); }
+.emb-status-indicator.afk { background-color: var(--emb-status-afk); }
+.emb-status-indicator.offline { background-color: var(--emb-status-offline); }
+
+
+/* New wrapper for Username and Status Text */
+.emb-user-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden; /* Prevent text overflow */
+    line-height: 1.3;
+}
+
 .emb-chat-header .emb-username { /* Username in chat box header */
     color: var(--text-color, #e0e0e0);
     font-weight: 600;
@@ -148,10 +186,25 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block; /* Ensure it takes its own line if status text is long */
 }
+
+/* Status Text (Online/Offline/Away) */
+.emb-status-text {
+    font-size: 0.75em;
+    color: var(--placeholder-color, #888); /* Muted color for status text */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.2; /* Adjust line height for compactness */
+}
+
+
 .emb-chat-header .emb-actions { /* Container for minimize/close buttons */
     display: flex;
     gap: 5px;
+    flex-shrink: 0; /* Prevent actions from shrinking */
 }
 .emb-chat-header .emb-actions button { /* Styling for buttons in header */
     background: none;
@@ -252,8 +305,6 @@
 }
 .emb-chat-input-area input.emb-file-input.visually-hidden {
     /* Uses .visually-hidden from base.css */
-    /* position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; */
-    /* overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; */
 }
 
 /* File previews within the embedded chat box (uses dc- classes for content) */
@@ -372,7 +423,6 @@
 .dc-message .dc-message-file-attachment .dc-file-name a:hover { opacity: 0.8; }
 
 .dc-message .dc-file-preview { margin-top: 6px; }
-/* General .dc-file-preview img, video, audio styles from above apply */
 
 .dc-message .dc-text-file-preview {
     max-height: 100px; /* Consistent with .emb-chat-box .dc-text-file-preview */
