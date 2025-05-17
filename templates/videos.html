@@ -1,0 +1,86 @@
+{# templates/videos.html #}
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/videos.css') }}">
+{% endblock %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="vd-page-container">
+    <div class="vd-header-bar">
+        <h2 class="vd-page-title">{{ title }}</h2>
+    </div>
+
+    {% if video_files %}
+        <div class="vd-gallery-grid">
+            {% for video in video_files %}
+                <div class="vd-video-card" id="vd-card-{{ video.id }}">
+                    <div class="vd-video-thumbnail-container"
+                         role="button"
+                         tabindex="0"
+                         aria-label="Preview {{ video.original_filename }}"
+                         data-video-src="{{ video.view_url }}"
+                         data-video-type="{{ video.mime_type }}"
+                         data-filename="{{ video.original_filename }}"
+                         data-file-id="{{ video.id }}">
+                        {# Basic video icon as placeholder if no poster #}
+                        {% if video.poster_url %}
+                            <img src="{{ video.poster_url }}" alt="Poster for {{ video.original_filename }}" class="vd-video-poster">
+                        {% else %}
+                            <div class="vd-video-poster-placeholder">
+                                <img src="{{ url_for('static', filename='icons/video_camera.svg') }}" alt="Video icon">
+                            </div>
+                        {% endif %}
+                        <div class="vd-video-play-icon-overlay">
+                            <img src="{{ url_for('static', filename='icons/play-button.svg') }}" alt="Play video">
+                        </div>
+                    </div>
+                    <div class="vd-video-info">
+                        <p class="vd-video-name" id="vd-filename-{{ video.id }}">{{ video.original_filename }}</p>
+                        <p class="vd-video-date">Uploaded: {{ video.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="vd-empty-message">
+            <p>You haven't uploaded any videos yet.</p>
+            <p><a href="{{ url_for('list_files') }}" class="btn btn-primary">Upload Videos</a></p>
+        </div>
+    {% endif %}
+</div>
+
+{# Modal structure for video preview #}
+<div id="vd-preview-modal" class="vd-modal" style="display: none;" aria-labelledby="vd-modal-filename-display" aria-modal="true" role="dialog">
+    <div class="vd-modal-backdrop"></div>
+    <div class="vd-modal-content">
+        <div class="vd-modal-header">
+            <h5 id="vd-modal-filename-display" class="vd-modal-title-text">Video Preview</h5>
+            <button type="button" id="vd-btn-close-modal" class="vd-modal-close-button" aria-label="Close preview">&times;</button>
+        </div>
+        <div class="vd-modal-body">
+            <video id="vd-modal-video-preview" class="vd-modal-video" controls width="100%">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        <div class="vd-modal-footer">
+            <button type="button" id="vd-btn-modal-delete" class="btn btn-danger btn-sm">Delete</button>
+            <button type="button" id="vd-btn-modal-rename" class="btn btn-secondary btn-sm">Rename</button>
+            <a href="#" id="vd-modal-download-link" class="btn btn-primary btn-sm" download>Download</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        /* URLs for JS, matching the photos page pattern */
+        const DELETE_VIDEO_URL_BASE = "{{ url_for('delete_file', file_id=0) }}".slice(0, -1);
+        const RENAME_VIDEO_URL_BASE = "{{ url_for('rename_file', file_id=0) }}".slice(0, -1);
+    </script>
+    <script src="{{ url_for('static', filename='js/videos.js') }}"></script>
+{% endblock %}
