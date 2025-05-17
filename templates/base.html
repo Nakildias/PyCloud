@@ -23,11 +23,13 @@
             <li class="base-nav-item base-nav-dropdown {% if cloud_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     <img src="{{ url_for('static', filename='icons/cloud.svg') }}" alt="" class="base-nav-icon">
-                    Services <span class="base-nav-arrow-down">▼</span>
+                    Cloud <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'list_files' %}class="active"{% endif %}><a href="{{ url_for('list_files') }}" class="base-nav-dropdown-item-link">Files</a></li>
                     <li {% if request.endpoint == 'list_notes' %}class="active"{% endif %}><a href="{{ url_for('list_notes') }}" class="base-nav-dropdown-item-link">Notes</a></li>
+                    <li {% if request.endpoint == 'photos' %}class="active"{% endif %}><a href="{{ url_for('photos') }}" class="base-nav-dropdown-item-link">Photos</a></li>
+                    <li {% if request.endpoint == 'videos' %}class="active"{% endif %}><a href="{{ url_for('videos') }}" class="base-nav-dropdown-item-link">Videos</a></li>
                     {% if settings.ollama_enabled %}
                         <li {% if request.endpoint == 'ollama_chat' %}class="active"{% endif %}><a href="{{ url_for('ollama_chat') }}" class="base-nav-dropdown-item-link">Ollama</a></li>
                     {% endif %}
@@ -49,7 +51,7 @@
             <li class="base-nav-item base-nav-dropdown {% if gaming_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     <img src="{{ url_for('static', filename='icons/controller.svg') }}" alt="" class="base-nav-icon">
-                    Retro Gaming <span class="base-nav-arrow-down">▼</span>
+                    Misc <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
@@ -115,6 +117,7 @@
     const EMB_DM_RECENT_MESSAGES_API_URL = "{{ url_for('api_recent_direct_messages') }}";
     const API_UNREAD_NOTIFICATION_COUNT_URL = "{{ url_for('api_unread_notification_count') }}";
     const NOTIFICATION_SOUND_URL = "{{ url_for('static', filename='sounds/notification.wav') }}";
+    const API_USERS_ACTIVITY_STATUS_URL = "{{ url_for('api_users_activity_status') }}"; // Ensure this route exists
 </script>
 
 {% if current_user.is_authenticated %}
