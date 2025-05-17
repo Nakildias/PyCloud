@@ -1,0 +1,211 @@
+/* static/css/photos.css */
+
+.ph-page-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.ph-header-bar {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color, #444);
+}
+
+.ph-page-title {
+    font-size: 1.8em;
+    color: var(--primary-color, #4a90e2);
+}
+
+.ph-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Responsive grid */
+    gap: 20px;
+}
+
+.ph-image-card {
+    background-color: var(--secondary-color, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    display: flex; /* Use flex to structure card content */
+    flex-direction: column;
+}
+
+/* MODIFIED: Changed <a> to div, added cursor and focus styles */
+.ph-image-thumbnail-container {
+    width: 100%;
+    height: 180px; /* Fixed height for the image container */
+    overflow: hidden; /* Crop images that don't fit perfectly */
+    cursor: pointer;
+    position: relative; /* For potential future overlays */
+}
+
+.ph-image-thumbnail-container:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+
+.ph-image-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Cover the area, cropping if necessary */
+    display: block;
+    transition: transform 0.2s ease-in-out;
+}
+
+.ph-image-card:hover .ph-image-thumbnail {
+    transform: scale(1.05); /* Slight zoom on hover */
+}
+
+.ph-image-info {
+    padding: 10px;
+    background-color: var(--secondary-color, #2a2a2a); /* Ensure info area has background */
+    border-top: 1px solid var(--border-color, #444);
+}
+
+.ph-image-name {
+    font-weight: 500;
+    color: var(--text-color, #e0e0e0);
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ph-image-date {
+    font-size: 0.8em;
+    color: var(--placeholder-color, #888);
+    margin-bottom: 0;
+}
+
+.ph-empty-message {
+    text-align: center;
+    padding: 40px 20px;
+    background-color: var(--secondary-color, #2a2a2a);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #444);
+}
+
+.ph-empty-message p {
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+/* --- MODAL STYLES --- */
+.ph-modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Enable scroll if content is too long */
+    align-items: center; /* Center content vertically */
+    justify-content: center; /* Center content horizontally */
+}
+
+.ph-modal-backdrop {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.85); /* MODIFIED: Darker backdrop like video modal */
+    z-index: -1;
+}
+
+.ph-modal-content {
+    position: relative;
+    background-color: #1c1c1c; /* MODIFIED: Darker background like video modal */
+    margin: auto;
+    padding: 0;
+    border: 1px solid #333; /* MODIFIED: Border like video modal */
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px; /* Photo modal can be a bit smaller than video if preferred, adjust as needed */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4); /* MODIFIED: Shadow like video modal */
+    animation-name: ph-modal-animate-scale; /* MODIFIED: Renamed animation for clarity */
+    animation-duration: 0.3s; /* MODIFIED: Slightly faster animation if desired */
+    animation-timing-function: ease-out; /* MODIFIED: Smoother timing */
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+/* MODIFIED: Keyframes to match video modal's scale and opacity animation */
+@keyframes ph-modal-animate-scale {
+    from {transform: scale(0.95); opacity: 0}
+    to {transform: scale(1); opacity: 1}
+}
+
+.ph-modal-header {
+    padding: 12px 20px; /* MODIFIED: Consistent padding */
+    background-color: #252525; /* MODIFIED: Darker header like video modal */
+    color: white;
+    border-bottom: 1px solid #333; /* MODIFIED: Border like video modal */
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ph-modal-title-text {
+    margin: 0;
+    font-size: 1.25em; /* MODIFIED: Consistent font size */
+    color: white;
+}
+
+.ph-modal-close-button {
+    color: #ccc; /* MODIFIED: Consistent color */
+    background: none;
+    border: none;
+    font-size: 2em; /* MODIFIED: Consistent size */
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 5px;
+    line-height: 1;
+    transition: color 0.2s ease; /* ADDED: Smooth hover transition */
+}
+
+.ph-modal-close-button:hover,
+.ph-modal-close-button:focus {
+    color: white; /* MODIFIED: Brighter hover */
+    text-decoration: none;
+}
+
+.ph-modal-body {
+    padding: 15px; /* Keep padding for image, unlike video which might be 0 */
+    text-align: center;
+    overflow-y: auto;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* For photo modal, the #1c1c1c from .ph-modal-content will be the backdrop if image is smaller */
+}
+
+.ph-modal-image {
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+.ph-modal-footer {
+    padding: 10px 20px; /* MODIFIED: Consistent padding */
+    background-color: #252525; /* MODIFIED: Darker footer like video modal */
+    border-top: 1px solid #333; /* MODIFIED: Border like video modal */
+    text-align: right;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
