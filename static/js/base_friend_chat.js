@@ -1,7 +1,7 @@
 // static/js/base_friend_chat.js
 
 // Ensure global constants from base.html are loaded before this script.
-// e.g., CURRENT_USER_ID, CSRF_TOKEN, STATIC_PFP_PATH_BASE, EMB_DM_HISTORY_API_URL_BASE, etc.
+// e.g., CURRENT_USER_ID, CSRF_TOKEN, STATIC_PFP_PATH_BASE, EMB_DM_HISTORY_API_URL_BASE, API_USERS_ACTIVITY_STATUS_URL, etc.
 
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof CURRENT_USER_ID === 'undefined' || CURRENT_USER_ID === null) {
@@ -14,9 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
         typeof STATIC_ICONS_PATH_BASE === 'undefined' ||
         typeof USER_PROFILE_URL_BASE === 'undefined' ||
         typeof MAX_UPLOAD_MB_CONFIG === 'undefined' ||
-        typeof CSRF_TOKEN === 'undefined') {
-        console.error("One or more required global constants for embedded chat are missing. Embedded chat will not initialize.");
-    return;
+        typeof CSRF_TOKEN === 'undefined' ||
+        typeof API_USERS_ACTIVITY_STATUS_URL === 'undefined') { // Added check for activity status URL
+            console.error("One or more required global constants for embedded chat are missing. Embedded chat will not initialize.");
+            return;
         }
 
         const embeddedChatContainer = document.getElementById('base-embedded-chat-container');
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (openChats[friendId] && openChats[friendId].element && !openChats[friendId].minimized) {
                     openChats[friendId].element.style.zIndex = (parseInt(window.getComputedStyle(openChats[friendId].element).zIndex) || 1040) + 1;
                     if (openChats[friendId].inputElement) openChats[friendId].inputElement.focus();
+                    fetchAndUpdateEmbUserStatus(friendId); // Refresh status on focus/re-open
                     return;
                 }
                 if (chatBubbles[friendId] || (openChats[friendId] && openChats[friendId].minimized)) {
@@ -98,9 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     for(const id in loadedChats) {
                         openChats[id] = {
                             username: loadedChats[id].username || "User",
-                            pfp: loadedChats[id].pfp || "",
-                            minimized: loadedChats[id].minimized,
-                            lastRead: loadedChats[id].lastRead || new Date(0).toISOString(),
+                          pfp: loadedChats[id].pfp || "",
+                          minimized: loadedChats[id].minimized,
+                          lastRead: loadedChats[id].lastRead || new Date(0).toISOString(),
                           lastMsgId: loadedChats[id].lastMsgId || 0,
                           element: null, messagesElement: null, inputElement: null, fileInputElement: null
                         };
@@ -130,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (openChats[friendId] && openChats[friendId].element && !openChats[friendId].minimized) {
                     openChats[friendId].element.style.zIndex = (parseInt(window.getComputedStyle(openChats[friendId].element).zIndex) || 1040) +1;
                     if(openChats[friendId].inputElement) openChats[friendId].inputElement.focus();
+                    fetchAndUpdateEmbUserStatus(friendId); // Refresh status
                     return;
                 }
 
@@ -165,14 +168,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pfpPlaceholder = validUsername ? validUsername.charAt(0).toUpperCase() : 'U';
 
                 const chatBox = document.createElement('div');
-                chatBox.className = 'emb-chat-box'; // UPDATED CLASS
+                chatBox.className = 'emb-chat-box';
                 chatBox.dataset.friendId = friendId;
                 chatBox.style.zIndex = 1041;
                 chatBox.innerHTML = `
                 <div class="emb-chat-header">
                 <div class="emb-user-info">
+                <div class="emb-pfp-status-wrapper">
                 ${pfpSrc ? `<img src="${pfpSrc}" alt="${validUsername}" class="emb-pfp">` : `<div class="emb-placeholder-pfp">${pfpPlaceholder}</div>`}
+                <span class="emb-status-indicator offline" id="emb-status-indicator-${friendId}"></span>
+                </div>
+                <div class="emb-user-details">
                 <span class="emb-username">${escapeHtml(validUsername)}</span>
+                <small class="emb-status-text" id="emb-status-text-${friendId}">Offline</small>
+                </div>
                 </div>
                 <div class="emb-actions">
                 <button class="emb-minimize-btn" title="Minimize"><img src="${STATIC_ICONS_PATH_BASE}minimize.svg" alt="Minimize"></button>
@@ -209,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 chatBox.addEventListener('mousedown', () => {
-                    const allBoxes = embeddedChatContainer.querySelectorAll('.emb-chat-box'); // UPDATED CLASS
+                    const allBoxes = embeddedChatContainer.querySelectorAll('.emb-chat-box');
                     let maxZ = 1040;
                     allBoxes.forEach(box => {
                         const currentZ = parseInt(window.getComputedStyle(box).zIndex);
@@ -232,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 setupChatBoxEventListeners(friendId);
                 fetchAndRenderHistory(friendId, false);
+                fetchAndUpdateEmbUserStatus(friendId); // Fetch status when box is created
                 if (openChats[friendId].inputElement) openChats[friendId].inputElement.focus();
                 saveChatStates();
                 if (Object.values(openChats).filter(c => c.element && !c.minimized).length > 0 && !embChatPollTimerId) {
@@ -311,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pfpPlaceholder = validUsername ? validUsername.charAt(0).toUpperCase() : 'U';
 
                 const bubble = document.createElement('div');
-                bubble.className = 'emb-chat-bubble'; // UPDATED CLASS
+                bubble.className = 'emb-chat-bubble';
                 bubble.dataset.friendId = friendId;
                 bubble.title = validUsername;
                 bubble.innerHTML = `
@@ -359,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const usernameToUse = usernameFromBubble || chatState.username;
                 const pfpToUse = pfpFromBubble || chatState.pfp;
-                createChatBox(friendId, usernameToUse, pfpToUse, false);
+                createChatBox(friendId, usernameToUse, pfpToUse, false); // fetchAndUpdateEmbUserStatus is called within createChatBox
                 saveChatStates();
             }
 
@@ -385,8 +395,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         let latestTimestampThisFetch = chat.lastRead || new Date(0).toISOString();
                         data.messages.sort((a, b) => a.id - b.id);
                         data.messages.forEach(msg => {
-                            if (!chat.messagesElement.querySelector(`.dc-message-wrapper[data-message-id="${msg.id}"]`)) { // Use dc- class
-                                renderMessage(friendId, msg); // This function will use dc- classes
+                            if (!chat.messagesElement.querySelector(`.dc-message-wrapper[data-message-id="${msg.id}"]`)) {
+                                renderMessage(friendId, msg);
                                 newMessagesRendered = true;
                                 if (msg.id > chat.lastMsgId) chat.lastMsgId = msg.id;
                                 if (msg.timestamp > latestTimestampThisFetch) latestTimestampThisFetch = msg.timestamp;
@@ -407,32 +417,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // This function renders messages INSIDE the embedded chat box.
-            // These messages should use the direct chat styling (dc- prefixes).
             function renderMessage(friendId, msg) {
                 const chat = openChats[friendId];
                 if (!chat || !chat.messagesElement) return;
                 const isSent = msg.sender_id === CURRENT_USER_ID;
                 const wrapper = document.createElement('div');
-                wrapper.className = `dc-message-wrapper ${isSent ? 'sent' : 'received'}`; // UPDATED to dc-
+                wrapper.className = `dc-message-wrapper ${isSent ? 'sent' : 'received'}`;
                 wrapper.dataset.messageId = msg.id;
 
                 const pfpFilename = isSent ? CURRENT_USER_PFP_FILENAME : msg.sender_profile_picture_filename;
                 const pfpUsername = isSent ? CURRENT_USER_USERNAME : (msg.sender_username || 'User');
                 const pfpInitial = pfpUsername.charAt(0).toUpperCase();
                 let pfpHTML = pfpFilename ?
-                `<div class="dc-pfp-container-bubble"><img src="${STATIC_PFP_PATH_BASE}${pfpFilename}" alt="${escapeHtml(pfpUsername)}'s PFP" class="dc-pfp"></div>` : // UPDATED to dc-
-                `<div class="dc-pfp-placeholder-bubble">${pfpInitial}</div>`; // UPDATED to dc-
+                `<div class="dc-pfp-container-bubble"><img src="${STATIC_PFP_PATH_BASE}${pfpFilename}" alt="${escapeHtml(pfpUsername)}'s PFP" class="dc-pfp"></div>` :
+                `<div class="dc-pfp-placeholder-bubble">${pfpInitial}</div>`;
 
                 let fileHTML = '';
                 if (msg.shared_file) {
                     const sf = msg.shared_file;
-                    fileHTML = `<div class="dc-message-file-attachment"><p class="dc-file-name"><a href="${sf.download_url}" target="_blank" download="${escapeHtml(sf.original_filename)}">${escapeHtml(sf.original_filename)}</a></p><div class="dc-file-preview">`; // UPDATED to dc-
+                    fileHTML = `<div class="dc-message-file-attachment"><p class="dc-file-name"><a href="${sf.download_url}" target="_blank" download="${escapeHtml(sf.original_filename)}">${escapeHtml(sf.original_filename)}</a></p><div class="dc-file-preview">`;
                     if (sf.mime_type && sf.view_url) {
                         if (sf.mime_type.startsWith('image/')) fileHTML += `<img src="${sf.view_url}" alt="Preview" style="cursor:pointer;" onclick="window.open('${sf.view_url}', '_blank');">`;
                         else if (sf.mime_type.startsWith('video/')) fileHTML += `<video src="${sf.view_url}" controls></video>`;
                         else if (sf.mime_type.startsWith('audio/')) fileHTML += `<audio src="${sf.view_url}" controls></audio>`;
-                        else if (sf.mime_type === 'text/plain' && typeof sf.preview_content !== 'undefined') fileHTML += `<div class="dc-text-file-preview"><pre>${escapeHtml(sf.preview_content)}</pre></div>`; // UPDATED to dc-
+                        else if (sf.mime_type === 'text/plain' && typeof sf.preview_content !== 'undefined') fileHTML += `<div class="dc-text-file-preview"><pre>${escapeHtml(sf.preview_content)}</pre></div>`;
                     }
                     fileHTML += `</div></div>`;
                 }
@@ -445,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <p class="dc-message-content">${msg.content ? escapeHtml(msg.content) : ''}</p>
                 ${fileHTML}
-                </div>`; // All classes here are dc-
+                </div>`;
                 chat.messagesElement.appendChild(wrapper);
             }
 
@@ -467,14 +475,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     formData.append('file', file);
                 }
-                const sendButton = chat.element.querySelector('.emb-send-btn'); // Uses emb- class for button
+                const sendButton = chat.element.querySelector('.emb-send-btn');
                 chat.inputElement.disabled = true;
                 if(sendButton) sendButton.disabled = true;
                 try {
                     const response = await fetch(`${EMB_DM_SEND_API_URL_BASE}${chat.username}`, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN, 'Accept': 'application/json' }, body: formData });
                     const data = await response.json();
                     if (response.ok && data.status === 'success' && data.message) {
-                        renderMessage(friendId, data.message); // Uses dc- classes internally
+                        renderMessage(friendId, data.message);
                         scrollToBottom(friendId);
                         if (data.message.id > chat.lastMsgId) chat.lastMsgId = data.message.id;
                         chat.inputElement.value = '';
@@ -493,6 +501,65 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (chat.inputElement) chat.inputElement.focus();
                 }
             }
+
+            // --- START: New function to fetch and update user status in embedded chat header ---
+            async function fetchAndUpdateEmbUserStatus(friendId) {
+                if (!API_USERS_ACTIVITY_STATUS_URL || !CSRF_TOKEN) {
+                    console.warn("Activity status API URL or CSRF token not defined for embedded chat status.");
+                    return;
+                }
+                const indicator = document.getElementById(`emb-status-indicator-${friendId}`);
+                const statusTextElement = document.getElementById(`emb-status-text-${friendId}`);
+
+                if (!indicator || !statusTextElement) {
+                    // Elements might not be in DOM if chatbox is not fully created or was removed
+                    return;
+                }
+
+                try {
+                    const response = await fetch(API_USERS_ACTIVITY_STATUS_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': CSRF_TOKEN
+                        },
+                        body: JSON.stringify({ user_ids: [friendId] }) // API expects a list
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    if (data.user_statuses && data.user_statuses[friendId]) {
+                        const status = data.user_statuses[friendId]; // 'online', 'afk', 'offline'
+
+                        indicator.classList.remove('online', 'afk', 'offline');
+                        indicator.classList.add(status);
+
+                        let displayStatus = 'Offline';
+                        if (status === 'online') displayStatus = 'Online';
+                        else if (status === 'afk') displayStatus = 'Away';
+                        statusTextElement.textContent = displayStatus;
+                    } else {
+                        // Default to offline if status not found
+                        indicator.classList.remove('online', 'afk');
+                        indicator.classList.add('offline');
+                        statusTextElement.textContent = 'Offline';
+                    }
+                } catch (error) {
+                    console.error(`Error fetching activity status for friend ${friendId} in embedded chat:`, error);
+                    // Default to offline on error
+                    if (indicator) {
+                        indicator.classList.remove('online', 'afk');
+                        indicator.classList.add('offline');
+                    }
+                    if (statusTextElement) {
+                        statusTextElement.textContent = 'Offline';
+                    }
+                }
+            }
+            // --- END: New function ---
+
 
             function scrollToBottom(friendId) {
                 const chat = openChats[friendId];
@@ -533,6 +600,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const chat = openChats[friendId];
                     if (chat && chat.element && !chat.minimized && chat.username) {
                         fetchAndRenderHistory(friendId, false);
+                        // Optionally, refresh status here too if more frequent updates are desired for open chats
+                        // fetchAndUpdateEmbUserStatus(friendId); // This would poll status for all open chats
                     }
                 });
             }
@@ -603,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
             function updateBubbleUnreadVisuals(friendId, count) {
                 const bubbleState = chatBubbles[friendId];
                 if (bubbleState && bubbleState.element) {
-                    const indicator = bubbleState.element.querySelector('.emb-unread-message-indicator'); // Uses emb- class
+                    const indicator = bubbleState.element.querySelector('.emb-unread-message-indicator');
                     if (indicator) {
                         if (count > 0) {
                             indicator.textContent = count > 9 ? '9+' : count;
