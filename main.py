@@ -2044,6 +2044,50 @@ def edit_file(file_id):
                            stored_filename=file_record.stored_filename,
                            parent_folder_id=file_record.parent_folder_id)
 
+@app.route('/photos')
+@login_required
+def photos():
+    """Displays a gallery of the current user's image files."""
+    user_upload_path_base = get_user_upload_path(current_user.id) # Get base path for user
+
+    # Fetch image files for the current user
+    # Assuming VIEWABLE_IMAGE_MIMES is available in the app's config or globally
+    image_files = File.query.filter(
+        File.user_id == current_user.id,
+        File.mime_type.in_(current_app.config.get('VIEWABLE_IMAGE_MIMES', VIEWABLE_IMAGE_MIMES))
+    ).order_by(File.upload_date.desc()).all()
+
+    # Add a URL for each image, making sure to use the file owner's ID for the path
+    for img_file in image_files:
+        # The view_file route should handle serving the file
+        # It already uses file_record.user_id to get the correct path
+        img_file.view_url = url_for('view_file', file_id=img_file.id)
+        # We can also construct a direct static path if needed for display,
+        # but view_file is more robust for permissions, etc.
+        # For simplicity in the template, we can pass the stored_filename
+        # and construct the path there, or pass a fully qualified URL if preferred.
+
+    return render_template('photos.html', title='My Photos', image_files=image_files)
+
+
+@app.route('/videos')
+@login_required
+def videos():
+    """Displays a gallery of the current user's video files."""
+    # Fetch video files for the current user
+    video_files = File.query.filter(
+        File.user_id == current_user.id,
+        File.mime_type.in_(current_app.config.get('VIEWABLE_VIDEO_MIMES', VIEWABLE_VIDEO_MIMES))
+    ).order_by(File.upload_date.desc()).all()
+
+    for vid_file in video_files:
+        vid_file.view_url = url_for('view_file', file_id=vid_file.id)
+        # For videos, a poster image would be nice. If you implement thumbnail generation:
+        # vid_file.poster_url = url_for('static', filename=f'uploads/video_thumbnails/{vid_file.id}.jpg') # Example
+        vid_file.poster_url = None # Placeholder
+
+    return render_template('videos.html', title='My Videos', video_files=video_files)
+
 # Route for root file listing
 @app.route('/files/', defaults={'folder_id': None}, methods=['GET'])
 @app.route('/files/folder/<int:folder_id>', methods=['GET'])
