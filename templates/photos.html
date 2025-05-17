@@ -1,0 +1,76 @@
+{# templates/photos.html #}
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/photos.css') }}">
+{% endblock %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="ph-page-container">
+    <div class="ph-header-bar">
+        <h2 class="ph-page-title">{{ title }}</h2>
+    </div>
+
+    {% if image_files %}
+        <div class="ph-gallery-grid">
+            {% for image in image_files %}
+                <div class="ph-image-card" id="ph-card-{{ image.id }}"> {# Added ID to card for easier removal #}
+                    <div class="ph-image-thumbnail-container"
+                         role="button"
+                         tabindex="0"
+                         aria-label="Preview {{ image.original_filename }}"
+                         data-preview-src="{{ image.view_url }}"
+                         data-filename="{{ image.original_filename }}"
+                         data-file-id="{{ image.id }}"> {# ADDED file-id here #}
+                        <img src="{{ image.view_url }}" alt="{{ image.original_filename }}" class="ph-image-thumbnail">
+                    </div>
+                    <div class="ph-image-info">
+                        <p class="ph-image-name" id="ph-filename-{{ image.id }}">{{ image.original_filename }}</p> {# Added ID for filename update #}
+                        <p class="ph-image-date">Uploaded: {{ image.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="ph-empty-message">
+            <p>You haven't uploaded any photos yet.</p>
+            <p><a href="{{ url_for('list_files') }}" class="btn btn-primary">Upload Photos</a></p>
+        </div>
+    {% endif %}
+</div>
+
+{# Modal structure for image preview #}
+<div id="ph-preview-modal" class="ph-modal" style="display: none;" aria-labelledby="ph-modal-filename-display" aria-modal="true" role="dialog">
+    <div class="ph-modal-backdrop"></div>
+    <div class="ph-modal-content">
+        <div class="ph-modal-header">
+            <h5 id="ph-modal-filename-display" class="ph-modal-title-text">Image Preview</h5>
+            <button type="button" id="ph-btn-close-modal" class="ph-modal-close-button" aria-label="Close preview">&times;</button>
+        </div>
+        <div class="ph-modal-body">
+            <img id="ph-modal-image-preview" src="" alt="Full size preview" class="ph-modal-image">
+        </div>
+        <div class="ph-modal-footer">
+            {# ADDED Delete and Rename buttons #}
+            <button type="button" id="ph-btn-modal-delete" class="btn btn-danger btn-sm">Delete</button>
+            <button type="button" id="ph-btn-modal-rename" class="btn btn-secondary btn-sm">Rename</button>
+            <a href="#" id="ph-modal-download-link" class="btn btn-primary btn-sm" download>Download</a> {# Changed download to primary for distinction #}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        /* Make CSRF_TOKEN available to photos.js if not already global from base.html */
+        /* It is already global from base.html, so this is just a reminder */
+        /* const CSRF_TOKEN = "{{ csrf_token() }}"; */
+        const DELETE_FILE_URL_BASE = "{{ url_for('delete_file', file_id=0) }}".slice(0, -1); /* /files/delete/ */
+        const RENAME_FILE_URL_BASE = "{{ url_for('rename_file', file_id=0) }}".slice(0, -1); /* /files/rename/ */
+    </script>
+    <script src="{{ url_for('static', filename='js/photos.js') }}"></script>
+{% endblock %}
