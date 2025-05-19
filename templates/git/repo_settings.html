@@ -1,0 +1,123 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}{{ repo.name }} Settings - {{ super() }}{% endblock %}
+
+{# head_extensions for git.css is inherited from repo_base.html #}
+
+{% block breadcrumbs_override %}
+    {# Using the existing breadcrumb structure, but it will inherit new CSS styles #}
+    <nav class="git-breadcrumb-container git-rs-breadcrumb-container" aria-label="Breadcrumb">
+        <ol role="list" class="git-breadcrumb-list">
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <a href="{{ url_for('mygit') }}" class="git-breadcrumb-link git-breadcrumb-link-home"> {# Changed from 'dashboard' to 'mygit' based on earlier context #}
+                        <svg class="git-breadcrumb-icon git-breadcrumb-icon-home" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+                        <span class="git-sr-only">My Repositories</span>
+                    </a>
+                </div>
+            </li>
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <svg class="git-breadcrumb-icon git-breadcrumb-separator-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" /></svg>
+                    <a href="{{ url_for('view_repo_root', owner_username=owner_username, repo_short_name=current_repo_name_for_url) }}" class="git-breadcrumb-link">{{ owner_username }}/{{ current_repo_name_for_url }}</a>
+                </div>
+            </li>
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <svg class="git-breadcrumb-icon git-breadcrumb-separator-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" /></svg>
+                    <span class="git-breadcrumb-current">Settings</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+{% endblock breadcrumbs_override %}
+
+{% block repo_heading_override %}
+    {# repo_base.html handles the main repo heading. We might not need a separate one here,
+       or we can use a simpler page title specific to settings. #}
+{% endblock %}
+
+{% block repo_content %}
+<div class="git-rs-page-container">
+    <header class="git-rs-page-header">
+        <h1 class="git-rs-main-title">Repository Settings</h1>
+        <p class="git-rs-subtitle">Manage <strong class="git-rs-repo-identifier">{{ owner_username }}/{{ current_repo_name_for_url }}</strong> and its properties.</p>
+    </header>
+
+    <form method="POST" action="{{ url_for('repo_settings', owner_username=owner_username, repo_short_name=current_repo_name_for_url) }}" class="git-rs-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <section class="git-rs-settings-group">
+            <div class="git-rs-setting-section">
+                <div class="git-rs-setting-label-group">
+                    <h3 class="git-rs-section-title">Repository Name</h3>
+                    <p class="git-rs-section-description">Change the name of your repository. This will also change its URL. Allowed characters: alphanumeric, underscores, hyphens.</p>
+                </div>
+                <div class="git-rs-setting-control-group">
+                    <input type="text" name="repo_name" id="repo_name" value="{{ repo.name }}"
+                           class="git-form-input git-rs-repo-name-input"
+                           pattern="[a-zA-Z0-9_-]+" title="Only alphanumeric characters, underscores, and hyphens.">
+                </div>
+            </div>
+
+            <div class="git-rs-setting-section">
+                <div class="git-rs-setting-label-group">
+                    <h3 class="git-rs-section-title">Description</h3>
+                    <p class="git-rs-section-description">A short, optional description of your repository. This will be visible on the repository page.</p>
+                </div>
+                <div class="git-rs-setting-control-group">
+                    <textarea id="description" name="description" rows="4"
+                              class="git-form-input git-rs-description-textarea"
+                              placeholder="My awesome project about...">{{ repo.description or '' }}</textarea>
+                </div>
+            </div>
+        </section>
+
+        <section class="git-rs-settings-group">
+            <div class="git-rs-setting-section git-rs-visibility-section">
+                 <div class="git-rs-setting-label-group">
+                    <h3 class="git-rs-section-title">Visibility</h3>
+                    <p class="git-rs-section-description">Control who can see and fork this repository.</p>
+                </div>
+                <div class="git-rs-setting-control-group">
+                    <div class="git-rs-visibility-options">
+                        <label class="git-rs-visibility-option {% if not repo.is_private %}git-rs-visibility-option-selected{% endif %}">
+                            <input type="radio" name="visibility" value="public" class="git-form-radio git-rs-visibility-radio" {% if not repo.is_private %}checked{% endif %}>
+                            <div class="git-rs-visibility-option-icon">
+                                {# Public Icon (e.g., globe or unlocked) #}
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.002 6.002 0 0111.336 0H4.332zm-.006 4.006a6.002 6.002 0 0111.336 0H4.326zM10 2a7.002 7.002 0 00-6.044 3.407 5.984 5.984 0 015.168-2.344.5.5 0 01.32.939A5.002 5.002 0 008.5 7.25a.5.5 0 01-1 0 6.002 6.002 0 013-5.185A6.002 6.002 0 0110 2z" clip-rule="evenodd" /></svg>
+                            </div>
+                            <span class="git-rs-visibility-option-details">
+                                <strong class="git-rs-visibility-option-name">Public</strong>
+                                <span class="git-rs-visibility-option-desc">Anyone on the internet can see this repository. You choose who can commit.</span>
+                            </span>
+                        </label>
+                        <label class="git-rs-visibility-option {% if repo.is_private %}git-rs-visibility-option-selected{% endif %}">
+                            <input type="radio" name="visibility" value="private" class="git-form-radio git-rs-visibility-radio" {% if repo.is_private %}checked{% endif %}>
+                            <div class="git-rs-visibility-option-icon">
+                                {# Private Icon (e.g., lock) #}
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" /></svg>
+                            </div>
+                             <span class="git-rs-visibility-option-details">
+                                <strong class="git-rs-visibility-option-name">Private</strong>
+                                <span class="git-rs-visibility-option-desc">You choose who can see and commit to this repository.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {# Add other sections like "Danger Zone" for delete if needed #}
+
+        <div class="git-rs-form-actions">
+            <a href="{{ url_for('view_repo_root', owner_username=owner_username, repo_short_name=current_repo_name_for_url) }}" class="git-btn git-btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="git-btn git-btn-primary">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
