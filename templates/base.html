@@ -57,6 +57,18 @@
                     <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
                 </ul>
             </li>
+            {% set git_active = request.endpoint in ['git_homepage', 'mygit', 'starred_repositories_page'] %}
+            <li class="base-nav-item base-nav-dropdown {% if git_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    <img src="{{ url_for('static', filename='icons/git.svg') }}" alt="" class="base-nav-icon">
+                    Git <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'git_homepage' %}class="active"{% endif %}><a href="{{ url_for('git_homepage') }}" class="base-nav-dropdown-item-link">Git Home</a></li>
+                    <li {% if request.endpoint == 'mygit' %}class="active"{% endif %}><a href="{{ url_for('mygit') }}" class="base-nav-dropdown-item-link">My Git</a></li>
+                    <li {% if request.endpoint == 'starred_repositories_page' %}class="active"{% endif %}><a href="{{ url_for('starred_repositories_page') }}" class="base-nav-dropdown-item-link">Starred</a></li>
+                </ul>
+            </li>
             {% set user_dropdown_active = (request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
                                           (request.endpoint == 'admin_settings' and current_user.is_admin) %}
             <li class="base-nav-item base-nav-dropdown {% if user_dropdown_active %}active{% endif %}">
@@ -123,6 +135,7 @@
 {% if current_user.is_authenticated %}
     <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/base_friend_chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/localetime_formatter.js') }}"></script>
 {% else %}
     <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
 {% endif %}
