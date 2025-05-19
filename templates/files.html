@@ -105,7 +105,7 @@
                         <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
                     </td>
                     <td class="fl-td fl-td-size">--</td>
-                    <td class="fl-td fl-td-modified">{{ folder.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="fl-td fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></td>
 <td class="fl-td fl-td-actions fl-actions-cell">
     <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
         <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ folder.name }}" onclick="toggleItemMenu(this)">
@@ -175,7 +175,7 @@
                         {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
                         {% endif %}
                     </td>
-                    <td class="fl-td fl-td-modified">{{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="fl-td fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></td>
 <td class="fl-td fl-td-actions fl-actions-cell">
     <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
         <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ file.original_filename }}" onclick="toggleItemMenu(this)">
