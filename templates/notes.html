@@ -21,7 +21,7 @@
                     <h3 class="nl-item-title"> {# Prefixed class #}
                         <a href="{{ url_for('view_note', note_id=note.id) }}" class="nl-item-title-link">{{ note.title }}</a> {# Prefixed class #}
                     </h3>
-                    <small class="nl-item-meta">Created: {{ note.timestamp.strftime('%Y-%m-%d %H:%M') }} UTC</small> {# Prefixed class #}
+                    <small class="nl-item-meta">Created: <span data-timestamp="{{ note.timestamp | localetime }}"></span></small>
                     {# Optional: Show snippet of content #}
                     {# <p class="nl-item-snippet">{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p> #} {# Example of prefixed snippet class #}
                     <div class="nl-item-actions"> {# Prefixed class #}
