@@ -7,11 +7,13 @@
         <img src="{{ url_for('static', filename='uploads/profile_pics/' + comment.author.profile_picture_filename if comment.author.profile_picture_filename else 'icons/default-pfp.svg') }}" alt="{{ comment.author.username }}" class="pm-comment-author-pfp">
         <div class="pm-comment-author-details">
             <a href="{{ url_for('user_profile', username=comment.author.username) }}" class="pm-comment-author-username">{{ comment.author.username }}</a>
-            <small class="pm-comment-timestamp" title="{{ comment.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}">
-                {{ comment.timestamp.strftime('%b %d, %Y %I:%M %p') }}
-                {% if is_reply and comment.parent_id and comment.parent_comment and not is_embedded_in_shared_post %}
-                    replied to <a href="#comment-{{ comment.parent_id }}">{{ comment.parent_comment.author.username }}</a>
-                {% endif %}
+<small class="pm-comment-timestamp" data-timestamp="{{ comment.timestamp | localetime }}">
+    {# JS will populate this #}
+</small>
+{# You might need to adjust the position of the "replied to" text if it was inside the small tag #}
+{% if is_reply and comment.parent_id and comment.parent_comment and not is_embedded_in_shared_post %}
+    <small class="pm-comment-timestamp-suffix">replied to <a href="#comment-{{ comment.parent_id }}">{{ comment.parent_comment.author.username }}</a></small>
+{% endif %}
             </small>
         </div>
         {# NEW: Hamburger Menu for Comment Actions (only if not embedded shared comment) #}
@@ -107,9 +109,9 @@
             <img src="{{ url_for('static', filename='uploads/profile_pics/' + post.author.profile_picture_filename if post.author.profile_picture_filename else 'icons/default-pfp.svg') }}" alt="{{ post.author.username }}" class="pm-post-author-pfp">
             <div class="pm-post-author-details">
                 <a href="{{ url_for('user_profile', username=post.author.username) }}" class="pm-post-author-username">{{ post.author.username }}</a>
-                <small class="pm-post-timestamp" title="{{ post.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}">
-                    {{ post.timestamp.strftime('%b %d, %Y %I:%M %p') }}
-                </small>
+<small class="pm-post-timestamp" data-timestamp="{{ post.timestamp | localetime }}">
+    {# JS will populate this #}
+</small>
             </div>
         </div>
         {% if post.author == current_user or current_user.is_admin %}
