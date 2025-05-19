@@ -37,3 +37,7 @@ Nextcloud alternative made with python, js, html, css. Easy to run, fast and cur
 ### Files checkbox doesn't work properly FIXED
 ### Audio Player not working with chromium based browsers FIXED
 ### Unarchiving un archive with subfolders will cause files to not go into appropriate folders
+ export FLASK_APP=main.py
+ 1019  flask --app main.py db init
+ 1020  flask db migrate -m "Create git_repository table and other initial tables"
+ 1021  flask db upgrade
