@@ -1,43 +1,62 @@
-# PyCloud
-Nextcloud alternative made with python, js, html, css. Easy to run, fast and currently in development.
-# Coming Soon
-### Integrated Git Server, Fix for wrong time issue
-# Key features
-### File Storage
-### Notes
-### AI Chat (Ollama)
-### General Group Chat
-### Admin Settings
-### Password reset using smtp
-### User profiles ( Bio, profile picture & more ) *NEW*
-### Social Media Posting *NEW*
-### Changeable email ( For user ) *NEW*
-### Notifications for friend invite, messages, new posts
-### Disable(Banning) / Delete users
-### Batch selection for files
-### Friends & Friend Chat
-### Code color syntax in file editor thanks to [MirrorCode](https://codemirror.net/)
-### GBA Emulator thanks to [mGBA](https://github.com/mgba-emu/mgba), [emscripten](https://github.com/emscripten-core/emscripten), [GBA-wasm](https://github.com/kxkx5150/GBA-wasm)
-> I do not provide the GBA Bios, find it somewhere else and put it in 
->> ./PyCloud/static/bios/gba_bios.bin 
->>> or if installed /home/username/.local/share/PyCloud/static/bios/gba_bios.bin
-# Upcoming features
-### Email verification
+# PyCloud ☁️
 
+**A versatile, self-hostable application suite designed to integrate your digital life. PyCloud offers a range of tools from productivity and development to entertainment and social connectivity.**
 
-### Rate limiting password reset
-### Separated Upload Limit for group chat
-### Wipe entire Group Chat in admin settings
+PyCloud aims to be your personal cloud an all-in-one platform, providing a seamless experience for managing files, code, notes, and communications, with exciting new social and AI capabilities.
 
+## ✨ Key Features
 
-### Drag files around
-### & More
+PyCloud comes packed with a diverse set of features to enhance your productivity and digital interaction:
 
-# Known bugs that will be corrected in near future
-### Files checkbox doesn't work properly FIXED
-### Audio Player not working with chromium based browsers FIXED
-### Unarchiving un archive with subfolders will cause files to not go into appropriate folders
- export FLASK_APP=main.py
- 1019  flask --app main.py db init
- 1020  flask db migrate -m "Create git_repository table and other initial tables"
- 1021  flask db upgrade
+### Collaboration & Communication
+* 🗣️ **General Group Chat:** Engage in real-time conversations with other users.
+* 🤝 **Friends & Friend Chat:** Connect with friends, manage your friend list, and have private conversations.
+* 🔔 **Notifications:** Stay updated with alerts for friend invites, messages, and new posts.
+
+### Productivity & Organization
+* 🗄️ **File Storage:** Securely store and manage your files with batch selection capabilities.
+* 📝 **Notes:** A dedicated space to jot down your thoughts, ideas, and important information.
+* 📅 **Social Media Posting (*NEW*):** Draft and publish posts to your favorite social media platforms directly from PyCloud.
+
+### Development & Technical
+* ⚙️ **Integrated Git Server:** Host and manage your Git repositories.
+* 💻 **Code Editor with Syntax Highlighting:** Edit files with ease, powered by [CodeMirror](https://codemirror.net/) for a rich coding experience.
+* 🤖 **AI Chat (Ollama Integration):** Interact with small or big AI models locally through Ollama.
+
+### User & Admin Management
+* 👤 **User Profiles:** Personalize your PyCloud experience with a bio, profile picture, and more.
+* 📧 **Changeable Email:** Users can update their registered email address.
+* 🔑 **Password Reset via SMTP:** Securely reset forgotten passwords.
+* 🛠️ **Admin Settings:** Comprehensive control panel for administrators.
+* 🚫 **User Management:** Admins can disable (ban) or delete user accounts.
+
+### Entertainment
+* 🎮 **GBA Emulator:** Relive classic Game Boy Advance games directly in PyCloud.
+    * Powered by [mGBA](https://github.com/mgba-emu/mgba), [Emscripten](https://github.com/emscripten-core/emscripten), and [GBA-wasm](https://github.com/kxkx5150/GBA-wasm).
+    * **BIOS Requirement:** You must provide your own GBA BIOS file.
+        * Place it at `./PyCloud/static/bios/gba_bios.bin` in the project directory.
+        * Or, if installed, at `/home/YOUR_USERNAME/.local/share/PyCloud/static/bios/gba_bios.bin`.
+        * *Note: The GBA BIOS is not provided with PyCloud due to copyright restrictions.*
+
+## 🚀 Getting Started
+
+**Installation Guide Coming Soon**
+
+## 🛠️ Usage
+
+**Configuration Guide Coming Soon**
+
+## 🌱 Upcoming Features
+
+We are constantly working to improve PyCloud. Here's what's on the horizon:
+
+* ✅ **Email Verification:** Enhance security with email verification for new user registrations.
+* ⏱️ **Rate Limiting for Password Reset:** Prevent abuse of the password reset functionality.
+* 📦 **Separated Upload Limit for Group Chat:** Custom upload limits specifically for the group chat feature.
+* 🗑️ **Wipe Entire Group Chat:** Admin ability to clear all messages from the general group chat.
+* ✋ **Drag Files Around:** More intuitive file management with drag-and-drop reordering/moving.
+* 💡 **And much more!** Stay tuned for further enhancements.
+
+---
+
+*Thank you for your interest in PyCloud!*
