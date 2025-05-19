@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-
+# EXEPERIMENTAL UPGRADE DB
 # Exit immediately if a command exits with a non-zero status.
 set -e
 # Treat unset variables as an error when substituting.
@@ -10,17 +10,19 @@ set -o pipefail
 # --- Configuration ---
 APP_NAME="PyCloud" # Updated App Name
 VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
-APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live inside the venv
-TARGET_BIN_DIR="/usr/local/bin"          # Standard location for user-installed executables
+APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live
+TARGET_BIN_DIR="/usr/local/bin"       # Standard location for user-installed executables
 # Source directories/files relative to the script location
-# Assumes install.sh is in the parent directory of PyCloud
-SOURCE_APP_DIR="./"
+# Assumes install.sh is in the parent directory of PyCloud (or same dir if SOURCE_APP_DIR is ./)
+SOURCE_APP_DIR="./" # This means main.py, static, templates are in the same dir as install.sh
 REQUIRED_ITEMS=( # Items needed from the source directory
     "${SOURCE_APP_DIR}/main.py"
     "${SOURCE_APP_DIR}/static"
     "${SOURCE_APP_DIR}/templates"
     # Add manager_settings.json if you want to ship a default one
     # "${SOURCE_APP_DIR}/manager_settings.json"
+    # Assuming PyCloud executable is also in the source directory
+    "${SOURCE_APP_DIR}/PyCloud"
 )
 PYTHON_DEPS=( # Python packages to install via pip
     "pip" # Ensure pip is up-to-date first
@@ -84,10 +86,12 @@ fi
 # Determine the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 info "Script source directory: ${SCRIPT_DIR}"
+info "Application source files expected in: ${SCRIPT_DIR}/${SOURCE_APP_DIR}"
+
 
 # Check if source items exist relative to the script directory
 for item in "${REQUIRED_ITEMS[@]}"; do
-    item_path="${SCRIPT_DIR}/${item}"
+    item_path="${SCRIPT_DIR}/${item#./}" # Remove leading ./ if present for clean path
     if [[ ! -e "${item_path}" ]]; then # Check if file or directory exists
         error "Required source item not found: ${item_path}"
     fi
@@ -109,10 +113,10 @@ elif command_exists pacman; then
     PACKAGE_MANAGER="pacman"
     run_sudo pacman -S --noconfirm --needed python python-virtualenv || error "Failed using pacman."
 elif command_exists emerge; then
-     PACKAGE_MANAGER="emerge"
-     # Gentoo typically includes venv with python, but check for python itself
-     run_sudo emerge --ask --noreplace dev-lang/python || error "Failed initial emerge for python."
-     info "Assuming Python 3 venv module is included with dev-lang/python on Gentoo."
+    PACKAGE_MANAGER="emerge"
+    # Gentoo typically includes venv with python, but check for python itself
+    run_sudo emerge --ask --noreplace dev-lang/python || error "Failed initial emerge for python."
+    info "Assuming Python 3 venv module is included with dev-lang/python on Gentoo."
 else
     error "Could not detect a supported package manager (apt, dnf, pacman, emerge). Please install Python 3 and the Python venv module manually."
 fi
@@ -131,10 +135,11 @@ info "Python 3 and venv module confirmed."
 
 
 # --- Cleanup Previous Installation (if exists) ---
-
+# This section removes the entire VENV_DIR, which includes main.py, static, templates
+# if APP_INSTALL_DIR is the same as VENV_DIR.
 if [[ -d "${VENV_DIR}" ]]; then
     info "Existing installation found at ${VENV_DIR}. Reinstalling..."
-    info "Removing old virtual environment..."
+    info "Removing old virtual environment and application files..."
     rm -rf "${VENV_DIR}" || error "Failed to remove old virtual environment: ${VENV_DIR}"
 
     info "Removing old executable and links from ${TARGET_BIN_DIR}..."
@@ -148,28 +153,28 @@ else
     info "No previous installation found at ${VENV_DIR}. Proceeding with new installation."
 fi
 
-# --- Virtual Environment Setup & Application Installation (Always Run) ---
+# --- Virtual Environment Setup, Application Deployment, and Database Migration ---
 
 info "Creating Python virtual environment in ${VENV_DIR}"
 mkdir -p "$(dirname "${VENV_DIR}")" || error "Failed to create parent directory for ${VENV_DIR}"
 python3 -m venv "${VENV_DIR}" || error "Failed to create virtual environment."
 
-info "Activating virtual environment for dependency installation (temporary)"
+info "Activating virtual environment..."
 # Activate venv for pip commands - use source for bash compatibility
+# shellcheck source=/dev/null
 source "${VENV_DIR}/bin/activate" || error "Failed to activate virtual environment."
 
-info "Upgrading pip..."
+info "Upgrading pip, setuptools, and wheel..."
 python -m pip install --upgrade pip || error "Failed to upgrade pip in venv."
-pip install --upgrade setuptools wheel || error "Failed to upgrade setuptools/wheel."
+python -m pip install --upgrade setuptools wheel || error "Failed to upgrade setuptools/wheel."
 
-info "Installing Python dependencies into virtual environment..."
-python -m pip install "${PYTHON_DEPS[@]}" || error "Failed to install Python dependencies."
-
-info "Deactivating virtual environment"
-deactivate # Good practice to deactivate after use in script
+info "Installing/Updating Python dependencies into virtual environment..."
+# Using --upgrade will ensure packages are updated if already installed
+python -m pip install --upgrade "${PYTHON_DEPS[@]}" || error "Failed to install/upgrade Python dependencies."
 
 info "Copying application files into virtual environment..."
-mkdir -p "${APP_INSTALL_DIR}" || error "Failed to create app directory in venv: ${APP_INSTALL_DIR}"
+# APP_INSTALL_DIR is VENV_DIR, so files go into the root of the venv.
+# The VENV_DIR itself already exists.
 cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/main.py" "${APP_INSTALL_DIR}/" || error "Failed to copy main.py"
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/static" "${APP_INSTALL_DIR}/" || error "Failed to copy static directory"
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/templates" "${APP_INSTALL_DIR}/" || error "Failed to copy templates directory"
@@ -177,12 +182,47 @@ cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/templates" "${APP_INSTALL_DIR}/" || error
 # if [[ -f "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" ]]; then
 #     cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
 # fi
+info "Application files copied."
 
-info "Copying PyCloud executable to /usr/local/bin/"
-sudo cp ./PyCloud /usr/local/bin/
+info "Performing database migrations..."
+ORIGINAL_PWD=$(pwd) # Save current directory
+cd "${APP_INSTALL_DIR}" || error "Failed to change directory to ${APP_INSTALL_DIR}"
 
-# Copy the temporary file to the target destination using sudo and set permissions
-run_sudo chmod +x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to set executable permission."
+export FLASK_APP=main.py # Set FLASK_APP for the flask commands
+info "FLASK_APP set to main.py"
+
+# Initialize Flask-Migrate repository if it doesn't exist
+if [[ ! -d "${APP_INSTALL_DIR}/migrations" ]]; then
+    info "Migrations directory not found. Initializing Flask-Migrate..."
+    flask db init || error "Failed to initialize Flask-Migrate (flask db init)."
+    info "Flask-Migrate initialized."
+else
+    info "Migrations directory already exists. Skipping flask db init."
+fi
+
+info "Running database migration..."
+# The user requested this specific migration message.
+# For subsequent upgrades, you might want a more dynamic or generic message.
+flask db migrate -m "Creates new tables and other initial tables" || error "Failed to generate database migration (flask db migrate)."
+info "Database migration generated."
+
+info "Applying database upgrade..."
+flask db upgrade || error "Failed to apply database upgrade (flask db upgrade)."
+info "Database upgrade applied."
+
+cd "${ORIGINAL_PWD}" || error "Failed to change directory back to original path." # Return to original directory
+info "Database migrations completed."
+
+info "Deactivating virtual environment"
+deactivate # Good practice to deactivate after use in script
+
+
+# --- Executable Setup ---
+info "Copying ${MAIN_EXECUTABLE_NAME} executable to ${TARGET_BIN_DIR}/"
+# Assumes PyCloud executable is in the SCRIPT_DIR or SCRIPT_DIR/SOURCE_APP_DIR
+run_sudo cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/${MAIN_EXECUTABLE_NAME}" "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to copy ${MAIN_EXECUTABLE_NAME} to ${TARGET_BIN_DIR}"
+
+run_sudo chmod +x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to set executable permission on ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}."
 
 # Create symlinks (remove first to ensure correctness)
 for link_name in "${LINK_NAMES[@]}"; do
@@ -195,24 +235,19 @@ for link_name in "${LINK_NAMES[@]}"; do
         run_sudo ln -sf "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" "${TARGET_LINK}" || error "Failed to create symlink ${link_name}"
     fi
 done
-
-info "Installation steps completed."
+info "Executable setup completed."
 
 
 # --- Final Check ---
-
-# Check if the main executable file exists and is executable
 if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
-    # Check if the command is found in the PATH
     if command_exists "${MAIN_EXECUTABLE_NAME}"; then
         info "-------------------------------------------"
         info " Installation successful!"
         info " Virtual Environment: ${VENV_DIR}"
         info " App Files: ${APP_INSTALL_DIR}"
         info " Executable: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
-        info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME}"
-        info "            you run the '${MAIN_EXECUTABLE_NAME}' command."
-        info "            Alternatively, edit '${APP_INSTALL_DIR}/main.py' to set an absolute path."
+        info " Symlinks: ${LINK_NAMES[*]} (if any) in ${TARGET_BIN_DIR}"
+        info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME} or pycloud"
         info " If the command isn't found immediately, try opening a new terminal session."
         info "-------------------------------------------"
     else
