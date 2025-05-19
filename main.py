@@ -6,7 +6,7 @@ import logging
 import sqlalchemy as sa
 from wtforms import BooleanField
 from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import relationship, backref, aliased
+from sqlalchemy.orm import relationship, Mapped, mapped_column, backref, aliased
 from wtforms import TextAreaField
 from flask import abort
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -26,9 +26,10 @@ import mimetypes
 import codecs
 from sqlalchemy.exc import IntegrityError
 from wtforms.validators import Optional, InputRequired
-from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app)
+from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app, make_response, abort, g)
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
+from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, DateTime, Boolean, inspect
+from git import Repo as PyGitRepo, InvalidGitRepositoryError, NoSuchPathError
 from flask_login import (LoginManager, UserMixin, login_user, logout_user, login_required, current_user)
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, EmailField
@@ -38,7 +39,16 @@ from itsdangerous import URLSafeTimedSerializer
 from flask_mail import Mail
 from flask_mail import Message
 from PIL import Image, ImageSequence
-
+import subprocess
+from pathlib import Path
+import tempfile
+import math
+from humanize import naturaltime
+from wtforms import TextAreaField, StringField as WTStringField # Renaming to avoid conflict if StringField is used differently
+from wtforms.validators import DataRequired as WTDataRequired, Length as WTLength
+import markdown # For Markdown to HTML conversion
+from markupsafe import Markup # To mark HTML as safe for Jinja
+from flask_migrate import Migrate # Import Migrate
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO) # Log informational messages and above
 
@@ -91,16 +101,19 @@ EDITABLE_EXTENSIONS = {
 app = Flask(__name__, instance_path=INSTANCE_FOLDER_PATH) # Tell Flask about the instance folder
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Store path for reference if needed
 csrf = CSRFProtect(app)
-app.config['SECRET_KEY'] = os.urandom(24) # Replace with a static key for production
+app.config['SECRET_KEY'] = '87213721832893718738918237897891328' #os.urandom(24) # Replace with a static key for production
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, DB_NAME)}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['VIEWABLE_MIMES'] = VIEWABLE_MIMES
 app.config['EDITABLE_EXTENSIONS'] = EDITABLE_EXTENSIONS
+app.config['GIT_REPOSITORIES_ROOT'] = os.path.join(app.instance_path, "git_repositories") # Store in instance folder
+app.config['GIT_EXECUTABLE_PATH'] = "git" # Or specify full path if not in system PATH
 
 mail = Mail(app)
 # --- Database Setup ---
 db = SQLAlchemy(app)
+migrate = Migrate(app, db) # Initialize Migrate
 
 followers = db.Table('followers', db.metadata,
     db.Column('follower_id', db.Integer, db.ForeignKey('user.id', name='fk_followers_follower_id', ondelete='CASCADE'), primary_key=True),
@@ -130,6 +143,13 @@ comment_dislikers = db.Table('comment_dislikers', db.metadata,
     db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_comment_dislikers_user_id', ondelete='CASCADE'), primary_key=True),
     db.Column('comment_id', db.Integer, db.ForeignKey('comment.id', name='fk_comment_dislikers_comment_id', ondelete='CASCADE'), primary_key=True),
     extend_existing=True  # Add this
+)
+
+repo_stars = db.Table('repo_stars', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_repo_stars_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('git_repository_id', db.Integer, db.ForeignKey('git_repository.id', name='fk_repo_stars_git_repo_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('starred_at', db.DateTime, default=lambda: datetime.now(timezone.utc)), # Use timezone aware now
+    extend_existing=True
 )
 
 # Helper to get post media upload path
@@ -211,6 +231,33 @@ def time_since_filter(dt_str, default="just now"):
     return f"{hours} hour{'s' if hours > 1 else ''}"
 
 app.jinja_env.filters['timesince'] = time_since_filter
+
+def localetime_filter(dt):
+    """
+    Jinja filter to format a datetime object as a valid ISO 8601 string (UTC).
+    Ensures the string is correctly parseable by client-side JS Date objects.
+    """
+    if dt is None:
+        # Return an empty string if the datetime object is None
+        return ""
+    # Ensure it's UTC before converting to ISO
+    if dt.tzinfo is None:
+        # Assuming naive datetimes stored are implicitly UTC
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    # Return the ISO 8601 string.
+    # datetime.isoformat() for a timezone-aware UTC object
+    # should produce a string ending in +00:00, which is valid.
+    # Do NOT manually append 'Z'.
+    return dt.isoformat() # REMOVED + 'Z'
+
+app.jinja_env.filters['localetime'] = localetime_filter
+
+app.jinja_env.globals.update(
+    datetime=datetime, # CORRECTED: Make the datetime module (which includes the datetime class) available
+    naturaltime=naturaltime,
+    len=len
+)
 
 def configure_mail_from_db(current_app):
     with current_app.app_context(): # Ensure DB operations are within context
@@ -331,6 +378,213 @@ def register_extracted_items(extract_base_dir, user_id, parent_folder_id_in_db, 
                      try: os.remove(filepath_on_disk)
                      except OSError: pass
                  raise # Re-raise to be caught by the main route's try/except
+
+def get_codemirror_mode_from_filename(filename):
+    """
+    Determines a suitable CodeMirror mode based on the filename's extension.
+    Uses CodeMirror.findModeByExtension if available on client,
+    otherwise falls back to a basic mapping.
+    This function provides a server-side hint. The actual mode loading
+    will happen client-side via static/codemirror/mode/meta.js.
+    """
+    if not filename or '.' not in filename:
+        return 'text/plain'
+    ext = filename.rsplit('.', 1)[1].lower()
+
+    # More comprehensive mapping can be added here if needed,
+    # but meta.js on client-side is preferred.
+    # This is just a server-side helper for the template.
+    simple_map = {
+        'py': 'python',
+        'js': 'javascript',
+        'json': 'application/json',
+        'css': 'css',
+        'html': 'htmlmixed',
+        'htm': 'htmlmixed',
+        'xml': 'xml',
+        'md': 'markdown',
+        'sh': 'shell',
+        'sql': 'sql',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'java': 'text/x-java',
+        'c': 'text/x-csrc',
+        'cpp': 'text/x-c++src',
+        'h': 'text/x-c++src',
+        'hpp': 'text/x-c++src',
+        'cs': 'text/x-csharp',
+        # Add more common ones
+    }
+    return simple_map.get(ext, 'text/plain')
+
+def get_latest_commit_info_for_path(repo_disk_path, item_path_in_repo, ref_name):
+    """
+    Fetches detailed last commit information for a specific path in a repository.
+    Returns a dictionary with id, short_message, message, committer_name, and date,
+    or None if no commit is found or an error occurs.
+    """
+    try:
+        pygit_repo = PyGitRepo(repo_disk_path) # Use the aliased GitPython Repo
+
+        # Attempt to resolve the reference to a commit object
+        try:
+            resolved_ref_commit = pygit_repo.commit(ref_name)
+        except Exception as e_ref:
+            current_app.logger.warning(f"Could not resolve ref '{ref_name}' to a commit in {repo_disk_path} for path '{item_path_in_repo}': {e_ref}")
+            return None
+
+        # Get the last commit that modified this specific path on the given ref
+        commits_iter = pygit_repo.iter_commits(rev=resolved_ref_commit.hexsha, paths=item_path_in_repo, max_count=1)
+        last_commit = next(commits_iter, None)
+
+        if last_commit:
+            commit_info = {
+                'id': last_commit.hexsha,
+                'message': last_commit.message,
+                'short_message': last_commit.message.splitlines()[0] if last_commit.message else "[No commit message]",
+                'committer_name': last_commit.committer.name if last_commit.committer else "N/A",
+                'date': datetime.fromtimestamp(last_commit.committed_date, tz=timezone.utc)
+            }
+            return commit_info
+        else:
+            # No specific commit found for this path on this ref.
+            # This can happen for items added in the working tree but not committed,
+            # or for paths that genuinely have no history on the ref (e.g. if ref is an old commit before path existed)
+            # For ls-tree, items listed should have history. Might indicate an empty repo or very specific edge cases.
+            # current_app.logger.info(f"No specific commit history found for path '{item_path_in_repo}' on ref '{ref_name}' in {repo_disk_path}.")
+            return None
+
+    except InvalidGitRepositoryError:
+        current_app.logger.error(f"InvalidGitRepositoryError for {repo_disk_path} when getting commit info for {item_path_in_repo}.")
+        return None
+    except NoSuchPathError: # Should be caught by PyGitRepo constructor usually, but as a safeguard
+        current_app.logger.error(f"NoSuchPathError for {repo_disk_path} (repo itself) when getting commit info for {item_path_in_repo}.")
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Error getting latest commit info for path '{item_path_in_repo}' in {repo_disk_path} (ref: {ref_name}): {e}", exc_info=True)
+        return None
+
+def get_repo_git_details(repo_disk_path):
+    """
+    Fetches commit count and last commit date for a Git repository using GitPython.
+    """
+    details = {'commit_count': 0, 'last_commit_date': None, 'error': None}
+    if not os.path.isdir(repo_disk_path):
+        details['error'] = "Repository disk path not found or not a directory."
+        # current_app.logger.warning(f"get_repo_git_details: Path {repo_disk_path} is not a valid directory.") # Already logged by caller if needed
+        return details
+
+    try:
+        # Use the NEW UNIQUE alias for GitPython's Repo class
+        git_py_repo = PyGitRepo(repo_disk_path) # CORRECTED ALIAS USAGE
+
+        if not git_py_repo.head.is_valid() or not git_py_repo.references:
+            all_commits_list_check = []
+            try:
+                all_commits_list_check = list(git_py_repo.iter_commits(all=True, max_count=1))
+            except Exception: # Handle rare cases where iter_commits might fail
+                pass
+            if not all_commits_list_check:
+                details['error'] = "Empty repository or no commits yet."
+                return details
+
+        commits_iter = git_py_repo.iter_commits()
+        first_commit_for_date = next(commits_iter, None)
+
+        if first_commit_for_date:
+            # CORRECTED: 'datetime' is the class from 'from datetime import datetime'
+            details['last_commit_date'] = datetime.fromtimestamp(first_commit_for_date.committed_date, tz=timezone.utc)
+            try:
+                if git_py_repo.head.is_detached: # Check if head is detached
+                    # Count commits reachable from the detached HEAD
+                    details['commit_count'] = sum(1 for _ in git_py_repo.iter_commits(git_py_repo.head.commit.hexsha))
+                elif git_py_repo.head.ref: # Check if head.ref exists (active branch)
+                    details['commit_count'] = sum(1 for _ in git_py_repo.iter_commits(git_py_repo.head.ref.name))
+                else: # Fallback if no active branch name (e.g., repo just initialized)
+                    details['commit_count'] = sum(1 for _ in git_py_repo.iter_commits('--all'))
+            except Exception as e_count:
+                 current_app.logger.warning(f"Could not accurately count commits for {repo_disk_path} on default branch: {e_count}. Falling back to all commits.")
+                 details['commit_count'] = sum(1 for _ in git_py_repo.iter_commits('--all')) # Count all commits as fallback
+        else:
+            all_commits_list = list(git_py_repo.iter_commits(all=True))
+            if all_commits_list:
+                details['commit_count'] = len(all_commits_list)
+                # CORRECTED: 'datetime' is the class here
+                details['last_commit_date'] = datetime.fromtimestamp(all_commits_list[0].committed_date, tz=timezone.utc)
+            else:
+                details['error'] = "No commits found in repository."
+                return details
+
+    except InvalidGitRepositoryError:
+        details['error'] = "Not a valid Git repository."
+    except NoSuchPathError:
+        details['error'] = "Repository path does not exist on disk."
+    except TypeError as te:
+        # This specific error was due to the alias clash. Should be resolved by using PyGitRepo.
+        details['error'] = f"Initialization error with Git library. Check logs. ({te})"
+        current_app.logger.error(f"GitPython TypeError in get_repo_git_details for {repo_disk_path}: {te}", exc_info=True)
+    except Exception as e:
+        details['error'] = f"Error accessing Git repository details: {type(e).__name__}"
+        current_app.logger.error(f"GitPython error in get_repo_git_details for {repo_disk_path}: {e}", exc_info=True)
+    return details
+
+
+def get_file_git_details(repo_disk_path, file_path_in_repo, branch_or_ref='HEAD'):
+    """
+    Fetches last commit details (message, date) and creation date for a specific file.
+    Uses the specified branch_or_ref.
+    """
+    details = {'last_commit_message': None, 'last_commit_date': None, 'creation_date': None, 'error': None}
+    if not os.path.isdir(repo_disk_path):
+        details['error'] = "Repository disk path not found or not a directory."
+        return details
+    try:
+        # CORRECTED: Use the new unique alias for GitPython's Repo class
+        git_py_repo = PyGitRepo(repo_disk_path) # CORRECTED ALIAS USAGE
+
+        if not git_py_repo.head.is_valid() and not git_py_repo.references :
+            details['error'] = "Repository is empty or has no commits."
+            return details
+
+        try:
+            resolved_ref = git_py_repo.commit(branch_or_ref)
+        except Exception as e_ref: # Catches common errors like BadName
+            details['error'] = f"Reference '{branch_or_ref}' not found in repository."
+            current_app.logger.warning(f"Ref '{branch_or_ref}' not found in {repo_disk_path} for file {file_path_in_repo}: {e_ref}")
+            return details
+
+        file_commits_iter = git_py_repo.iter_commits(rev=resolved_ref.hexsha, paths=file_path_in_repo, max_count=1)
+        last_file_commit = next(file_commits_iter, None)
+
+        if last_file_commit:
+            details['last_commit_message'] = last_file_commit.message.splitlines()[0] if last_file_commit.message else "[No commit message]"
+            # CORRECTED: 'datetime' is the class here
+            details['last_commit_date'] = datetime.fromtimestamp(last_file_commit.committed_date, tz=timezone.utc)
+        else:
+            details['error'] = f"File '{file_path_in_repo}' not found or no history on ref '{branch_or_ref}'."
+            return details # If file not found, no creation date is applicable for this ref for this path
+
+        creation_commits_iter = git_py_repo.iter_commits(rev=resolved_ref.hexsha, paths=file_path_in_repo, reverse=True) # Iterate oldest first for this path on this ref
+        first_commit_for_file_on_ref = next(creation_commits_iter, None)
+        if first_commit_for_file_on_ref:
+            # CORRECTED: 'datetime' is the class here
+            details['creation_date'] = datetime.fromtimestamp(first_commit_for_file_on_ref.committed_date, tz=timezone.utc)
+        else:
+             # This case should ideally not be hit if last_file_commit was found.
+             if not details['error']:
+                details['error'] = (details.get('error') or "") + " Could not determine creation date for this path on ref."
+
+    except InvalidGitRepositoryError:
+        details['error'] = "Not a valid Git repository."
+    except NoSuchPathError: # This usually means repo_disk_path itself is wrong
+        details['error'] = "Repository path does not exist."
+    except TypeError as te:
+        details['error'] = f"Initialization error with Git library. Check logs. ({te})"
+        current_app.logger.error(f"GitPython TypeError in get_file_git_details for {repo_disk_path}, file {file_path_in_repo}: {te}", exc_info=True)
+    except Exception as e:
+        details['error'] = f"Error accessing file Git history: {type(e).__name__}"
+        current_app.logger.error(f"GitPython error in get_file_git_details for {repo_disk_path}, file {file_path_in_repo}, ref {branch_or_ref}: {e}", exc_info=True)
+    return details
 
 # --- Recursive Helper Function ---
 def add_folder_to_zip(zipf, folder_id, user_id, current_arc_path, user_upload_path):
@@ -513,6 +767,30 @@ class User(db.Model, UserMixin):
         order_by='DirectMessage.timestamp'
     )
 
+    starred_repositories = db.relationship(
+        'GitRepository',  # Use your actual model name GitRepository
+        secondary=repo_stars,
+        back_populates='starrers',
+        lazy='dynamic', # Use dynamic for querying, e.g., count() or applying filters
+        cascade="all" # Optional: if a user is deleted, remove their stars
+                                      # Be cautious with cascade on many-to-many
+    )
+
+    def has_starred_repo(self, repo_to_check): # Changed 'repo' to 'repo_to_check' for clarity
+        if not self.is_authenticated: # Anonymous users can't have starred repos
+            return False
+        return self.starred_repositories.filter(repo_stars.c.git_repository_id == repo_to_check.id).count() > 0
+
+    def star_repo(self, repo_to_star): # Changed 'repo' to 'repo_to_star'
+        if not self.has_starred_repo(repo_to_star):
+            self.starred_repositories.append(repo_to_star)
+            # db.session.commit() # Commit should be handled by the route
+
+    def unstar_repo(self, repo_to_unstar): # Changed 'repo' to 'repo_to_unstar'
+        if self.has_starred_repo(repo_to_unstar):
+            self.starred_repositories.remove(repo_to_unstar)
+            # db.session.commit() # Commit should be handled by the route
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -560,6 +838,51 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+class GitRepository(db.Model):
+    __tablename__ = 'git_repository'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_git_repository_user_id', ondelete='CASCADE'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)  # Repository name (e.g., "my-project")
+    description = db.Column(db.Text, nullable=True)
+    is_private = db.Column(db.Boolean, default=True, nullable=False)
+    disk_path = db.Column(db.String(512), unique=True, nullable=False) # Full path to the .git directory on disk
+    forked_from_id = db.Column(db.Integer, db.ForeignKey('git_repository.id', name='fk_git_repository_fork_source_id', ondelete='SET NULL'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    owner = db.relationship('User', backref=db.backref('git_repositories', lazy='dynamic', cascade="all, delete-orphan"))
+
+    # Self-referential for forks
+    # The repository this one was forked from
+    source_repo = db.relationship('GitRepository', remote_side=[id], backref=db.backref('forks', lazy='dynamic'), foreign_keys=[forked_from_id])
+
+    # Unique constraint for repository name per user
+    __table_args__ = (db.UniqueConstraint('user_id', 'name', name='uq_user_repo_name'),)
+
+    starrers = db.relationship(
+        'User', # The User model
+        secondary=repo_stars,
+        back_populates='starred_repositories',
+        lazy='dynamic' # Use dynamic for querying, e.g., count()
+        # cascade="all, delete" # Usually not needed here, stars are deleted if user/repo is deleted
+    )
+
+    def __repr__(self):
+        return f'<GitRepository {self.id}: {self.owner.username}/{self.name}>'
+
+    def get_clone_url(self, external=False):
+        # Generates the HTTP clone URL
+        base_url = url_for('git_homepage', _external=True).rstrip('/') if external else url_for('git_homepage').rstrip('/')
+        return f"{base_url}/{self.owner.username}/{self.name}.git"
+
+    def get_web_url(self, external=False):
+        # Generates the URL to view the repo in the web UI
+        return url_for('view_repo_root', owner_username=self.owner.username, repo_short_name=self.name, _external=external)
+    @property
+    def star_count(self):
+        return self.starrers.count()
 
 class CreateFolderForm(FlaskForm):
     """Form for creating a new folder."""
@@ -2043,6 +2366,7 @@ def edit_file(file_id):
                            original_filename=file_record.original_filename,
                            stored_filename=file_record.stored_filename,
                            parent_folder_id=file_record.parent_folder_id)
+
 
 @app.route('/photos')
 @login_required
@@ -5419,6 +5743,7 @@ def create_db(app_instance):
             app_instance.logger.info(f"Database file found at {db_path_in_instance}. Ensuring all tables exist...")
 
         try:
+            ensure_repos_dir_exists()
             db.create_all() # This will create all tables defined in models if they don't exist
             app_instance.logger.info("Database tables checked/created successfully.")
         except Exception as e:
@@ -5734,6 +6059,7 @@ def add_coop_coep_headers(response):
 GBA_ROM_UPLOAD_FOLDER = 'emulator/gba/roms'
 app.config['GBA_ROM_UPLOAD_FOLDER'] = GBA_ROM_UPLOAD_FOLDER # Correct assignment to a key
 os.makedirs(app.config['GBA_ROM_UPLOAD_FOLDER'], exist_ok=True)
+from functools import wraps
 
 @app.after_request
 def add_coop_coep_headers(response):
@@ -5791,7 +6117,2023 @@ def serve_gba_rom(filename):
 
 
 
+# GIT SERVER
 
+
+LANGUAGE_COLORS = {
+    "Python": "#3572A5",
+    "JavaScript": "#F1E05A",
+    "HTML": "#E34C26",
+    "CSS": "#563D7C",
+    "Java": "#B07219",
+    "Shell": "#89E051",
+    "C++": "#F34B7D",
+    "C": "#555555",
+    "TypeScript": "#2B7489",
+    "PHP": "#4F5D95",
+    "Ruby": "#701516",
+    "Go": "#00ADD8",
+    "Swift": "#FFAC45",
+    "Kotlin": "#F18E33",
+    "Rust": "#DEA584",
+    "Markdown": "#083FA1", # Often included in stats
+    "Vue": "#41B883",
+    "Makefile": "#427819",
+    "Dockerfile": "#384D54",
+    "Other": "#DEA584" # A fallback color
+}
+
+
+LANGUAGE_EXTENSIONS_MAP = {
+    '.py': 'Python', '.pyc': None, '.pyo': None, '.pyd': None, # Python and compiled
+    '.js': 'JavaScript', '.mjs': 'JavaScript', '.cjs': 'JavaScript',
+    '.html': 'HTML', '.htm': 'HTML',
+    '.css': 'CSS',
+    '.java': 'Java', '.class': None, # Java and compiled
+    '.sh': 'Shell', '.bash': 'Shell', '.zsh': 'Shell',
+    '.c': 'C', '.h': 'C', # C and its headers
+    '.cpp': 'C++', '.hpp': 'C++', '.cxx': 'C++', '.hxx': 'C++', '.cc': 'C++', '.hh': 'C++',
+    '.cs': 'C#',
+    '.ts': 'TypeScript', '.tsx': 'TypeScript', # TSX often treated as TypeScript for stats
+    '.php': 'PHP',
+    '.rb': 'Ruby',
+    '.go': 'Go',
+    '.swift': 'Swift',
+    '.kt': 'Kotlin', '.kts': 'Kotlin',
+    '.rs': 'Rust',
+    '.md': 'Markdown', '.markdown': 'Markdown',
+    '.json': 'JSON', # Data, but often shown
+    '.xml': 'XML',   # Data/Markup
+    '.yaml': 'YAML', '.yml': 'YAML', # Data
+    '.vue': 'Vue',
+    'makefile': 'Makefile', # Filename match
+    'dockerfile': 'Dockerfile', # Filename match
+    # Common binary/non-code extensions to explicitly ignore (return None)
+    '.png': None, '.jpg': None, '.jpeg': None, '.gif': None, '.bmp': None, '.tiff': None,
+    '.svg': None, # SVGs can be code-like but often treated as assets
+    '.ico': None, '.webp': None,
+    '.pdf': None, '.doc': None, '.docx': None, '.xls': None, '.xlsx': None,
+    '.ppt': None, '.pptx': None, '.odt': None, '.ods': None, '.odp': None,
+    '.zip': None, '.tar': None, '.gz': None, '.rar': None, '.7z': None, '.bz2': None, '.xz': None,
+    '.exe': None, '.dll': None, '.so': None, '.dylib': None, '.o': None, '.a': None, '.lib': None,
+    '.obj': None,
+    '.mp3': None, '.wav': None, '.aac': None, '.flac': None,
+    '.mp4': None, '.mov': None, '.avi': None, '.mkv': None, '.webm': None,
+    '.ttf': None, '.otf': None, '.woff': None, '.woff2': None, '.eot': None,
+    '.DS_Store': None, '.db': None, '.sqlite': None, '.sqlite3': None,
+    '.log': None,
+    '.bak': None, '.tmp': None, '.swp': None,
+    '.lock': None, # e.g. package-lock.json, composer.lock - could be JSON/YAML or None
+    '.sum': None, # e.g. go.sum
+    # Source map files
+    '.js.map': None, '.css.map': None,
+}
+
+IGNORE_PATTERNS_FOR_STATS = {
+    '.git/',
+    'node_modules/',
+    'bower_components/',
+    'vendor/', # Common for PHP, Ruby, Go
+    'venv/',
+    'env/',
+    '.venv/',
+    '.env/',
+    '__pycache__/',
+    '.pytest_cache/',
+    '.mypy_cache/',
+    '.tox/',
+    '.idea/',
+    '.vscode/',
+    '.settings/',
+    'build/',
+    'dist/',
+    'target/', # Common for Java/Rust
+    'out/',   # Common for compiled output
+    'bin/',   # Often compiled binaries
+    'obj/',   # Often compiled objects
+    'coverage/',
+    'docs/', # Optional: some might want to exclude docs from "code" stats
+    'examples/', # Optional
+    'test/', 'tests/', # Optional
+    # Specific config files that are not "code" in the typical sense
+    '.gitignore',
+    '.gitattributes',
+    '.editorconfig',
+    '.eslintignore',
+    '.eslintrc.js', '.eslintrc.json', '.eslintrc.yaml', '.eslintrc.yml',
+    '.prettierrc', '.prettierignore',
+    'license', 'licence', 'copying', # Often plain text or MD
+    'readme', # Handled separately or could be Markdown
+    'contributing',
+    'changelog',
+    'package.json', 'package-lock.json', # Could be JSON or special
+    'composer.json', 'composer.lock',   # Could be JSON or special
+    'go.mod', 'go.sum',
+    'gemfile', 'gemfile.lock',
+    'requirements.txt',
+    'pipfile', 'pipfile.lock',
+    'pyproject.toml',
+    'webpack.config.js',
+    'babel.config.js',
+    'tsconfig.json'
+}
+
+# Helper to get language color, can be registered as a Jinja filter
+def get_language_color(language_name):
+    return LANGUAGE_COLORS.get(language_name, LANGUAGE_COLORS.get("Other", "#CCCCCC"))
+
+# Register as Jinja filter/global
+app.jinja_env.globals['get_language_color'] = get_language_color
+# or app.jinja_env.filters['language_color'] = get_language_color
+
+
+def guess_language_from_filename(filename_str):
+    """Guesses language primarily by extension, with some filename checks."""
+    if not filename_str:
+        return None
+
+    path = Path(filename_str)
+    name_lower = path.name.lower()
+
+    # Check for exact filename matches first (e.g., Makefile, Dockerfile)
+    if name_lower in LANGUAGE_EXTENSIONS_MAP: # Assuming these are mapped directly if no ext
+        lang = LANGUAGE_EXTENSIONS_MAP[name_lower]
+        return lang if lang is not None else "Other" # Return "Other" if explicitly mapped to None
+
+    # Check extensions
+    # Iterate through suffixes: .tar.gz -> .gz then .tar
+    for suffix in reversed(path.suffixes):
+        s_lower = suffix.lower()
+        if s_lower in LANGUAGE_EXTENSIONS_MAP:
+            lang = LANGUAGE_EXTENSIONS_MAP[s_lower]
+            return lang # This will return None if explicitly mapped to None (binary/ignored)
+
+    # If no extension matched, or no extension present, return None or "Other"
+    # For this function, let's return None if no specific rule matched.
+    # The main calculator can then decide to categorize as "Other".
+    return None
+
+
+# @lru_cache(maxsize=128) # Example of basic caching for the function itself
+def calculate_repo_language_stats(repo_disk_path, ref_name="HEAD"):
+    """
+    Calculates language statistics for a repository at a specific ref.
+    Returns a dictionary like {'Python': 60.5, 'JavaScript': 39.5}
+    or None if an error occurs or repo is empty.
+    """
+    GIT_PATH = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+    language_bytes = {}
+    total_code_bytes = 0.0 # Use float for precision in division
+
+    # Check if repo exists and is valid before proceeding
+    if not os.path.isdir(os.path.join(repo_disk_path, 'objects')): # Basic check for a git repo
+        current_app.logger.warning(f"Invalid or non-existent Git repo path for stats: {repo_disk_path}")
+        return {} # Return empty if not a valid repo path
+
+    try:
+        # Ensure ref_name is valid before ls-tree
+        subprocess.run(
+            [GIT_PATH, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"],
+            check=True, capture_output=True, text=True
+        )
+
+        proc = subprocess.run(
+            [GIT_PATH, "--git-dir=" + repo_disk_path, "ls-tree", "-r", "-l", "--full-tree", ref_name],
+            capture_output=True, text=True, check=True, errors='ignore'
+        )
+
+        if not proc.stdout.strip():
+            return {} # Empty repo or ref
+
+        for line in proc.stdout.strip().split('\n'):
+            if not line:
+                continue
+
+            parts = line.split(None, 3)
+            if len(parts) < 4 or parts[1] != 'blob': # Only process blobs (files)
+                continue
+
+            size_and_name_part = parts[3]
+            try:
+                size_str, file_path_str = size_and_name_part.split('\t', 1)
+                if size_str == '-': # Symlinks or other non-blob entries might have '-'
+                    continue
+                file_size = int(size_str)
+            except (ValueError, IndexError):
+                current_app.logger.debug(f"Skipping unparsable ls-tree line for stats: {line}")
+                continue
+
+            if file_size == 0: # Skip empty files
+                continue
+
+            # --- Filtering ---
+            # Check if any part of the path starts with an ignored directory pattern
+            path_parts = Path(file_path_str).parts
+            if any(patt in file_path_str for patt in IGNORE_PATTERNS_FOR_STATS if patt.endswith('/')) or \
+               Path(file_path_str).name.lower() in IGNORE_PATTERNS_FOR_STATS or \
+               any(p in IGNORE_PATTERNS_FOR_STATS for p in path_parts):
+                # current_app.logger.debug(f"Ignoring by pattern: {file_path_str}")
+                continue
+
+            language = guess_language_from_filename(file_path_str)
+
+            if language is None: # If explicitly None (e.g. binary, config), or no rule matched
+                # Optionally, we could try a more advanced guess here or assign to "Other"
+                # For now, if guess_language_from_filename returns None, we skip it
+                # or we can assign it to an "Other" category if it wasn't a known non-code file.
+                # Let's refine: if it's None from a specific rule (like .png:None), it's truly ignored.
+                # If it's None because no extension matched, it could be "Other".
+                # For simplicity, if it's not a recognized code extension, it won't be counted.
+                # To count as "Other", `guess_language_from_filename` would need to return "Other".
+                # This means only explicitly mapped languages get counted.
+                continue
+
+            # If you want to categorize truly unknown extensions as "Other":
+            # if language is None:
+            #     # Before assigning to other, double check it's not a known binary via suffix again
+            #     ext_lower = Path(file_path_str).suffix.lower()
+            #     if ext_lower in LANGUAGE_EXTENSIONS_MAP and LANGUAGE_EXTENSIONS_MAP[ext_lower] is None:
+            #         continue # It was explicitly ignored
+            #     language = "Other"
+
+
+            language_bytes[language] = language_bytes.get(language, 0) + file_size
+            total_code_bytes += file_size
+
+        if total_code_bytes == 0:
+            return {}
+
+        language_percentages = {}
+        # Ensure consistent sorting for display, and handle small percentages
+        # Sort languages alphabetically for consistent bar segment order if percentages are same
+        sorted_languages = sorted(language_bytes.keys())
+
+        temp_percentages = {}
+        for lang in sorted_languages:
+            bytes_count = language_bytes[lang]
+            percentage = (bytes_count / total_code_bytes) * 100
+            if percentage >= 0.1: # Only include if reasonably significant
+                 temp_percentages[lang] = percentage
+
+        # Sort final dict by percentage descending for display in legend
+        language_percentages = dict(sorted(temp_percentages.items(), key=lambda item: item[1], reverse=True))
+
+        return language_percentages
+
+    except subprocess.CalledProcessError as e:
+        # --- CORRECTED ERROR HANDLING ---
+        # e.stderr is already a string because text=True was used in subprocess.run
+        stderr_output = e.stderr if e.stderr else "" # Ensure it's not None
+
+        if "fatal: not a tree object" in stderr_output or \
+           "fatal: bad object" in stderr_output:
+            current_app.logger.info(f"Ref '{ref_name}' is not a valid tree or object in {repo_disk_path}. Likely empty or invalid ref.")
+            return {} # Treat as empty or error state for stats
+
+        current_app.logger.error(f"Git command error calculating language stats for {repo_disk_path} ref {ref_name}: {stderr_output}")
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error calculating language stats for {repo_disk_path} ref {ref_name}: {e}", exc_info=True)
+        return None # Indicate error
+
+# --- Add a new field to GitRepository model for caching (optional but recommended) ---
+# This requires a database migration (e.g., using Flask-Migrate)
+# class GitRepository(db.Model):
+#     # ... other fields ...
+#     language_stats_json = db.Column(db.Text, nullable=True) # Store as JSON string
+#     language_stats_updated_at = db.Column(db.DateTime, nullable=True)
+
+# --- Modify relevant routes ---
+
+# Helper to get or calculate stats (illustrative, caching not fully implemented here)
+def get_or_calculate_language_stats(repo_db_obj, ref_name=None):
+    """
+    Placeholder for fetching cached stats or calculating them.
+    For now, it always recalculates for the default branch if ref_name is not specific.
+    """
+    # Real implementation would check repo_db_obj.language_stats_json and language_stats_updated_at
+    # For now, always recalculate.
+    # If no specific ref_name, try to get the default branch for the calculation.
+    actual_ref_to_calc = ref_name
+    if not actual_ref_to_calc:
+        try:
+            # Try to get default branch for calculation if no specific ref is asked
+            # This is usually what's displayed on the main repo page
+            actual_ref_to_calc = get_default_branch(repo_db_obj.disk_path)
+        except Exception:
+            actual_ref_to_calc = "HEAD" # Fallback
+
+    stats = calculate_repo_language_stats(repo_db_obj.disk_path, actual_ref_to_calc)
+
+    # Example: Update cache (if you add the model fields)
+    # if stats is not None:
+    #     repo_db_obj.language_stats_json = json.dumps(stats)
+    #     repo_db_obj.language_stats_updated_at = datetime.utcnow()
+    #     try:
+    #         db.session.commit()
+    #     except Exception as e:
+    #         db.session.rollback()
+    #         current_app.logger.error(f"Error caching language stats for repo {repo_db_obj.id}: {e}")
+    return stats if stats is not None else {}
+
+
+
+
+
+
+class RepoEditFileForm(FlaskForm):
+    file_content = TextAreaField('File Content', validators=[WTDataRequired()])
+    commit_message = WTStringField('Commit Message', validators=[WTDataRequired(), WTLength(min=1, max=200)])
+    submit = SubmitField('Save Changes')
+
+REPOS_DIR = os.path.join(os.getcwd(), "git_repositories")
+GIT_PATH = "git"  # Path to git executable, ensure it's in your system's PATH
+
+# --- Helper Functions ---
+def allowed_file(filename):
+    """
+    Modified to allow all file extensions and files with no extensions.
+    The function still exists in case future filtering logic is desired,
+    but for now, it permits everything.
+    """
+    return True
+
+def secure_path_component(component):
+    """
+    Secures a single path component.
+    Prevents directory traversal and sanitizes the name.
+    """
+    # Prevent path traversal components like '..' or '.' when used as directory names
+    if component == ".." or component == ".":
+        return "_"  # Replace with an underscore or handle as an error appropriately
+
+    # Use secure_filename for the component, then ensure it's not empty
+    # (e.g. if original component was just invalid chars like '///')
+    secured = secure_filename(component)
+    if not secured: # If secure_filename makes it empty
+        # Create a placeholder if the component was problematic (e.g., only invalid chars)
+        # You might want to log this or handle it differently based on strictness.
+        # For now, use underscore.
+        return "_"
+    return secured
+
+def get_repo_disk_path(owner_username, repo_name): # Changed signature
+    """
+    Generates the standardized disk path for a bare repository.
+    Example: <INSTANCE_PATH>/git_repositories/username/reponame.git
+    """
+    # Sanitize username and repo_name for filesystem path components
+    safe_username = secure_filename(str(owner_username)) # Ensure username is filesystem-safe
+    safe_repo_name = secure_filename(str(repo_name))     # Ensure repo_name is filesystem-safe
+
+    if not safe_username or not safe_repo_name:
+        # This should ideally not happen if usernames/repo_names are validated at creation
+        raise ValueError("Invalid username or repository name for path generation.")
+
+    return os.path.join(current_app.config['GIT_REPOSITORIES_ROOT'], safe_username, f"{safe_repo_name}.git")
+
+
+def ensure_repos_dir_exists():
+    repos_root = current_app.config['GIT_REPOSITORIES_ROOT']
+    if not os.path.exists(repos_root):
+        os.makedirs(repos_root)
+        current_app.logger.info(f"Created Git repositories root directory: {repos_root}")
+
+
+def get_repo_details_db(owner_username, repo_short_name):
+    """Gets repository data from DB by owner's username and repo's short name."""
+    user = User.query.filter_by(username=owner_username).first()
+    if not user:
+        return None
+    return GitRepository.query.filter_by(user_id=user.id, name=repo_short_name).first()
+
+
+def get_default_branch(repo_disk_path):
+    """Gets the default branch of a repository (e.g., main, master)."""
+    git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+    if not os.path.exists(os.path.join(repo_disk_path, "HEAD")):
+        return "main"
+
+    try:
+        result = subprocess.run(
+            [git_exe, "--git-dir=" + repo_disk_path, "symbolic-ref", "HEAD"],
+            capture_output=True, text=True, check=False
+        )
+        if result.returncode == 0:
+            ref_name = result.stdout.strip()
+            if ref_name.startswith("refs/heads/"):
+                return ref_name[len("refs/heads/"):]
+
+        result_branches = subprocess.run(
+            [git_exe, "--git-dir=" + repo_disk_path, "branch", "--list"],
+            capture_output=True, text=True, check=False
+        )
+        if result_branches.returncode == 0:
+            branches = result_branches.stdout.strip().split('\n')
+            cleaned_branches = [b.strip().replace("* ", "") for b in branches if b.strip()]
+            for common_branch in ['main', 'master']:
+                if common_branch in cleaned_branches:
+                    return common_branch
+            if cleaned_branches:
+                return cleaned_branches[0]
+
+        current_app.logger.info(f"No branches found or symbolic-ref failed for {repo_disk_path}, assuming 'main'.")
+        return "main"
+    except Exception as e:
+        current_app.logger.error(f"Error getting default branch for {repo_disk_path}: {e}")
+        return "main"
+
+def repo_auth_required_db(f):
+    @wraps(f)
+    def decorated_function(owner_username, repo_short_name, *args, **kwargs):
+        # Fetch repository from DB
+        repo_db_obj = get_repo_details_db(owner_username, repo_short_name)
+        if not repo_db_obj:
+            abort(404, "Repository not found.")
+
+        g.repo = repo_db_obj # Store SQLAlchemy object in g
+        g.repo_disk_path = repo_db_obj.disk_path # Already stored in DB
+
+        if repo_db_obj.is_private:
+            if not current_user.is_authenticated:
+                flash("You must be logged in to view this private repository.", "warning")
+                # For git_info_refs and git_service_rpc, a 401/403 will be handled differently.
+                # This part is more for web UI access.
+                if request.endpoint not in ['git_info_refs', 'git_service_rpc']:
+                     return redirect(url_for('login', next=request.url))
+                else: # For Git HTTP backend, let the specific routes handle 401/403
+                     pass # Will be checked again in those routes
+
+            # Check if the authenticated user is the owner
+            if current_user.id != repo_db_obj.user_id:
+                # TODO: Implement collaborator logic if needed in the future
+                flash("You do not have permission to view this private repository.", "danger")
+                if request.endpoint not in ['git_info_refs', 'git_service_rpc']:
+                    return redirect(url_for('git_homepage')) # Or some other appropriate page
+                else:
+                    # For Git HTTP backend, if it's private and not owner, deny.
+                    # The specific Git routes will re-verify for push/pull actions.
+                    if service_rpc == 'git-receive-pack': # Pushing requires ownership strict
+                         abort(403, "Write access denied to private repository.")
+                    # For pull on private, if not owner, also deny (unless collaborators added later)
+                    elif service_rpc == 'git-upload-pack':
+                         abort(403, "Read access denied to private repository.")
+
+        return f(owner_username, repo_short_name, *args, **kwargs)
+    return decorated_function
+
+
+# --- Flask Routes (Authentication, Dashboard, Repo Creation/Deletion) ---
+@app.before_request
+def make_session_permanent():
+    session.permanent = True # Or use app.permanent_session_lifetime
+
+@app.route("/git")
+def git_homepage():
+    public_repos_query = GitRepository.query.filter_by(is_private=False).order_by(GitRepository.updated_at.desc())
+    public_repos_list = public_repos_query.all()
+
+    repos_with_details = []
+    for repo_obj in public_repos_list: # Renamed repo to repo_obj for clarity
+        git_details = get_repo_git_details(repo_obj.disk_path)
+        language_stats = get_or_calculate_language_stats(repo_obj) # Calculate for default branch
+        # --- NEW: Check if current user has starred this repo ---
+        current_user_has_starred_this_repo = False
+        if current_user.is_authenticated:
+            # Assuming current_user.has_starred_repo(repo_object) method exists and works
+            current_user_has_starred_this_repo = current_user.has_starred_repo(repo_obj)
+        # --- END NEW ---
+
+        repos_with_details.append({
+            'repo': repo_obj,
+            'git_details': git_details,
+            'language_stats': language_stats, # Add language stats
+            'current_user_starred': current_user_has_starred_this_repo # Add this status
+        })
+
+    return render_template("git/git_homepage.html",
+                           public_repos_data=repos_with_details) # Pass the enhanced data
+
+
+@app.route("/git/mygit")
+@login_required
+def mygit():
+    user_repos_list = GitRepository.query.filter_by(user_id=current_user.id).order_by(GitRepository.updated_at.desc()).all()
+    repos_with_details = []
+    for repo in user_repos_list:
+        git_details = get_repo_git_details(repo.disk_path) # Use repo.disk_path
+        language_stats = get_or_calculate_language_stats(repo)
+        repos_with_details.append({
+            'repo': repo,
+            'git_details': git_details,
+            'language_stats': language_stats # Add language stats
+        })
+    return render_template("git/mygit.html", user_repos_data=repos_with_details) # MODIFIED variable name
+
+
+@app.route("/git/repo/create", methods=["GET", "POST"])
+@login_required
+def create_repo_route():
+    if request.method == "POST":
+        repo_name = request.form["repo_name"].strip()
+        visibility = request.form["visibility"]
+        description = request.form.get("description", "").strip()
+
+        if not repo_name or not all(c.isalnum() or c in ['_', '-'] for c in repo_name) or len(repo_name) > 100:
+            flash("Invalid repository name. Max 100 chars, use alphanumeric, underscores, hyphens.", "danger")
+            return render_template("git/create_repo.html", description=description) # Pass back description
+
+        # Check DB for existing repo by this user with the same name
+        existing_repo_db = GitRepository.query.filter_by(user_id=current_user.id, name=repo_name).first()
+        if existing_repo_db:
+            flash(f"Repository '{repo_name}' already exists for your account.", "danger")
+            return render_template("git/create_repo.html", repo_name=repo_name, description=description)
+
+        repo_disk_path = get_repo_disk_path(current_user.username, repo_name)
+
+        if os.path.exists(repo_disk_path):
+            flash(f"A directory for '{repo_name}' already exists on disk. This indicates an inconsistency. Please contact support or try a different name.", "danger")
+            current_app.logger.error(f"Disk path conflict during repo creation: {repo_disk_path} for user {current_user.username}")
+            return render_template("git/create_repo.html", repo_name=repo_name, description=description)
+
+        try:
+            user_repo_base_dir = os.path.dirname(repo_disk_path) # e.g., .../git_repositories/username/
+            if not os.path.exists(user_repo_base_dir):
+                os.makedirs(user_repo_base_dir)
+
+            git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+            subprocess.run([git_exe, "init", "--bare", repo_disk_path], check=True, capture_output=True)
+
+            new_repo_db = GitRepository(
+                user_id=current_user.id,
+                name=repo_name,
+                description=description,
+                is_private=(visibility == "private"),
+                disk_path=repo_disk_path
+            )
+            db.session.add(new_repo_db)
+            db.session.commit()
+
+            flash(f"Repository '{repo_name}' created successfully!", "success")
+            # Redirect to the new repository's page
+            return redirect(url_for('view_repo_root', owner_username=current_user.username, repo_short_name=repo_name))
+        except subprocess.CalledProcessError as e:
+            flash(f"Error initializing Git repository: {e.stderr.decode(errors='ignore') or str(e)}", "danger")
+            current_app.logger.error(f"Git init error for {repo_disk_path}: {e.stderr.decode(errors='ignore')}")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"An unexpected error occurred: {str(e)}", "danger")
+            current_app.logger.error(f"Unexpected error creating repo {repo_name} for {current_user.username}: {e}", exc_info=True)
+            # Cleanup if repo dir was created but DB entry failed
+            if os.path.exists(repo_disk_path):
+                # Be cautious with rmtree. Only remove if we are sure it was *just* created.
+                # For now, we will not auto-delete to prevent accidental data loss if the dir pre-existed due to an error.
+                current_app.logger.warning(f"Repository directory {repo_disk_path} might need manual cleanup after creation failure.")
+
+        return render_template("git/create_repo.html", repo_name=repo_name, description=description) # Re-render form with data
+
+    return render_template("git/create_repo.html") # For GET request
+
+@app.route("/git/repo/delete/<int:repo_id>", methods=["POST"]) # Use repo_id from DB
+@login_required
+def delete_repo(repo_id):
+    repo = GitRepository.query.get_or_404(repo_id)
+
+    if repo.user_id != current_user.id and not current_user.is_admin: # Allow admin to delete any repo
+        flash("You do not have permission to delete this repository.", "danger")
+        abort(403)
+
+    repo_name_log = repo.name
+    repo_disk_path_log = repo.disk_path
+
+    try:
+        # Delete the GitRepository record (cascades should handle User backref if setup, or handle manually)
+        # Also consider what happens to forks if a source repo is deleted.
+        # For now, `ondelete='SET NULL'` for `forked_from_id` means forks will lose their source link.
+        db.session.delete(repo)
+        db.session.commit() # Commit DB change first
+
+        # Then delete from disk
+        if os.path.exists(repo_disk_path_log) and repo_disk_path_log.startswith(current_app.config['GIT_REPOSITORIES_ROOT']):
+            shutil.rmtree(repo_disk_path_log)
+            current_app.logger.info(f"Deleted repository directory: {repo_disk_path_log}")
+        else:
+            current_app.logger.warning(f"Repository directory not found or path suspicious during delete: {repo_disk_path_log}")
+
+        flash(f"Repository '{repo_name_log}' deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback() # Rollback DB changes if disk deletion or other error occurs after commit attempt
+        flash(f"Error deleting repository '{repo_name_log}': {str(e)}", "danger")
+        current_app.logger.error(f"Error deleting repo {repo_id} ({repo_name_log}): {e}", exc_info=True)
+
+    if current_user.is_admin and current_user.id != repo.user_id:
+        return redirect(url_for('admin_list_users')) # Or an admin dashboard for repos
+    return redirect(url_for('mygit'))
+
+
+# --- Repository Browsing and File Operation Routes ---
+
+@app.route('/<owner_username>/<repo_short_name>')
+@repo_auth_required_db # Ensures repo exists and handles private access
+def view_repo_root(owner_username, repo_short_name):
+    repo_disk_path = g.repo_disk_path # from @repo_auth_required
+    default_branch = get_default_branch(repo_disk_path)
+    # Redirect to the tree view of the default branch
+    return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=default_branch, object_path=''))
+
+@app.route('/<owner_username>/<repo_short_name>/tree/<ref_name>/', defaults={'object_path': ''})
+@app.route('/<owner_username>/<repo_short_name>/tree/<ref_name>/<path:object_path>')
+@repo_auth_required_db
+def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
+    repo_disk_path = g.repo_disk_path
+    items_for_template = []
+    is_empty_repo = False
+    repo_db = g.repo # The GitRepository DB object
+    readme_html_content = None # Initialize README content
+
+    language_stats_for_view = {} # Initialize
+    if not object_path: # Only calculate/show for the root of the current ref
+        # Pass the specific ref_name being viewed to the stats calculation
+        language_stats_for_view = get_or_calculate_language_stats(repo_db, ref_name)
+
+
+    GIT_PATH = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+
+    try:
+        subprocess.run([GIT_PATH, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"], check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError:
+        is_empty_repo = True
+        current_app.logger.info(f"Ref '{ref_name}' not found or no commits in {repo_disk_path}. Treating as empty for tree view.")
+
+    if not is_empty_repo:
+        try:
+            ls_tree_target = f"{ref_name}:{object_path}" if object_path else ref_name
+            result = subprocess.run(
+                [GIT_PATH, "--git-dir=" + repo_disk_path, "ls-tree", "-l", ls_tree_target],
+                capture_output=True, text=True, check=True, errors='ignore'
+            )
+
+            readme_found_in_listing = False
+            readme_content_raw = ""
+
+            for line in result.stdout.strip().split('\n'):
+                if not line: continue
+                parts = line.split(None, 3)
+                if len(parts) < 4:
+                    current_app.logger.warning(f"Could not parse ls-tree line: '{line}' in {repo_disk_path}")
+                    continue
+
+                name_part_from_ls_tree = parts[3]
+                size_str, name = name_part_from_ls_tree.split('\t', 1) if '\t' in name_part_from_ls_tree else ("-", name_part_from_ls_tree)
+                item_path_in_repo = str(Path(object_path) / name) if object_path else name
+                latest_commit_details = get_latest_commit_info_for_path(repo_disk_path, item_path_in_repo, ref_name)
+
+                current_item = {
+                    "mode": parts[0],
+                    "type": parts[1],
+                    "sha": parts[2],
+                    "name": name,
+                    "size": size_str,
+                    "full_path": item_path_in_repo,
+                    "latest_commit_info": latest_commit_details
+                }
+                items_for_template.append(current_item)
+
+                # --- README.md Detection and Reading ---
+                if name.lower() == 'readme.md' and parts[1] == 'blob':
+                    readme_found_in_listing = True
+                    readme_sha = parts[2]
+                    try:
+                        readme_show_target = f"{ref_name}:{item_path_in_repo}"
+                        readme_result = subprocess.run(
+                            [GIT_PATH, "--git-dir=" + repo_disk_path, "show", readme_show_target],
+                            capture_output=True, text=True, check=True, errors='ignore'
+                        )
+                        readme_content_raw = readme_result.stdout
+                    except subprocess.CalledProcessError as e_readme:
+                        current_app.logger.error(f"Error reading README.md content ({item_path_in_repo}) from {repo_disk_path}: {e_readme.stderr.decode(errors='ignore')}")
+                    except Exception as e_readme_general:
+                        current_app.logger.error(f"Unexpected error reading README.md content ({item_path_in_repo}): {e_readme_general}", exc_info=True)
+
+            if readme_found_in_listing and readme_content_raw:
+                # Convert Markdown to HTML using the 'markdown' library with GitHub Flavored Markdown extensions
+                # Common extensions include: 'fenced_code', 'tables', 'sane_lists', 'codehilite' (requires Pygments)
+                # For basic syntax, 'extra' is often a good starting point.
+                # The link you provided implies GFM, which 'extra' largely covers.
+                # For full GFM, you might need more specific extension configurations or other libraries.
+                html = markdown.markdown(readme_content_raw, extensions=['extra', 'fenced_code', 'codehilite', 'tables'])
+                readme_html_content = Markup(html) # Mark as safe for Jinja rendering
+
+        except subprocess.CalledProcessError as e:
+            current_app.logger.warning(f"git ls-tree failed for '{ls_tree_target}' in {repo_disk_path}: {e.stderr.decode(errors='ignore')}")
+            flash(f"Could not list contents for '{object_path or '<root>'}'. Path may not exist on branch '{ref_name}'.", "warning")
+        except Exception as e_general:
+            current_app.logger.error(f"Unexpected error processing tree for {repo_disk_path}, ref {ref_name}, path '{object_path}': {e_general}", exc_info=True)
+            flash("An unexpected error occurred while listing repository contents.", "danger")
+
+    path_parts = list(Path(object_path).parts) if object_path else []
+    breadcrumbs = [{"name": repo_short_name, "url": url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name)}]
+    breadcrumbs.append({"name": ref_name, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='')})
+
+    current_breadcrumb_path = ""
+    for part in path_parts:
+        current_breadcrumb_path = str(Path(current_breadcrumb_path) / part)
+        breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path)})
+
+    is_owner = current_user.is_authenticated and current_user.id == repo_db.user_id
+    overall_repo_git_stats = get_repo_git_details(repo_disk_path)
+    current_user_starred_repo = False
+    if current_user.is_authenticated:
+        current_user_starred_repo = current_user.has_starred_repo(repo_db)
+
+    return render_template("git/repo_tree_view.html",
+                             owner_username=owner_username,
+                             repo_short_name=repo_short_name,
+                             ref_name=ref_name,
+                             items=items_for_template,
+                             current_path=object_path,
+                             breadcrumbs=breadcrumbs,
+                             is_empty_repo=is_empty_repo and not items_for_template,
+                             is_owner=is_owner,
+                             repo_is_private=repo_db.is_private,
+                             repo=repo_db,
+                             overall_repo_git_stats=overall_repo_git_stats,
+                             current_user_starred_repo=current_user_starred_repo,
+                             readme_content=readme_html_content, # Pass README content to template
+                             language_stats=language_stats_for_view)
+
+
+
+@app.route('/<owner_username>/<repo_short_name>/commit/<commit_id>')
+@repo_auth_required_db # You'll likely want to use your existing auth decorator
+def view_commit(owner_username, repo_short_name, commit_id):
+    # g.repo is the GitRepository SQLAlchemy object from @repo_auth_required_db
+    # g.repo_disk_path is the physical disk path
+
+    repo_db_model = g.repo
+    repo_disk_path = g.repo_disk_path
+
+    try:
+        pygit_repo = PyGitRepo(repo_disk_path) # Use your aliased GitPython Repo
+        commit = pygit_repo.commit(commit_id)
+
+        # Basic commit details
+        commit_details = {
+            'hex': commit.hexsha,
+            'short_id': commit.hexsha[:7], # Commonly used short hash
+            'author_name': commit.author.name,
+            'author_email': commit.author.email,
+            'authored_date': datetime.fromtimestamp(commit.authored_date, tz=timezone.utc),
+            'committer_name': commit.committer.name,
+            'committer_email': commit.committer.email,
+            'committed_date': datetime.fromtimestamp(commit.committed_date, tz=timezone.utc),
+            'message_summary': commit.summary, # First line of message
+            'message_full': commit.message,
+            'parents': [p.hexsha for p in commit.parents],
+            'stats': commit.stats.total, # Dictionary: {'files': N, 'insertions': N, 'deletions': N}
+            'diffs': [] # You would populate this by iterating through commit.diff()
+        }
+
+        # Example: Getting diffs (can be extensive)
+        # for parent_commit in commit.parents: # Usually one parent, more for merges
+        #     diff_index = parent_commit.diff(commit, create_patch=True)
+        #     for diff_item in diff_index:
+        #         commit_details['diffs'].append({
+        #             'change_type': diff_item.change_type, # A (added), D (deleted), M (modified), R (renamed), etc.
+        #             'a_path': diff_item.a_path,
+        #             'b_path': diff_item.b_path,
+        #             'diff_text': diff_item.diff.decode('utf-8', errors='ignore') if diff_item.diff else ""
+        #         })
+        # if not commit.parents: # Initial commit
+        #     diff_index = commit.diff(pygit_repo.tree(), create_patch=True) # Diff against empty tree
+        #     for diff_item in diff_index:
+        #          commit_details['diffs'].append({
+        #             'change_type': diff_item.change_type,
+        #             'a_path': diff_item.a_path,
+        #             'b_path': diff_item.b_path,
+        #             'diff_text': diff_item.diff.decode('utf-8', errors='ignore') if diff_item.diff else ""
+        #         })
+
+
+        # Breadcrumbs (similar to other views)
+        breadcrumbs = [
+            {"name": repo_db_model.owner.username, "url": url_for('user_profile', username=repo_db_model.owner.username)},
+            {"name": repo_db_model.name, "url": url_for('view_repo_root', owner_username=repo_db_model.owner.username, repo_short_name=repo_db_model.name)},
+            # Optional: Add a link to the list of commits for the current branch if you have such a page
+            # {"name": "Commits", "url": url_for('view_repo_commits', owner_username=repo_db_model.owner.username, repo_short_name=repo_db_model.name, ref_name=g.repo.default_branch_or_current_ref_name_if_available)},
+            {"name": commit_details['short_id'], "url": ""} # Current page
+        ]
+
+        # Pass overall repo stats as well for context in the base template
+        overall_repo_git_stats = get_repo_git_details(repo_disk_path)
+
+
+        # You'll need to create a 'repo_commit_view.html' template
+        return render_template('git/repo_commit_view.html',
+                               repo=repo_db_model,
+                               commit=commit_details,
+                               owner_username=owner_username,
+                               repo_short_name=repo_short_name,
+                               breadcrumbs=breadcrumbs,
+                               overall_repo_git_stats=overall_repo_git_stats)
+
+    except InvalidGitRepositoryError:
+        current_app.logger.error(f"Invalid Git repository at {repo_disk_path} for commit view.")
+        abort(404, "Repository not found or invalid.")
+    except Exception as e: # Catches errors from pygit_repo.commit(commit_id) if commit_id is invalid
+        current_app.logger.error(f"Error viewing commit '{commit_id}' in '{repo_disk_path}': {e}", exc_info=True)
+        flash(f"Could not display commit '{commit_id}'. It might be invalid.", "danger")
+        # Redirect to the repo's root or a commits list page
+        return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+@app.route('/<owner_username>/<repo_short_name>/edit/<ref_name>/<path:file_path>', methods=['GET'])
+@login_required
+@repo_auth_required_db
+def repo_edit_view(owner_username, repo_short_name, ref_name, file_path):
+    repo_db_model = g.repo
+    repo_disk_path = g.repo_disk_path
+
+    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
+        flash("You do not have permission to edit files in this repository.", "danger")
+        return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path))
+
+    content = ""
+    try:
+        show_target = f"{ref_name}:{file_path}"
+        git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+        result = subprocess.run(
+            [git_exe_path, "--git-dir=" + repo_disk_path, "show", show_target],
+            capture_output=True, text=True, check=True, errors='ignore'
+        )
+        content = result.stdout
+    except subprocess.CalledProcessError as e:
+        flash(f"Error retrieving file content for editing: {e.stderr.decode(errors='ignore')}", "danger")
+        return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path))
+    except Exception as e_show:
+        current_app.logger.error(f"Error showing blob content for edit: {e_show}", exc_info=True)
+        flash("Could not retrieve file content for editing.", "danger")
+        return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path))
+
+    form = RepoEditFileForm(file_content=content)
+
+    # Determine CodeMirror mode
+    codemirror_mode = get_codemirror_mode_from_filename(file_path)
+
+    # Breadcrumbs
+    path_parts = list(Path(file_path).parts)
+    breadcrumbs = [
+        {"name": repo_short_name, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='')},
+    ]
+    current_breadcrumb_path = ""
+    for part in path_parts[:-1]: # Up to parent directory
+        current_breadcrumb_path = str(Path(current_breadcrumb_path) / part)
+        breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path)})
+
+    # Add the file being viewed/edited itself (non-clickable or links to blob view)
+    blob_view_url = url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path)
+    breadcrumbs.append({"name": path_parts[-1] if path_parts else file_path, "url": blob_view_url})
+    breadcrumbs.append({"name": "Edit", "url": ""})
+
+
+    return render_template('git/repo_edit_view.html',
+                           title=f"Edit {file_path.split('/')[-1]}",
+                           repo=repo_db_model,
+                           owner_username=owner_username,
+                           repo_short_name=repo_short_name,
+                           ref_name=ref_name,
+                           file_path=file_path,
+                           original_file_content=content, # Pass original content
+                           form=form,
+                           breadcrumbs=breadcrumbs,
+                           codemirror_mode=codemirror_mode,
+                           is_owner=(current_user.is_authenticated and current_user.id == repo_db_model.user_id))
+
+
+@app.route('/<owner_username>/<repo_short_name>/savefile/<ref_name>/<path:original_file_path>', methods=['POST'])
+@login_required
+@repo_auth_required_db # g.repo, g.repo_disk_path are set
+def save_repo_file(owner_username, repo_short_name, ref_name, original_file_path):
+    repo_db_model = g.repo
+    repo_disk_path = repo_db_model.disk_path
+    git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+
+    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
+        if request.is_json:
+            return jsonify({"status": "error", "message": "You do not have permission to save files in this repository."}), 403
+        flash("You do not have permission to save files in this repository.", "danger")
+        return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=original_file_path))
+
+    if not request.is_json:
+        flash("Invalid request format. Expected JSON.", "danger")
+        return redirect(url_for('repo_edit_view', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=original_file_path))
+
+    data = request.get_json()
+    new_content = data.get('file_content')
+    commit_message_input = data.get('commit_message', '').strip()
+
+    # Get the new file path from the payload, default to original if not provided or empty
+    new_file_path_str_raw = data.get('new_file_path', original_file_path).strip()
+    if not new_file_path_str_raw: # If user clears it, treat as error or revert to original
+        new_file_path_str_raw = original_file_path
+
+    # Sanitize the new_file_path_str_raw (crucial for security)
+    # Remove leading/trailing slashes, disallow '..'
+    path_parts = [secure_path_component(part) for part in Path(new_file_path_str_raw).parts if part and part != '.']
+    if not path_parts: # e.g., if path was "/" or "///" or "."
+         return jsonify({"status": "error", "message": "Invalid file path specified."}), 400
+    new_file_path_str = str(Path(*path_parts))
+
+
+    if new_content is None:
+        return jsonify({"status": "error", "message": "File content is missing."}), 400
+    if not commit_message_input:
+        return jsonify({"status": "error", "message": "Commit message is required."}), 400
+
+    committer_name = current_user.username
+    committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
+    author_string = f"{committer_name} <{committer_email}>"
+
+    is_rename = (new_file_path_str != original_file_path)
+    commit_message_to_use = commit_message_input
+
+    if is_rename:
+        commit_message_to_use = f"Rename {original_file_path} to {new_file_path_str}\n\n{commit_message_input}".strip()
+        # Check for self-overwrite which isn't a rename (e.g. case change on case-insensitive system handled by Git)
+        # A true rename means the old path and new path are different entities.
+        if Path(temp_clone_dir if 'temp_clone_dir' in locals() else '.') / new_file_path_str == Path(temp_clone_dir if 'temp_clone_dir' in locals() else '.') / original_file_path and new_file_path_str != original_file_path:
+            # This handles case changes like file.txt -> File.txt on systems where git might see them as same initially
+            # but we still want to record the intent or ensure the casing.
+            # For simplicity, we'll let git handle this; if it's just a case change, git mv might not be needed or might error.
+            # The `git rm` then `git add` below will handle it.
+            pass
+
+
+    with tempfile.TemporaryDirectory() as temp_clone_dir:
+        try:
+            is_empty_or_new_branch = False
+            try:
+                subprocess.run([git_exe_path, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"], check=True, capture_output=True, text=True)
+            except subprocess.CalledProcessError:
+                result_refs = subprocess.run([git_exe_path, "--git-dir=" + repo_disk_path, "show-ref"], capture_output=True, text=True)
+                if not result_refs.stdout.strip():
+                    is_empty_or_new_branch = True
+                else:
+                    return jsonify({"status": "error", "message": f"Branch or reference '{ref_name}' not found."}), 400
+
+            if is_empty_or_new_branch:
+                subprocess.run([git_exe_path, "init", temp_clone_dir], check=True, capture_output=True)
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "remote", "add", "origin", repo_disk_path], check=True, capture_output=True)
+            else:
+                subprocess.run([git_exe_path, "clone", "--branch", ref_name, repo_disk_path, temp_clone_dir], check=True, capture_output=True)
+
+            subprocess.run([git_exe_path, "-C", temp_clone_dir, "config", "user.name", f'"{committer_name}"'], check=True, capture_output=True)
+            subprocess.run([git_exe_path, "-C", temp_clone_dir, "config", "user.email", f'"{committer_email}"'], check=True, capture_output=True)
+
+            path_in_clone_original_obj = Path(temp_clone_dir) / original_file_path
+            path_in_clone_new_obj = Path(temp_clone_dir) / new_file_path_str
+
+            existing_content_in_repo = ""
+            original_file_existed_in_clone = path_in_clone_original_obj.is_file()
+
+            if original_file_existed_in_clone and not is_empty_or_new_branch:
+                try:
+                    with open(path_in_clone_original_obj, "r", encoding='utf-8', errors='replace') as f_read:
+                        existing_content_in_repo = f_read.read()
+                except Exception as e_read:
+                    current_app.logger.warning(f"Could not read existing file {path_in_clone_original_obj} for comparison: {e_read}")
+
+            # Determine if a commit is actually needed
+            content_changed = (new_content != existing_content_in_repo)
+            needs_commit = content_changed or is_rename or (is_empty_or_new_branch and not path_in_clone_new_obj.exists()) # Always commit if new branch/file
+
+            if not needs_commit and not original_file_existed_in_clone and not is_empty_or_new_branch:
+                 # If original file didn't exist in clone (and not a new branch), and no rename, means we are trying to edit a non-existent file.
+                 # This state should ideally be caught by `repo_edit_view` not allowing edit of non-existent files.
+                return jsonify({"status": "error", "message": f"Original file '{original_file_path}' not found in repository to edit."}), 404
+
+
+            if needs_commit:
+                if is_rename and original_file_existed_in_clone and original_file_path != new_file_path_str:
+                    # If the target for the new name already exists (and it's not the original file just changing case), error.
+                    if path_in_clone_new_obj.exists() and not path_in_clone_new_obj.samefile(path_in_clone_original_obj):
+                        return jsonify({"status": "error", "message": f"Target path '{new_file_path_str}' already exists. Cannot rename."}), 409
+
+                    # Perform git mv if the original file exists. This handles history better.
+                    # Ensure parent dirs for new path exist for git mv
+                    path_in_clone_new_obj.parent.mkdir(parents=True, exist_ok=True)
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "mv", original_file_path, new_file_path_str], check=True, capture_output=True)
+                    current_app.logger.info(f"Git mv {original_file_path} to {new_file_path_str} in clone.")
+                    # Now write the new content to the new path
+                    with open(path_in_clone_new_obj, "w", encoding='utf-8', errors='replace') as f_write:
+                        f_write.write(new_content)
+                    # `git mv` already stages the move. If content changed, the write ensures new content is staged.
+                    # `git add` below will catch any further changes or ensure it's staged if `mv` didn't.
+                else: # Not a rename, or original file didn't exist (new file on new branch)
+                    path_in_clone_new_obj.parent.mkdir(parents=True, exist_ok=True)
+                    with open(path_in_clone_new_obj, "w", encoding='utf-8', errors='replace') as f_write:
+                        f_write.write(new_content)
+
+                # Add the new/modified path. If `git mv` was used, this ensures content changes are staged.
+                # If only content changed, this stages the modified file.
+                # If new file, this stages the new file.
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "add", new_file_path_str], check=True, capture_output=True)
+
+                status_result = subprocess.run([git_exe_path, "-C", temp_clone_dir, "status", "--porcelain"], capture_output=True, text=True)
+                if not status_result.stdout.strip() and not is_empty_or_new_branch : # Check if there are actual changes staged
+                    # This might happen if content was identical and only case of filename changed on a case-insensitive system
+                    # where git considers them the same file after `git add`.
+                    return jsonify({"status": "info", "message": "No effective changes to commit."}), 200
+
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "commit", "-m", commit_message_to_use, f"--author={author_string}"], check=True, capture_output=True)
+
+                if is_empty_or_new_branch:
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "push", "-u", "origin", f"HEAD:{ref_name}"], check=True, capture_output=True)
+                else:
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "push", "origin", ref_name], check=True, capture_output=True)
+
+                final_redirect_path = new_file_path_str
+                success_message = f"File '{Path(new_file_path_str).name}' saved successfully to branch '{ref_name}'."
+                if is_rename:
+                    success_message = f"File renamed to '{Path(new_file_path_str).name}' and saved to branch '{ref_name}'."
+
+                redirect_url = url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=final_redirect_path)
+                return jsonify({"status": "success", "message": success_message, "redirect_url": redirect_url}), 200
+            else:
+                return jsonify({"status": "info", "message": "No changes detected in file content or path. Nothing to commit."}), 200
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode(errors='ignore') if e.stderr else (e.stdout.decode(errors='ignore') if e.stdout else str(e))
+            current_app.logger.error(f"Git operation failed during save of '{original_file_path}' to '{new_file_path_str}': {error_msg} (Command: {e.cmd})")
+            return jsonify({"status": "error", "message": f"Error saving file via Git: {error_msg}"}), 500
+        except Exception as e_save:
+            current_app.logger.error(f"Unexpected error saving repo file '{original_file_path}' to '{new_file_path_str}': {str(e_save)}", exc_info=True)
+            return jsonify({"status": "error", "message": f"An unexpected server error occurred: {str(e_save)}"}), 500
+
+
+@app.route('/<owner_username>/<repo_short_name>/raw/<ref_name>/<path:file_path>')
+@repo_auth_required_db
+def download_repo_file_raw(owner_username, repo_short_name, ref_name, file_path):
+    repo_disk_path = g.repo_disk_path
+    content_bytes = b""
+    try:
+        show_target = f"{ref_name}:{file_path}"
+        git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+        # Get raw bytes for download
+        result = subprocess.run(
+            [git_exe_path, "--git-dir=" + repo_disk_path, "show", show_target],
+            capture_output=True, check=True # errors='ignore' removed to catch issues
+        )
+        content_bytes = result.stdout # stdout is already bytes if text=False (default)
+
+        # Try to guess MIME type, default to application/octet-stream
+        mime_type = mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
+
+        response = make_response(content_bytes)
+        response.headers['Content-Type'] = mime_type
+        # Suggest original filename for download
+        response.headers['Content-Disposition'] = f'attachment; filename="{Path(file_path).name}"'
+        return response
+
+    except subprocess.CalledProcessError as e:
+        current_app.logger.error(f"Error getting raw file content: {e.stderr.decode(errors='ignore') if e.stderr else e.stdout.decode(errors='ignore')}", exc_info=True)
+        abort(404, "File not found or error retrieving content.")
+    except Exception as e_raw:
+        current_app.logger.error(f"Unexpected error getting raw file: {e_raw}", exc_info=True)
+        abort(500, "Server error retrieving raw file.")
+
+@app.route('/<owner_username>/<repo_short_name>/blob/<ref_name>/<path:file_path>')
+@repo_auth_required_db # This decorator should set g.repo and g.repo_disk_path
+def view_repo_blob(owner_username, repo_short_name, ref_name, file_path):
+    # g.repo is the GitRepository SQLAlchemy object
+    # g.repo_disk_path is the physical disk path to the .git folder
+    repo_db_model = g.repo
+    repo_disk_path = g.repo_disk_path
+    content = ""
+
+    try:
+        show_target = f"{ref_name}:{file_path}"
+        # GIT_PATH is defined globally in your file
+        result = subprocess.run(
+            [GIT_PATH, "--git-dir=" + repo_disk_path, "show", show_target],
+            capture_output=True, text=True, check=True, errors='ignore'
+        )
+        content = result.stdout
+    except subprocess.CalledProcessError as e:
+        flash(f"Error retrieving file '{file_path}': {e.stderr.decode(errors='ignore')}", "danger")
+        parent_dir_path = str(Path(file_path).parent)
+        if parent_dir_path == '.': parent_dir_path = '' # Handle root
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+    except Exception as e_show: # Catch other potential errors during git show
+        current_app.logger.error(f"Error showing blob content for {repo_disk_path} - {file_path}: {e_show}", exc_info=True)
+        flash(f"Could not display file content for '{file_path}'.", "danger")
+        parent_dir_path = str(Path(file_path).parent)
+        if parent_dir_path == '.': parent_dir_path = ''
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+
+
+    # Breadcrumbs logic (assuming this is correct from your existing code)
+    path_parts = list(Path(file_path).parts)
+    breadcrumbs = [{"name": repo_short_name, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='')}]
+    current_breadcrumb_path = ""
+    for part in path_parts[:-1]:
+        current_breadcrumb_path = str(Path(current_breadcrumb_path) / part)
+        breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path)})
+    if path_parts: # Add the current file name as the last, non-clickable breadcrumb
+        breadcrumbs.append({"name": path_parts[-1], "url": ""})
+
+
+    # +++ Get file-specific Git details +++
+    file_git_details = get_file_git_details(repo_disk_path, file_path, branch_or_ref=ref_name)
+
+    # +++ ADDED: Get overall repo stats for context (like star count, total commits) +++
+    overall_repo_git_stats = get_repo_git_details(repo_disk_path)
+
+    current_user_starred_status = False
+    if current_user.is_authenticated:
+        current_user_starred_status = current_user.has_starred_repo(repo_db_model)
+
+
+    return render_template("git/repo_blob_view.html",
+                           owner_username=owner_username,
+                           repo_short_name=repo_short_name,
+                           ref_name=ref_name,
+                           file_path=file_path,
+                           content=content,
+                           breadcrumbs=breadcrumbs,
+                           repo=repo_db_model, # Pass the GitRepository SQLAlchemy object
+                           file_git_details=file_git_details,
+                           overall_repo_git_stats=overall_repo_git_stats, # Ensure this is passed
+                           current_user_starred=current_user_starred_status # Pass starring status
+                           # PYGMENTS_AVAILABLE and highlighted_content are removed as per your request
+                           )
+
+
+
+
+@app.route('/<owner_username>/<repo_short_name>/createfile/<ref_name>/', defaults={'dir_path': ''}, methods=["GET", "POST"])
+@app.route('/<owner_username>/<repo_short_name>/createfile/<ref_name>/<path:dir_path>', methods=["GET", "POST"])
+@login_required
+@repo_auth_required_db
+def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
+    repo_db_model = g.repo
+    repo_disk_path = repo_db_model.disk_path
+    git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+
+    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
+        if request.is_json:
+            return jsonify({"status": "error", "message": "You must be the owner to create files/folders."}), 403
+        flash("You must be the owner to create files/folders in this repository.", "danger")
+        return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    committer_name = current_user.username
+    committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
+    author_string = f"{committer_name} <{committer_email}>"
+
+    if request.method == "POST":
+        if not request.is_json:
+            # This case should ideally not be hit if JS is working
+            flash("Invalid request format. Expected JSON.", "danger")
+            return render_template("git/repo_create_file.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=g.get('breadcrumbs', []), repo=repo_db_model)
+
+
+        data = request.get_json()
+        file_name_input = data.get("file_name", "").strip()
+        file_content_from_payload = data.get("file_content", "") # Can be empty for folders
+        commit_message_input = data.get("commit_message", "").strip()
+
+        if not file_name_input:
+            return jsonify({"status": "error", "message": "Path/Filename is required."}), 400
+        if not commit_message_input:
+            return jsonify({"status": "error", "message": "Commit message is required."}), 400
+
+        is_folder_creation = file_name_input.endswith('/')
+
+        prospective_path_obj = None
+        if file_name_input.startswith('/'):
+            # Absolute path from repo root
+            cleaned_input = file_name_input.lstrip('/')
+            if is_folder_creation:
+                cleaned_input = cleaned_input.rstrip('/')
+            prospective_path_obj = Path(cleaned_input)
+        else:
+            # Relative to current dir_path
+            base_dir = Path(dir_path)
+            temp_path = file_name_input
+            if is_folder_creation:
+                temp_path = temp_path.rstrip('/')
+            prospective_path_obj = base_dir / temp_path
+
+        # Security check for '..'
+        if '..' in prospective_path_obj.parts:
+            return jsonify({"status": "error", "message": "Invalid path: '..' component is not allowed."}), 400
+        if str(prospective_path_obj) == '.':
+             return jsonify({"status": "error", "message": "Invalid path: A file or folder name must be specified."}), 400
+
+
+        path_for_git_operations_str = ""
+        actual_file_content_to_write = ""
+        commit_message_to_use = ""
+        final_item_name_for_message = prospective_path_obj.name
+
+        redirect_target_path_str = ""
+
+
+        if is_folder_creation:
+            folder_to_create_path_obj = prospective_path_obj
+            # For empty folders, create a .gitkeep file
+            path_for_git_operations_obj = folder_to_create_path_obj / ".gitkeep"
+            actual_file_content_to_write = "" # .gitkeep is empty
+            commit_message_to_use = commit_message_input or f"Create folder {str(folder_to_create_path_obj)}"
+            final_item_name_for_message = str(folder_to_create_path_obj)
+            redirect_target_path_str = str(folder_to_create_path_obj)
+        else:
+            # File creation
+            path_for_git_operations_obj = prospective_path_obj
+            actual_file_content_to_write = file_content_from_payload
+            commit_message_to_use = commit_message_input or f"Create file {path_for_git_operations_obj.name}"
+            # final_item_name_for_message is already prospective_path_obj.name
+            redirect_target_path_str = str(path_for_git_operations_obj.parent if str(path_for_git_operations_obj.parent) != '.' else '')
+
+
+        path_for_git_operations_str = str(path_for_git_operations_obj)
+        if redirect_target_path_str == '.': redirect_target_path_str = ''
+
+
+        with tempfile.TemporaryDirectory() as temp_clone_dir:
+            try:
+                is_empty_or_new_branch = False
+                try:
+                    subprocess.run([git_exe_path, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"], check=True, capture_output=True, text=True)
+                except subprocess.CalledProcessError:
+                    result_refs = subprocess.run([git_exe_path, "--git-dir=" + repo_disk_path, "show-ref"], capture_output=True, text=True)
+                    if not result_refs.stdout.strip(): # No refs at all = empty repo
+                        is_empty_or_new_branch = True
+                    else: # Ref doesn't exist but repo is not empty
+                        return jsonify({"status": "error", "message": f"Branch or reference '{ref_name}' not found."}), 400
+
+                if is_empty_or_new_branch:
+                    subprocess.run([git_exe_path, "init", temp_clone_dir], check=True, capture_output=True)
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "remote", "add", "origin", repo_disk_path], check=True, capture_output=True)
+                else:
+                    subprocess.run([git_exe_path, "clone", "--branch", ref_name, repo_disk_path, temp_clone_dir], check=True, capture_output=True)
+
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "config", "user.name", f'"{committer_name}"'], check=True, capture_output=True)
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "config", "user.email", f'"{committer_email}"'], check=True, capture_output=True)
+
+                target_path_in_clone_obj = Path(temp_clone_dir) / path_for_git_operations_str
+
+                # Security check: path should be within temp_clone_dir
+                if not target_path_in_clone_obj.resolve().is_relative_to(Path(temp_clone_dir).resolve()):
+                    current_app.logger.error(f"Path traversal attempt: {target_path_in_clone_obj} is outside {temp_clone_dir}")
+                    return jsonify({"status": "error", "message": "Invalid file path detected."}), 400
+
+                if target_path_in_clone_obj.exists() and not is_folder_creation: # For files, check if it exists to prevent accidental overwrite via create
+                     return jsonify({"status": "error", "message": f"File '{path_for_git_operations_str}' already exists. Use edit instead."}), 409 # Conflict
+
+                target_path_in_clone_obj.parent.mkdir(parents=True, exist_ok=True)
+                with open(target_path_in_clone_obj, "w", encoding='utf-8') as f:
+                    f.write(actual_file_content_to_write)
+
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "add", path_for_git_operations_str], check=True, capture_output=True)
+
+                subprocess.run([git_exe_path, "-C", temp_clone_dir, "commit", "-m", commit_message_to_use, f"--author={author_string}"], check=True, capture_output=True)
+
+                if is_empty_or_new_branch:
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "push", "-u", "origin", f"HEAD:{ref_name}"], check=True, capture_output=True)
+                else:
+                    subprocess.run([git_exe_path, "-C", temp_clone_dir, "push", "origin", ref_name], check=True, capture_output=True)
+
+                item_type_msg = "Folder" if is_folder_creation else "File"
+                success_message = f"{item_type_msg} '{final_item_name_for_message}' created successfully in branch '{ref_name}'."
+                redirect_url = url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_target_path_str)
+
+                return jsonify({"status": "success", "message": success_message, "redirect_url": redirect_url}), 201 # 201 Created
+
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.decode(errors='ignore') if e.stderr else (e.stdout.decode(errors='ignore') if e.stdout else str(e))
+                current_app.logger.error(f"Git operation failed during create: {error_msg} (Command: {e.cmd})")
+                return jsonify({"status": "error", "message": f"Error creating item via Git: {error_msg}"}), 500
+            except Exception as e_create:
+                current_app.logger.error(f"Unexpected error creating repo item: {str(e_create)}", exc_info=True)
+                return jsonify({"status": "error", "message": f"An unexpected server error occurred: {str(e_create)}"}), 500
+
+    # --- GET request ---
+    # Breadcrumbs for GET request
+    path_parts_for_breadcrumbs = list(Path(dir_path).parts) if dir_path else []
+    current_breadcrumbs = [{"name": repo_short_name, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='')}]
+    current_breadcrumb_path_builder = ""
+    for part in path_parts_for_breadcrumbs:
+        current_breadcrumb_path_builder = str(Path(current_breadcrumb_path_builder) / part)
+        current_breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
+    current_breadcrumbs.append({"name": "Create New File/Folder", "url": ""}) # Current action
+
+    # For GET, we just render the form. No WTForm instance is strictly needed if parsing JSON on POST.
+    # However, if you want to use WTForms for CSRF protection, you'd instantiate it.
+    # For simplicity here, assuming CSRF is handled by a macro or a global setup.
+    return render_template("git/repo_create_file.html",
+                           owner_username=owner_username,
+                           repo_short_name=repo_short_name,
+                           ref_name=ref_name,
+                           dir_path=dir_path,
+                           breadcrumbs=current_breadcrumbs,
+                           repo=repo_db_model,
+                           # Pass empty strings for pre-filling on GET if needed, or handle in template
+                           file_name = request.args.get("file_name", ""),
+                           file_content = request.args.get("file_content", ""),
+                           commit_message = request.args.get("commit_message", "")
+                           )
+
+@app.route('/<owner_username>/<repo_short_name>/uploadfiles/<ref_name>/', defaults={'dir_path': ''}, methods=["GET", "POST"])
+@app.route('/<owner_username>/<repo_short_name>/uploadfiles/<ref_name>/<path:dir_path>', methods=["GET", "POST"])
+@login_required
+@repo_auth_required_db # g.repo is the GitRepository SQLAlchemy object
+def upload_repo_files(owner_username, repo_short_name, ref_name, dir_path):
+    # Corrected permission check
+    if not current_user.is_authenticated or g.repo.owner.username != current_user.username:
+        flash("You must be the owner to upload files to this repository.", "danger")
+        return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    repo_disk_path = g.repo.disk_path # Access attribute from the object
+
+    if not current_user.is_authenticated: # Should be caught by @login_required
+        flash("Authentication required.", "danger")
+        return redirect(url_for('login'))
+
+    committer_name = current_user.username # Use current_user
+    # Assuming current_user object has an email attribute directly:
+    committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
+    author_string = f"{committer_name} <{committer_email}>"
+
+    # Breadcrumbs logic (ensure it's present from previous steps)
+    path_parts_for_breadcrumbs = list(Path(dir_path).parts) if dir_path else []
+    current_breadcrumbs = [{"name": repo_short_name, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='')}]
+    current_breadcrumb_path_builder = ""
+    for part in path_parts_for_breadcrumbs:
+        current_breadcrumb_path_builder = str(Path(current_breadcrumb_path_builder) / part)
+        current_breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
+    current_breadcrumbs.append({"name": "Upload files", "url": ""})
+
+
+    if request.method == "POST":
+        uploaded_file_storage_objects = request.files.getlist("uploaded_files[]")
+        # Get relative paths sent by the client-side script
+        uploaded_files_relative_paths = request.form.getlist("uploaded_files_relative_paths[]")
+        custom_commit_message = request.form.get("commit_message", "").strip()
+
+        if not uploaded_file_storage_objects or all(not f.filename for f in uploaded_file_storage_objects):
+            flash("No files selected for upload.", "danger")
+            return render_template("git/repo_upload_files.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=current_breadcrumbs, commit_message=custom_commit_message)
+
+        if len(uploaded_file_storage_objects) != len(uploaded_files_relative_paths):
+            flash("File and path information mismatch. Please try uploading again.", "danger")
+            app.logger.error(f"Upload mismatch: {len(uploaded_file_storage_objects)} files, {len(uploaded_files_relative_paths)} paths.")
+            return render_template("git/repo_upload_files.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=current_breadcrumbs, commit_message=custom_commit_message)
+
+        processed_commit_msg_filenames = []
+        files_to_add_to_git = [] # Store paths relative to repo root for `git add`
+
+        with tempfile.TemporaryDirectory() as temp_clone_dir:
+            try:
+                is_empty_or_new_branch = False
+                try:
+                    subprocess.run([GIT_PATH, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"], check=True, capture_output=True)
+                except subprocess.CalledProcessError:
+                    is_empty_or_new_branch = True
+
+                if is_empty_or_new_branch:
+                    subprocess.run([GIT_PATH, "init", temp_clone_dir], check=True, capture_output=True)
+                    subprocess.run([GIT_PATH, "-C", temp_clone_dir, "remote", "add", "origin", repo_disk_path], check=True, capture_output=True)
+                else:
+                    subprocess.run([GIT_PATH, "clone", "--branch", ref_name, repo_disk_path, temp_clone_dir], check=True, capture_output=True)
+
+                subprocess.run([GIT_PATH, "-C", temp_clone_dir, "config", "user.name", f'"{committer_name}"'], check=True, capture_output=True)
+                subprocess.run([GIT_PATH, "-C", temp_clone_dir, "config", "user.email", f'"{committer_email}"'], check=True, capture_output=True)
+
+                for i, file_storage_obj in enumerate(uploaded_file_storage_objects):
+                    if file_storage_obj and file_storage_obj.filename:
+                        # No longer checking allowed_file, as it always returns True
+
+                        client_relative_path_str = uploaded_files_relative_paths[i]
+                        if not client_relative_path_str: # Should be provided by JS
+                            app.logger.warning(f"Missing relative path for uploaded file: {file_storage_obj.filename}")
+                            continue # Skip this file or handle error
+
+                        # Sanitize each path component of the client-provided relative path
+                        path_components = Path(client_relative_path_str).parts
+                        sanitized_components = [secure_path_component(part) for part in path_components if part] # Filter empty parts from Path()
+
+                        if not sanitized_components: # e.g. if client_relative_path_str was ".." or similar
+                            app.logger.warning(f"Invalid relative path after sanitization: {client_relative_path_str}")
+                            continue
+
+                        sanitized_relative_path = Path(*sanitized_components)
+
+                        # Final path within the repository structure
+                        target_repo_path = Path(dir_path) / sanitized_relative_path
+
+                        # Full disk path in the temporary clone
+                        target_disk_path_in_clone = (Path(temp_clone_dir) / target_repo_path).resolve()
+
+
+                        # Security check: Ensure the resolved path is still within the temp_clone_dir
+                        if not str(target_disk_path_in_clone).startswith(str(Path(temp_clone_dir).resolve())):
+                            app.logger.error(f"Path traversal attempt detected or path resolution error. Skipping file: {client_relative_path_str}")
+                            flash(f"Skipping file '{client_relative_path_str}' due to invalid path.", "warning")
+                            continue
+
+                        target_disk_path_in_clone.parent.mkdir(parents=True, exist_ok=True)
+                        file_storage_obj.save(str(target_disk_path_in_clone))
+
+                        files_to_add_to_git.append(str(target_repo_path))
+                        processed_commit_msg_filenames.append(Path(client_relative_path_str).name) # Use original basename for message
+
+                if not files_to_add_to_git:
+                    flash("No valid files were processed for upload.", "warning")
+                    return render_template("git/repo_upload_files.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=current_breadcrumbs, commit_message=custom_commit_message)
+
+                for file_to_add in files_to_add_to_git:
+                     subprocess.run([GIT_PATH, "-C", temp_clone_dir, "add", file_to_add], check=True, capture_output=True)
+
+                commit_message_to_use = custom_commit_message
+                if not commit_message_to_use:
+                    if len(processed_commit_msg_filenames) == 1:
+                        commit_message_to_use = f"Uploaded {processed_commit_msg_filenames[0]}"
+                    else:
+                        commit_message_to_use = f"Uploaded {len(processed_commit_msg_filenames)} files (e.g., {processed_commit_msg_filenames[0]})"
+
+                status_result = subprocess.run([GIT_PATH, "-C", temp_clone_dir, "status", "--porcelain"], capture_output=True, text=True)
+                if not status_result.stdout.strip() and not is_empty_or_new_branch:
+                    flash("No changes to commit. Files might be identical or not added.", "info")
+                    return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path))
+
+                subprocess.run([GIT_PATH, "-C", temp_clone_dir, "commit", "-m", commit_message_to_use, f"--author={author_string}"], check=True, capture_output=True)
+
+                if is_empty_or_new_branch:
+                    subprocess.run([GIT_PATH, "-C", temp_clone_dir, "push", "-u", "origin", f"HEAD:{ref_name}"], check=True, capture_output=True)
+                else:
+                    subprocess.run([GIT_PATH, "-C", temp_clone_dir, "push", "origin", ref_name], check=True, capture_output=True)
+
+                flash(f"{len(files_to_add_to_git)} file(s) uploaded successfully to branch '{ref_name}'.", "success")
+                return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path))
+
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.decode(errors='ignore') or e.stdout.decode(errors='ignore') or str(e)
+                app.logger.error(f"Git operation failed during upload: {error_msg} (Command: {e.cmd})")
+                flash(f"Error uploading files: {error_msg}", "danger")
+            except Exception as e:
+                app.logger.error(f"Unexpected error in upload_repo_files: {str(e)}")
+                flash(f"An unexpected error occurred during upload: {str(e)}", "danger")
+
+        return render_template("git/repo_upload_files.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=current_breadcrumbs, commit_message=custom_commit_message)
+
+    # For GET request
+    return render_template("git/repo_upload_files.html",
+                           owner_username=owner_username,
+                           repo_short_name=repo_short_name,
+                           ref_name=ref_name,
+                           dir_path=dir_path,
+                           repo=g.repo,
+                           breadcrumbs=current_breadcrumbs,
+                           commit_message=""
+                          )
+
+
+# NEW: Fork Repository Route
+@app.route('/<owner_username>/<repo_short_name>/action/fork', methods=['POST'])
+@login_required
+@repo_auth_required_db # Ensures g.repo (source_repo_obj) is set
+def fork_repo(owner_username, repo_short_name):
+    source_repo_obj = g.repo # The GitRepository SQLAlchemy object of the source
+    # source_repo_disk_path = source_repo_obj.disk_path # Already correct via g.repo_disk_path
+
+    fork_owner = current_user # The user performing the fork
+
+    if source_repo_obj.is_private and source_repo_obj.user_id != fork_owner.id:
+        flash("You can only fork public repositories or your own private repositories.", "danger")
+        return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    fork_repo_name = source_repo_obj.name # Fork usually keeps the same name
+
+    existing_fork = GitRepository.query.filter_by(user_id=fork_owner.id, name=fork_repo_name).first()
+    if existing_fork:
+        flash(f"You already have a repository named '{fork_repo_name}'.", "danger")
+        return redirect(url_for('view_repo_root', owner_username=fork_owner.username, repo_short_name=fork_repo_name)) # Redirect to their existing repo
+
+    new_fork_disk_path = get_repo_disk_path(fork_owner.username, fork_repo_name)
+
+    if os.path.exists(new_fork_disk_path):
+        flash(f"A directory for the forked repository '{fork_repo_name}' already exists on your server space. Please resolve this conflict.", "danger")
+        return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    try:
+        user_forks_base_dir = os.path.dirname(new_fork_disk_path)
+        if not os.path.exists(user_forks_base_dir):
+            os.makedirs(user_forks_base_dir)
+
+        git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+        subprocess.run([git_exe, "clone", "--bare", source_repo_obj.disk_path, new_fork_disk_path], check=True, capture_output=True)
+
+        new_forked_repo_db = GitRepository(
+            user_id=fork_owner.id,
+            name=fork_repo_name,
+            description=source_repo_obj.description,
+            is_private=True, # Forks are private by default
+            disk_path=new_fork_disk_path,
+            forked_from_id=source_repo_obj.id # Link to the source repository
+        )
+        db.session.add(new_forked_repo_db)
+        db.session.commit()
+
+        flash(f"Repository '{owner_username}/{repo_short_name}' successfully forked as '{fork_owner.username}/{fork_repo_name}'. Your fork is private by default.", "success")
+        return redirect(url_for('view_repo_root', owner_username=fork_owner.username, repo_short_name=fork_repo_name))
+
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode(errors='ignore') or str(e)
+        current_app.logger.error(f"Git clone error during fork: {error_msg} (Command: {e.cmd})")
+        flash(f"Error forking repository: {error_msg}", "danger")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Unexpected error during fork: {str(e)}", exc_info=True)
+        flash(f"An unexpected error occurred while forking: {str(e)}", "danger")
+        # Cleanup if disk path was created but DB failed
+        if os.path.exists(new_fork_disk_path) and not GitRepository.query.filter_by(disk_path=new_fork_disk_path).first():
+            shutil.rmtree(new_fork_disk_path, ignore_errors=True)
+
+    return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+
+@app.route('/<owner_username>/<repo_short_name>/settings', methods=['GET', 'POST'])
+@login_required
+@repo_auth_required_db # g.repo is the GitRepository SQLAlchemy object
+def repo_settings(owner_username, repo_short_name): # repo_short_name is the name from URL
+    repo_db_obj = g.repo
+
+    if repo_db_obj.user_id != current_user.id:
+        flash("You do not have permission to change these settings.", "danger")
+        return redirect(url_for('git/view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    if request.method == 'POST':
+        original_repo_name_in_db = repo_db_obj.name
+        new_name_for_redirect = original_repo_name_in_db # Start with current name
+        settings_updated_successfully = False
+
+        # 1. Handle Visibility Change
+        new_visibility_str = request.form.get('visibility')
+        if new_visibility_str is not None:
+            new_is_private = (new_visibility_str == 'private')
+            if repo_db_obj.is_private != new_is_private:
+                repo_db_obj.is_private = new_is_private
+                settings_updated_successfully = True
+
+        # 2. Handle Description Change
+        new_description = request.form.get('description', '').strip()
+        if repo_db_obj.description != new_description: # Handles None vs "" correctly
+            repo_db_obj.description = new_description
+            settings_updated_successfully = True
+
+        # 3. Handle Repository Name Change
+        new_repo_name_from_form = request.form.get('repo_name', '').strip()
+        if new_repo_name_from_form and new_repo_name_from_form != original_repo_name_in_db:
+            if not all(c.isalnum() or c in ['_', '-'] for c in new_repo_name_from_form) or len(new_repo_name_from_form) > 100:
+                flash("Invalid new repository name. Max 100 chars, use alphanumeric, underscores, hyphens.", "danger")
+            elif GitRepository.query.filter(GitRepository.user_id == current_user.id, GitRepository.name == new_repo_name_from_form, GitRepository.id != repo_db_obj.id).first():
+                flash(f"You already have a repository named '{new_repo_name_from_form}'.", "danger")
+            else:
+                old_disk_path = repo_db_obj.disk_path
+                new_intended_disk_path = get_repo_disk_path(owner_username, new_repo_name_from_form)
+
+                try:
+                    if os.path.exists(old_disk_path):
+                        if not os.path.exists(new_intended_disk_path):
+                            os.rename(old_disk_path, new_intended_disk_path)
+                            repo_db_obj.name = new_repo_name_from_form
+                            repo_db_obj.disk_path = new_intended_disk_path
+                            settings_updated_successfully = True
+                            new_name_for_redirect = new_repo_name_from_form # Update for redirect
+                            current_app.logger.info(f"Repo '{original_repo_name_in_db}' renamed to '{new_repo_name_from_form}'. Path: {new_intended_disk_path}")
+                        else:
+                            flash(f"Error renaming: Target path for '{new_repo_name_from_form}' already exists.", "danger")
+                    else:
+                        flash(f"Error renaming: Original repository path for '{original_repo_name_in_db}' not found. Inconsistency detected.", "danger")
+                        current_app.logger.error(f"Path not found for rename: {old_disk_path}")
+                except OSError as e:
+                    flash(f"Error renaming repository directory: {e}", "danger")
+                    current_app.logger.error(f"OSError renaming {old_disk_path} to {new_intended_disk_path}: {e}")
+        elif not new_repo_name_from_form: # Empty name submitted
+             flash("Repository name cannot be empty.", "danger")
+
+
+        if settings_updated_successfully:
+            try:
+                db.session.commit()
+                flash("Repository settings updated successfully!", "success")
+                # If name changed, redirect to new name's settings page
+                return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=new_name_for_redirect))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Error saving settings to database: {str(e)}", "danger")
+                current_app.logger.error(f"Error committing repo settings for {repo_db_obj.id}: {e}", exc_info=True)
+        elif not request.form: # No form data submitted, likely a direct POST without data which shouldn't happen with a form
+            flash("No changes submitted.", "info")
+        # If only errors occurred and no successful update, the page will re-render with errors.
+
+    # For GET or if POST had errors preventing successful commit (and didn't redirect)
+    return render_template("git/repo_settings.html",
+                           repo=repo_db_obj, # Pass the SQLAlchemy object
+                           owner_username=owner_username, # From URL
+                           repo_short_name=repo_db_obj.name, # Current name from DB for display
+                           current_repo_name_for_url=repo_db_obj.name) # Current name for form action
+
+
+# --- Git HTTP Backend ---
+def get_repo_obj_for_git_http(username_from_url, repo_name_url_part):
+    """
+    Fetches GitRepository object based on URL parts.
+    repo_name_url_part is expected to be "reponame.git".
+    """
+    if not repo_name_url_part.endswith(".git"):
+        return None # Or raise error
+    repo_short_name = repo_name_url_part[:-4] # Remove ".git"
+
+    user_owner = User.query.filter_by(username=username_from_url).first()
+    if not user_owner:
+        return None
+    return GitRepository.query.filter_by(user_id=user_owner.id, name=repo_short_name).first()
+
+@app.route('/<username>/<path:repo_name_with_git>/info/refs', methods=['GET'])
+@csrf.exempt
+def git_info_refs(username, repo_name_with_git):
+    service = request.args.get('service')
+    git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+
+    if not service or not service.startswith('git-'):
+        abort(400, "Invalid service parameter")
+
+    repo_db_obj = get_repo_obj_for_git_http(username, repo_name_with_git)
+    if not repo_db_obj:
+        current_app.logger.info(f"Git info/refs: Repository not found in DB for {username}/{repo_name_with_git}")
+        abort(404, "Repository not found")
+
+    repo_disk_path = repo_db_obj.disk_path
+    if not os.path.isdir(repo_disk_path):
+        current_app.logger.error(f"Git info/refs: Repository disk path not found or not a directory: {repo_disk_path}")
+        abort(404, "Repository storage not found on server")
+
+    authenticated_username_for_git = None # For Basic Auth primarily
+    auth_required_for_operation = repo_db_obj.is_private
+
+    if auth_required_for_operation:
+        auth = request.authorization
+        if auth and auth.username:
+            user_from_auth = User.query.filter_by(username=auth.username).first()
+            if user_from_auth and user_from_auth.check_password(auth.password):
+                authenticated_username_for_git = user_from_auth.username
+
+        if not authenticated_username_for_git:
+            # If basic auth failed or not provided for a private repo, demand it.
+            resp = make_response('Authentication required for private repository.', 401)
+            resp.headers['WWW-Authenticate'] = 'Basic realm="Git Repository Access"'
+            return resp
+
+        # If authenticated, check ownership for private repo access
+        if repo_db_obj.owner.username != authenticated_username_for_git:
+             # TODO: Add collaborator check here in future
+            current_app.logger.warning(f"Git info/refs: User {authenticated_username_for_git} denied access to private repo {repo_db_obj.owner.username}/{repo_db_obj.name}")
+            abort(403, "Access denied to private repository.")
+
+    # Public repos are readable by anyone for 'git-upload-pack'
+
+    cmd_short_service_name = service.replace('git-', '')
+    cmd = [git_exe, cmd_short_service_name, '--advertise-refs', repo_disk_path]
+
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        refs_advertisement_output, stderr = proc.communicate()
+
+        if proc.returncode != 0:
+            error_output = stderr.decode(errors='ignore').strip()
+            current_app.logger.error(f"Git command error (info/refs) for {repo_disk_path}: {error_output}. Command: {' '.join(cmd)}")
+            return make_response(f"Git command failed on server: {error_output}", 500, {'Content-Type': 'text/plain'})
+
+        service_line_str = f"# service={service}\n"
+        service_line_bytes = service_line_str.encode('utf-8')
+        pkt_line_length = len(service_line_bytes) + 4
+        hex_pkt_line_length_str = f"{pkt_line_length:04x}"
+        first_pkt_line = hex_pkt_line_length_str.encode('utf-8') + service_line_bytes
+        flush_pkt = b"0000"
+        response_content = first_pkt_line + flush_pkt + refs_advertisement_output
+
+        res = make_response(response_content)
+        res.headers['Content-Type'] = f'application/x-{service}-advertisement'
+        res.headers['Expires'] = 'Fri, 01 Jan 1980 00:00:00 GMT'
+        res.headers['Pragma'] = 'no-cache'
+        res.headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate'
+        return res
+
+    except FileNotFoundError:
+        current_app.logger.error(f"GIT_EXECUTABLE_PATH '{git_exe}' not found.")
+        abort(500, "Git executable not found on server.")
+    except Exception as e:
+        current_app.logger.error(f"Exception in git_info_refs for {repo_disk_path}: {e}", exc_info=True)
+        abort(500, f"Server error processing git request: {str(e)}")
+
+
+
+@app.route('/<username>/<path:repo_name_with_git>/<any("git-upload-pack", "git-receive-pack"):service_rpc>', methods=['POST'])
+@csrf.exempt
+def git_service_rpc(username, repo_name_with_git, service_rpc):
+    git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+    content_type = request.headers.get('Content-Type', '')
+    if content_type != f'application/x-{service_rpc}-request':
+        abort(400, f"Invalid Content-Type: {content_type}, expected application/x-{service_rpc}-request")
+
+    repo_db_obj = get_repo_obj_for_git_http(username, repo_name_with_git)
+    if not repo_db_obj:
+        current_app.logger.info(f"Git RPC: Repository not found in DB for {username}/{repo_name_with_git}")
+        abort(404, "Repository not found")
+
+    repo_disk_path = repo_db_obj.disk_path
+    if not os.path.isdir(repo_disk_path):
+        current_app.logger.error(f"Git RPC: Repository disk path not found: {repo_disk_path}")
+        abort(404, "Repository storage not found on server")
+
+    is_push_operation = (service_rpc == 'git-receive-pack')
+    authenticated_username_for_git = None # For Basic Auth
+
+    # ALL push operations require auth AND ownership.
+    # Private repo pull operations also require auth AND ownership (or collaboration in future).
+    auth_required_for_operation = repo_db_obj.is_private or is_push_operation
+
+    if auth_required_for_operation:
+        auth = request.authorization
+        if auth and auth.username:
+            user_from_auth = User.query.filter_by(username=auth.username).first()
+            if user_from_auth and user_from_auth.check_password(auth.password):
+                authenticated_username_for_git = user_from_auth.username
+
+        if not authenticated_username_for_git:
+            resp = make_response('Authentication required.', 401)
+            resp.headers['WWW-Authenticate'] = 'Basic realm="Git Repository Access"'
+            return resp
+
+        # Check ownership
+        if repo_db_obj.owner.username != authenticated_username_for_git:
+            # TODO: Add collaborator check here if relevant for read access on private repos
+            current_app.logger.warning(f"Git RPC: User {authenticated_username_for_git} denied access (not owner) to repo {repo_db_obj.owner.username}/{repo_db_obj.name} for {service_rpc}")
+            abort(403, "Access denied. You are not the owner of this repository.")
+
+        # Explicitly, only owner can push, even if private status was the trigger for auth
+        if is_push_operation and repo_db_obj.owner.username != authenticated_username_for_git:
+            current_app.logger.warning(f"Git RPC: User {authenticated_username_for_git} push denied (not owner) to repo {repo_db_obj.owner.username}/{repo_db_obj.name}")
+            abort(403, "Push access denied. Only the repository owner can push.")
+
+    # For public repos, 'git-upload-pack' (pull/clone) is allowed without auth.
+    # 'git-receive-pack' (push) to a public repo would have been caught by `auth_required_for_operation` and required owner auth.
+
+    pack_data = request.get_data()
+    cmd_short_service_name = service_rpc.replace('git-', '')
+    cmd = [git_exe, cmd_short_service_name, '--stateless-rpc', repo_disk_path]
+
+    try:
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate(input=pack_data)
+
+        if proc.returncode != 0:
+            error_output = stderr.decode(errors='ignore').strip()
+            current_app.logger.error(f"Git command error (RPC {service_rpc}) for {repo_disk_path}: {error_output}. Command: {' '.join(cmd)}")
+            return make_response(f"Git command failed:\n{error_output}", 500, {'Content-Type': 'text/plain'})
+
+        res = make_response(stdout)
+        res.headers['Content-Type'] = f'application/x-{service_rpc}-result'
+        res.headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate'
+        # ... (other headers)
+        return res
+
+    except FileNotFoundError:
+        current_app.logger.error(f"GIT_EXECUTABLE_PATH '{git_exe}' not found.")
+        abort(500, "Git executable not found on server.")
+    except Exception as e:
+        current_app.logger.error(f"Exception in git_service_rpc for {repo_disk_path}, service {service_rpc}: {e}", exc_info=True)
+        abort(500, f"Server error processing git {service_rpc} request: {str(e)}")
+
+
+@app.route('/<owner_username>/<repo_short_name>/deleteitem/<ref_name>/<path:item_full_path>', methods=['POST'])
+@login_required
+@repo_auth_required_db # g.repo is the GitRepository SQLAlchemy object
+def delete_repo_item(owner_username, repo_short_name, ref_name, item_full_path):
+    # Corrected permission check
+    if not current_user.is_authenticated or g.repo.owner.username != current_user.username:
+        flash("You do not have permission to delete items in this repository.", "danger")
+        parent_dir_path = str(Path(item_full_path).parent)
+        if parent_dir_path == '.': parent_dir_path = ''
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+
+    commit_message = request.form.get("commit_message")
+    if not commit_message or not commit_message.strip():
+        flash("Commit message is required for deletion.", "danger")
+        parent_dir_path = str(Path(item_full_path).parent)
+        if parent_dir_path == '.': parent_dir_path = ''
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+
+    repo_disk_path = g.repo.disk_path # Access attribute from the object
+
+    if not current_user.is_authenticated: # Should be caught by @login_required
+        flash("Authentication required.", "danger")
+        parent_dir_path = str(Path(item_full_path).parent)
+        if parent_dir_path == '.': parent_dir_path = ''
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+
+    committer_name = current_user.username # Use current_user
+    # Assuming current_user object has an email attribute directly:
+    committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
+    author_string = f"{committer_name} <{committer_email}>"
+
+    # Parent directory for redirection after successful deletion (already defined if error, but good here too)
+    parent_path_obj = Path(item_full_path).parent
+    redirect_object_path = str(parent_path_obj) if str(parent_path_obj) != '.' else ''
+
+    # Define GIT_PATH from app config or global
+    GIT_PATH = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
+
+
+    with tempfile.TemporaryDirectory() as temp_clone_dir:
+        try:
+            # Check if the target branch/ref exists.
+            is_empty_or_new_branch = False
+            try:
+                subprocess.run([GIT_PATH, "--git-dir=" + repo_disk_path, "rev-parse", "--verify", ref_name + "^{commit}"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                # This should ideally not happen if we are deleting from an existing ref view
+                flash(f"Branch or reference '{ref_name}' not found in repository.", "danger")
+                return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+            # Clone the specific branch
+            subprocess.run([GIT_PATH, "clone", "--branch", ref_name, repo_disk_path, temp_clone_dir], check=True, capture_output=True)
+
+            subprocess.run([GIT_PATH, "-C", temp_clone_dir, "config", "user.name", f'"{committer_name}"'], check=True, capture_output=True)
+            subprocess.run([GIT_PATH, "-C", temp_clone_dir, "config", "user.email", f'"{committer_email}"'], check=True, capture_output=True)
+
+            # Check if the item exists in the clone before attempting to remove
+            path_in_clone = Path(temp_clone_dir) / item_full_path
+            if not path_in_clone.exists():
+                flash(f"Item '{item_full_path}' not found in the repository branch '{ref_name}'. It might have been already deleted.", "warning")
+                return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+            # Perform git rm. Use -r for directories, also works for files.
+            # Use --ignore-unmatch to prevent error if file is somehow already gone (though we check above).
+            # However, an error might be better if our path_in_clone.exists() check was somehow wrong.
+            # For simplicity, let's rely on the exists check and expect `git rm` to find it.
+            rm_command = [GIT_PATH, "-C", temp_clone_dir, "rm", "-r", item_full_path]
+            app.logger.info(f"Executing delete command: {' '.join(rm_command)}")
+            rm_result = subprocess.run(rm_command, capture_output=True, text=True) # Don't check=True immediately
+
+            if rm_result.returncode != 0:
+                flash(f"Error removing item '{item_full_path}' using Git: {rm_result.stderr or rm_result.stdout}", "danger")
+                app.logger.error(f"git rm failed for '{item_full_path}'. Stderr: {rm_result.stderr}, Stdout: {rm_result.stdout}")
+                return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+            # Check git status; if `git rm` removed something, there should be changes.
+            status_result = subprocess.run([GIT_PATH, "-C", temp_clone_dir, "status", "--porcelain"], capture_output=True, text=True)
+            if not status_result.stdout.strip():
+                flash(f"No changes to commit after attempting to delete '{item_full_path}'. It might not have been tracked or was already deleted.", "info")
+                return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+            # Commit the deletion
+            commit_command = [GIT_PATH, "-C", temp_clone_dir, "commit", "-m", commit_message, f"--author={author_string}"]
+            app.logger.info(f"Executing commit command: {' '.join(commit_command)}")
+            subprocess.run(commit_command, check=True, capture_output=True)
+
+            # Push the changes
+            push_command = [GIT_PATH, "-C", temp_clone_dir, "push", "origin", ref_name]
+            app.logger.info(f"Executing push command: {' '.join(push_command)}")
+            subprocess.run(push_command, check=True, capture_output=True)
+
+            flash(f"Successfully deleted '{item_full_path}' from branch '{ref_name}'.", "success")
+            return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode(errors='ignore') if e.stderr else (e.stdout.decode(errors='ignore') if e.stdout else str(e))
+            app.logger.error(f"Git operation failed during delete: {error_msg} (Command: {e.cmd})")
+            flash(f"Error deleting item: {error_msg}", "danger")
+        except Exception as e:
+            app.logger.error(f"Unexpected error in delete_repo_item: {str(e)}")
+            flash(f"An unexpected error occurred: {str(e)}", "danger")
+
+        # Fallback redirect if errors occurred within the try block
+        return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=redirect_object_path))
+
+@app.route('/git/repo/<int:repo_id>/star', methods=['POST'])
+@login_required
+def star_repo_route(repo_id):
+    # Use your GitRepository model
+    repo = GitRepository.query.get_or_404(repo_id)
+
+    if current_user.has_starred_repo(repo):
+        return jsonify({'status': 'error', 'message': 'Already starred.'}), 400
+
+    current_user.star_repo(repo)
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Repository starred!', 'star_count': repo.star_count, 'starred': True})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error starring repo {repo_id} for user {current_user.id}: {e}")
+        return jsonify({'status': 'error', 'message': 'Could not star repository due to a server error.'}), 500
+
+
+@app.route('/git/repo/<int:repo_id>/unstar', methods=['POST'])
+@login_required
+def unstar_repo_route(repo_id):
+    repo = GitRepository.query.get_or_404(repo_id)
+
+    if not current_user.has_starred_repo(repo):
+        return jsonify({'status': 'error', 'message': 'Not starred yet.'}), 400
+
+    current_user.unstar_repo(repo)
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Repository unstarred!', 'star_count': repo.star_count, 'starred': False})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error unstarring repo {repo_id} for user {current_user.id}: {e}")
+        return jsonify({'status': 'error', 'message': 'Could not unstar repository due to a server error.'}), 500
+
+
+@app.route('/git/starred')
+@login_required
+def starred_repositories_page():
+    # Fetch starred repositories and their starred_at time
+    starred_repo_data = db.session.query(
+        GitRepository,
+        repo_stars.c.starred_at
+    ).join(
+        repo_stars, repo_stars.c.git_repository_id == GitRepository.id
+    ).filter(
+        repo_stars.c.user_id == current_user.id
+    ).order_by(
+        repo_stars.c.starred_at.desc()
+    ).all()
+
+    repos_for_template = []
+    for repo_obj, starred_at_time in starred_repo_data: # Renamed 'repo' to 'repo_obj' for clarity
+        # Fetch git_details for each repository
+        # Ensure get_repo_git_details function can handle if repo.disk_path is None or invalid,
+        # though for starred repos, they should exist.
+        git_details_for_this_repo = get_repo_git_details(repo_obj.disk_path)
+        language_stats = get_or_calculate_language_stats(repo_obj)
+
+        repos_for_template.append({
+            'repo': repo_obj, # The GitRepository SQLAlchemy object
+            'starred_at': starred_at_time,
+            'git_details': git_details_for_this_repo, # Add the fetched git_details
+            'language_stats': language_stats # Add language stats
+        })
+
+    return render_template('git/starred_repos.html',
+                           title="Starred Repositories",
+                           # The key passed to the template is 'repos_data'
+                           # The template will iterate through this list.
+                           # Each item in 'repos_data' will be a dictionary.
+                           repos_data=repos_for_template)
+
+
+@app.template_filter('humanreadable')
+def human_readable_size_filter(size_bytes_str, decimal_places=1):
+    """
+    Converts a size in bytes (or a string representing bytes)
+    into a human-readable string (e.g., 1.5 KB, 10 MB).
+    Handles "-" for non-applicable sizes (like directories).
+    """
+    if size_bytes_str == "-":  # Placeholder for trees or items with no size
+        return "-"
+    try:
+        size_bytes = int(size_bytes_str)
+    except (ValueError, TypeError):
+        app.logger.warning(f"Could not convert size '{size_bytes_str}' to int for humanreadable filter.")
+        return size_bytes_str # Return original string if conversion fails (or handle as 'N/A')
+
+    if size_bytes < 0: # Should not happen for file sizes
+        app.logger.warning(f"Received negative size '{size_bytes_str}' for humanreadable filter.")
+        return size_bytes_str # Return original
+    if size_bytes == 0:
+        return "0 Bytes"
+
+    # Using base 1024 (for KiB, MiB, etc., though commonly labeled KB, MB)
+    units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+
+    # Calculate the power. math.log for 0 or negative is undefined, handled by checks above.
+    power = math.floor(math.log(size_bytes, 1024)) if size_bytes > 0 else 0
+
+    # Ensure power is within the bounds of the units array
+    power = max(0, min(power, len(units) - 1))
+
+    converted_size = size_bytes / (1024 ** power)
+
+    if power == 0:  # Bytes
+        return f"{int(converted_size)} {units[power]}" # No decimal places for Bytes
+    else:
+        # Format with specified decimal places for KB and above
+        return f"{converted_size:.{decimal_places}f} {units[power]}"
 
 
 # --- Run Application ---
