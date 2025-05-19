@@ -280,7 +280,11 @@ if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
     else
         warn "-------------------------------------------"
         warn " Installation seems complete, but '${MAIN_EXECUTABLE_NAME}' not found in current PATH."
-        # ... (rest of warning message) ...
+        warn " Executable is located at: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
+        warn " Please ensure '${TARGET_BIN_DIR}' is in your PATH environment variable."
+        warn " You might need to restart your shell, log out and back in, or manually add it."
+        warn " Example (add to ~/.bashrc or ~/.zshrc): export PATH=\"${TARGET_BIN_DIR}:\$PATH\""
+        warn "-------------------------------------------"
     fi
 else
     error "Installation failed. Could not find executable file at '${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}' or it lacks execute permissions."
