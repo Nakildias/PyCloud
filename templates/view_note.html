@@ -21,7 +21,7 @@
         </div>
     </div>
 
-    <p class="vn-meta-info">Last Updated: {{ note.timestamp.strftime('%Y-%m-%d %H:%M:%S') }} UTC</p> {# Was view-note-meta, also removed inline style #}
+    <p class="vn-meta-info">Last Updated: <span data-timestamp="{{ note.timestamp | localetime }}"></span></p>
 
     {# Display note content, preserve line breaks #}
     <div class="vn-content-display"> {# Was note-content, also removed inline styles #}
