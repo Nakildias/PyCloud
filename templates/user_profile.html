@@ -116,24 +116,24 @@
                 </div>
 
                 {% if posts.has_prev or posts.has_next %}
-                <nav aria-label="User posts navigation" class="pagination-nav up-pagination-nav"> {# General + specific #}
-                    <ul class="pagination up-pagination-list"> {# General + specific #}
-                        <li class="page-item up-page-item {% if not posts.has_prev %}disabled{% endif %}">
-                            <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.prev_num, sort=current_sort) if posts.has_prev else '#' }}" aria-label="Previous">
+                <nav aria-label="User posts navigation" class="pagination-nav pf-pagination-nav"> {# Changed up-pagination-nav to pf-pagination-nav #}
+                    <ul class="pagination pf-pagination-list"> {# Changed up-pagination-list to pf-pagination-list #}
+                        <li class="page-item pf-page-item {% if not posts.has_prev %}disabled{% endif %}"> {# Changed up-page-item to pf-page-item #}
+                            <a class="page-link pf-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.prev_num, sort=current_sort) if posts.has_prev else '#' }}" aria-label="Previous"> {# Changed up-page-link to pf-page-link #}
                                 &laquo; Previous
                             </a>
                         </li>
                         {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                             {% if page_num %}
-                                <li class="page-item up-page-item {% if posts.page == page_num %}active{% endif %}">
-                                    <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                                <li class="page-item pf-page-item {% if posts.page == page_num %}active{% endif %}"> {# Changed up-page-item to pf-page-item #}
+                                    <a class="page-link pf-page-link" href="{{ url_for('user_profile', username=user.username, page=page_num, sort=current_sort) }}">{{ page_num }}</a> {# Changed up-page-link to pf-page-link #}
                                 </li>
                             {% else %}
-                                <li class="page-item up-page-item disabled"><span class="page-link up-page-link">...</span></li>
+                                <li class="page-item pf-page-item disabled"><span class="page-link pf-page-link">...</span></li> {# Changed up-page-item and up-page-link #}
                             {% endif %}
                         {% endfor %}
-                        <li class="page-item up-page-item {% if not posts.has_next %}disabled{% endif %}">
-                            <a class="page-link up-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.next_num, sort=current_sort) if posts.has_next else '#' }}" aria-label="Next">
+                        <li class="page-item pf-page-item {% if not posts.has_next %}disabled{% endif %}"> {# Changed up-page-item to pf-page-item #}
+                            <a class="page-link pf-page-link" href="{{ url_for('user_profile', username=user.username, page=posts.next_num, sort=current_sort) if posts.has_next else '#' }}" aria-label="Next"> {# Changed up-page-link to pf-page-link #}
                                 Next &raquo;
                             </a>
                         </li>

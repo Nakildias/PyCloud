@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}PyCloud{% endblock %}</title>
+    <link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base_emb_chat.css') }}">
+    {# Add this block to link the theme CSS #}
+    {% if selected_theme_css %}
+    <link rel="stylesheet" href="{{ selected_theme_css }}">
+    {% endif %}
     {% block head_extensions %}{% endblock %}
 </head>
 <body class="base-body {% if request.endpoint in ['ollama_chat', 'group_chat', 'direct_chat_interface'] %}base-body-chat-page base-body-no-container-padding{% elif request.endpoint in ['direct_chat_interface_embedded'] %}base-body-chat-page base-body-no-container-padding base-body-has-embedded-chat{% endif %} {% block body_class %}{% endblock %}"> {# ADDED body_class BLOCK #}
@@ -45,6 +50,7 @@
                     <li {% if request.endpoint == 'post_feed' %}class="active"{% endif %}><a href="{{ url_for('post_feed') }}" class="base-nav-dropdown-item-link">Feed</a></li>
                     <li {% if request.endpoint == 'group_chat' %}class="active"{% endif %}><a href="{{ url_for('group_chat') }}" class="base-nav-dropdown-item-link">Group Chat</a></li>
                     <li {% if request.endpoint == 'friends_interface' %}class="active"{% endif %}><a href="{{ url_for('friends_interface') }}" class="base-nav-dropdown-item-link">Friends</a></li>
+                    <li {% if request.endpoint == 'find_people' %}class="active"{% endif %}><a href="{{ url_for('find_people') }}" class="base-nav-dropdown-item-link">Find People</a></li>
                 </ul>
             </li>
             {% set gaming_active = request.endpoint in ['emulator_gba', 'emulator_nes', 'emulator_gb'] %}
@@ -70,7 +76,8 @@
                 </ul>
             </li>
             {% set user_dropdown_active = (request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
-                                          (request.endpoint == 'admin_settings' and current_user.is_admin) %}
+                                          (request.endpoint == 'admin_settings' and current_user.is_admin) or
+                                          (request.endpoint == 'user_settings_page') %}
             <li class="base-nav-item base-nav-dropdown {% if user_dropdown_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     {% if current_user.profile_picture_filename %}
@@ -84,6 +91,9 @@
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username %}class="active"{% endif %}>
                         <a href="{{ url_for('user_profile', username=current_user.username) }}" class="base-nav-dropdown-item-link">My Profile</a>
+                    </li>
+                    <li {% if request.endpoint == 'user_settings_page' %}class="active"{% endif %}>
+                        <a href="{{ url_for('user_settings_page') }}" class="base-nav-dropdown-item-link">User Settings</a>
                     </li>
                     {% if current_user.is_admin %}
                         <li {% if request.endpoint == 'admin_settings' or request.endpoint.startswith('admin_') %}class="active"{% endif %}><a href="{{ url_for('admin_settings') }}" class="base-nav-dropdown-item-link">Admin Settings</a></li>
