@@ -6676,21 +6676,38 @@ def allowed_file(filename):
 def secure_path_component(component):
     """
     Secures a single path component.
-    Prevents directory traversal and sanitizes the name.
+    Prevents directory traversal and sanitizes the name,
+    while attempting to preserve a leading underscore if it's otherwise safe.
     """
-    # Prevent path traversal components like '..' or '.' when used as directory names
     if component == ".." or component == ".":
-        return "_"  # Replace with an underscore or handle as an error appropriately
+        return "_"  # Basic traversal prevention
 
-    # Use secure_filename for the component, then ensure it's not empty
-    # (e.g. if original component was just invalid chars like '///')
-    secured = secure_filename(component)
-    if not secured: # If secure_filename makes it empty
-        # Create a placeholder if the component was problematic (e.g., only invalid chars)
-        # You might want to log this or handle it differently based on strictness.
-        # For now, use underscore.
+    # Apply Werkzeug's secure_filename for general sanitization
+    # This handles spaces, unsafe characters, reserved names etc.
+    secured_by_werkzeug = secure_filename(component)
+
+    # If the original component started with an underscore,
+    # and secure_filename appears to have removed ONLY that leading underscore,
+    # and the rest of the component was otherwise "secure" (not empty),
+    # then restore the leading underscore.
+    if component.startswith('_') and \
+       secured_by_werkzeug and \
+       not secured_by_werkzeug.startswith('_') and \
+       component[1:] == secured_by_werkzeug:
+        # This implies secure_filename just stripped the leading underscore.
+        # We re-add it here.
+        # Example: component = "_post_macros.html", secured_by_werkzeug = "post_macros.html"
+        # Result should be "_post_macros.html"
+        final_secured_name = '_' + secured_by_werkzeug
+    else:
+        # Otherwise, use the name as secured by Werkzeug,
+        # or if the component didn't start with '_' in the first place.
+        final_secured_name = secured_by_werkzeug
+
+    if not final_secured_name: # If the name became empty after all this processing
         return "_"
-    return secured
+
+    return final_secured_name
 
 def get_repo_disk_path(owner_username, repo_name): # Changed signature
     """
