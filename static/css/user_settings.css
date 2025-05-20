@@ -1,0 +1,224 @@
+/* static/css/user_settings.css */
+
+/* Main container for the user settings page */
+.us-page-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 1rem;
+    color: var(--text-color);
+}
+
+.us-page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color-light, var(--border-color)); /* Uses border-color-light if defined by theme, else main border-color */
+}
+
+/* Styling for each settings section */
+.us-section {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg, 0.5rem);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--box-shadow); /* Use the global box-shadow variable */
+}
+
+.us-section-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--text-color); /* Use standard text color for section titles */
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color-light, var(--border-color));
+}
+
+/* General form styling within sections */
+.us-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.us-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.us-label {
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-color); /* Standard text color for labels */
+    margin-bottom: 0.25rem;
+}
+
+/* Styling for select elements */
+.us-select {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--input-text-color, var(--text-color)); /* Use input-text-color or fallback to text-color */
+    background-color: var(--bg-color); /* MODIFIED: Uses --bg-color from base.css */
+    background-clip: padding-box;
+    border: 1px solid var(--input-border-color, var(--border-color));
+    border-radius: var(--border-radius, 0.25rem);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out; /* Added background-color to transition */
+    appearance: none;
+    /* Neutral grey SVG arrow, less dependent on theme for stroke if var() not possible here */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23888888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+}
+
+.us-select:focus {
+    border-color: var(--primary-color);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.25); /* Relies on --primary-color-rgb */
+}
+
+/* Shared button base styles (non-generic) */
+.us-btn {
+    display: inline-block;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent; /* Base border, specific buttons will override color */
+    padding: 0.5rem 1.25rem;
+    font-size: 0.95rem;
+    border-radius: var(--border-radius, 0.25rem);
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    min-width: 120px;
+}
+
+.us-btn:focus {
+    outline: 0;
+    /* Generic focus shadow, specific buttons can override with their color */
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.35);
+}
+
+.us-btn:disabled,
+.us-btn.us-btn-disabled { /* For actual disabled buttons or <a> tags styled as disabled */
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+/* Primary button style (e.g., Save Theme) */
+.us-btn-primary {
+    color: var(--button-text-color); /* Usually white or light text */
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.us-btn-primary:hover {
+    background-color: var(--primary-hover-color, var(--primary-color)); /* Use defined hover color or primary */
+    border-color: var(--primary-hover-color, var(--primary-color));     /* Use defined hover color or primary */
+    /* Apply brightness filter if no specific hover color is available and colors are same */
+    filter: brightness(var(--primary-hover-color, true) != var(--primary-color, false) ? 1 : 0.90);
+}
+.us-btn-primary:focus {
+    background-color: var(--primary-hover-color, var(--primary-color));
+    border-color: var(--primary-hover-color, var(--primary-color));
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.5);
+}
+
+
+/* Secondary button style (e.g., Edit Profile link) */
+.us-btn-secondary {
+    color: var(--text-color); /* Main text color for contrast, as per base.css .btn-secondary */
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.us-btn-secondary:hover {
+    color: var(--text-color); /* Keep text color consistent on hover */
+    background-color: var(--secondary-hover-color, var(--secondary-color));
+    border-color: var(--secondary-hover-color, var(--secondary-color));
+    filter: brightness(var(--secondary-hover-color, true) != var(--secondary-color, false) ? 1 : 0.90);
+}
+
+.us-btn-secondary:focus {
+    color: var(--text-color);
+    background-color: var(--secondary-hover-color, var(--secondary-color));
+    border-color: var(--secondary-hover-color, var(--secondary-color));
+    box-shadow: 0 0 0 0.2rem rgba(var(--secondary-color-rgb, 108,117,125), 0.5); /* Relies on --secondary-color-rgb */
+}
+
+
+/* List of links (e.g., for Account Management) */
+.us-links-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.us-links-item .us-btn {
+    width: auto;
+    max-width: 250px;
+    text-align: left; /* Align text to the left for list-like buttons */
+    padding-left: 1rem; /* Ensure consistent padding */
+}
+
+/* Checkbox styling (for the commented-out Notifications section) */
+.us-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.us-checkbox-input {
+    width: 1.15em;
+    height: 1.15em;
+    margin-top: 0.15em;
+    vertical-align: top;
+    background-color: var(--input-bg-color); /* Note: This still uses --input-bg-color, consider aligning if needed */
+    border: 1px solid var(--input-border-color, var(--border-color));
+    border-radius: var(--border-radius-sm, 0.2rem);
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.us-checkbox-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.us-checkbox-input:focus {
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.25);
+}
+
+.us-checkbox-input:checked::before {
+    content: '';
+    display: block;
+    width: 0.35em;
+    height: 0.65em;
+    border: solid var(--button-text-color, white); /* Checkmark color, usually contrasts with primary */
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-50%, -50%);
+    position: absolute;
+    left: 50%;
+    top: 45%;
+}
+
+.us-checkbox-label {
+    font-size: 0.95rem;
+    color: var(--text-color);
+    cursor: pointer;
+}

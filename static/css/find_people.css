@@ -1,0 +1,200 @@
+/* static/css/find_people.css */
+
+/* Main container for the find people page */
+.fp-page-container {
+    max-width: 1000px; /* Wider for user grid */
+    margin: 2rem auto;
+    padding: 1rem;
+    color: var(--text-color);
+}
+
+.fp-page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color-light, var(--border-color));
+    text-align: center;
+}
+
+/* Search section and form */
+.fp-search-section {
+    margin-bottom: 2rem;
+    background-color: var(--card-bg-color, var(--secondary-color));
+    padding: 1.5rem;
+    border-radius: var(--border-radius-lg, 0.5rem);
+    box-shadow: var(--box-shadow, 0 2px 4px rgba(0,0,0,0.1));
+}
+
+.fp-search-form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.fp-search-input {
+    flex-grow: 1;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--input-text-color, var(--text-color));
+    background-color: var(--input-bg-color, var(--bg-color));
+    border: 1px solid var(--input-border-color, var(--border-color));
+    border-radius: var(--border-radius, 0.25rem);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.fp-search-input:focus {
+    border-color: var(--primary-color);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.25);
+}
+
+/* General button styling (can reuse from user_settings or define new ones) */
+.fp-btn {
+    display: inline-flex; /* For aligning icon and text */
+    align-items: center;
+    gap: 0.5rem; /* Space between icon and text */
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    border-radius: var(--border-radius, 0.25rem);
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.fp-btn-primary {
+    color: var(--button-text-color, #fff);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.fp-btn-primary:hover {
+    background-color: var(--primary-hover-color, var(--primary-color));
+    border-color: var(--primary-hover-color, var(--primary-color));
+    filter: brightness(var(--primary-hover-color, true) != var(--primary-color, false) ? 1 : 0.90);
+}
+
+.fp-btn-secondary {
+    color: var(--primary-color);
+    background-color: transparent;
+    border-color: var(--primary-color);
+}
+
+.fp-btn-secondary:hover {
+    color: var(--button-text-color, #fff);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* User results section */
+.fp-results-section {
+    margin-top: 1rem;
+}
+
+.fp-user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Responsive grid */
+    gap: 1.5rem;
+}
+
+.fp-user-card {
+    background-color: var(--card-bg-color, var(--secondary-color));
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg, 0.5rem);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: var(--box-shadow, 0 2px 4px rgba(0,0,0,0.1));
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.fp-user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow-hover, 0 5px 15px rgba(0,0,0,0.15));
+}
+
+.fp-user-pfp-link {
+    margin-bottom: 1rem;
+}
+
+.fp-user-pfp {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--border-color-light, var(--border-color));
+}
+
+.fp-user-pfp-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: var(--border-color); /* Placeholder background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--border-color-light, var(--border-color));
+}
+
+.fp-user-pfp-placeholder-icon {
+    width: 60px;
+    height: 60px;
+    color: var(--text-color-muted, #888); /* Icon color */
+}
+
+.fp-user-info {
+    margin-bottom: 1rem;
+}
+
+.fp-user-username {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.fp-user-username:hover {
+    text-decoration: underline;
+}
+
+.fp-user-fullname {
+    font-size: 0.95rem;
+    color: var(--text-color-secondary, var(--text-color));
+    margin-top: 0;
+}
+
+.fp-user-actions {
+    margin-top: auto; /* Pushes buttons to the bottom of the card */
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 0.75rem; /* Space between buttons */
+    width: 100%; /* Make buttons take full width available in actions container */
+}
+
+.fp-user-actions .fp-btn {
+    width: 100%; /* Make buttons full width of their container */
+    box-sizing: border-box; /* Ensure padding is included in width */
+}
+
+
+.fp-no-results {
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-color-secondary, var(--text-color));
+    padding: 2rem;
+    background-color: var(--card-bg-color, var(--secondary-color));
+    border-radius: var(--border-radius-lg, 0.5rem);
+    border: 1px solid var(--border-color);
+}

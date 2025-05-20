@@ -1,0 +1,89 @@
+/* static/css/themes/breeze_dark.css */
+:root {
+    /* Breeze Dark Inspired Palette */
+    --bg-color: #2D3035;                     /* Main dark background (dark slate gray) */
+    --text-color: #EFF0F1;                   /* Light text for readability */
+    --primary-color: #3DAEE9;                /* Breeze signature blue for accents */
+    --primary-color-rgb: 61, 174, 233;       /* RGB for the Breeze blue */
+    --secondary-color: #3D4045;              /* Slightly lighter dark gray for secondary surfaces/cards */
+    --border-color: #232629;                 /* Darker border color */
+
+    --error-color: #E74C3C;                  /* Standard error red */
+    --success-color: #2ECC71;                /* Standard success green */
+    --info-color: #3498DB;                   /* A clear blue for info, can be same as primary or slightly different */
+    --warning-color: #F39C12;                /* Standard warning orange */
+
+    --placeholder-color: #7F8C8D;            /* Muted text color for placeholders */
+}
+
+/* Optional: More specific overrides from base.css if needed */
+
+.base-nav-dropdown-item-link:hover { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.base-nav-dropdown-menu li.active .base-nav-dropdown-item-link { /* */
+    background-color: rgba(var(--primary-color-rgb), 0.25);
+    color: var(--primary-color);
+}
+
+h1, h2, h4, h5, h6 { /* */
+    color: var(--primary-color);
+}
+h3 { /* */
+    color: var(--text-color);
+}
+
+.btn-primary,
+.unified-action-button.primary { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+}
+.btn-primary:hover,
+.unified-action-button.primary:hover { /* */
+    background-color: #2980B9; /* A slightly darker shade of Breeze blue for hover */
+    border-color: #2980B9;
+    color: #ffffff;
+}
+
+/* Input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input) { /* */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input):focus { /* */
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
+}
+
+/* Toast message text colors for dark theme if needed */
+.base-toast-message.toast-success { /* */
+    color: #ffffff;
+}
+.base-toast-message.toast-error { /* */
+    color: #ffffff;
+}
+.base-toast-message.toast-info { /* */
+    color: #ffffff;
+}
+.base-toast-message.toast-warning { /* */
+    color: #2D3035; /* Dark text on orange for better contrast */
+}

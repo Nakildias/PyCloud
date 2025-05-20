@@ -617,3 +617,111 @@ input[type="file"].form-control-file:hover::-webkit-file-upload-button {
     pointer-events: none;
 }
 
+/*
+ = *=============================================
+ PAGINATION STYLES (Targeting "Good" Screenshot Style)
+ Utilizes pf-prefixed classes from post_feed.html
+ ==============================================
+ */
+
+/* Main pagination container (ul element) */
+.pf-pagination-list { /* Targets <ul class="pagination pf-pagination-list"> */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 0;
+    list-style: none;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 0.6rem; /* Spacing between pagination buttons */
+}
+
+/* Individual pagination item wrapper (li element) */
+.pf-page-item { /* Targets <li class="page-item pf-page-item"> */
+    margin: 0; /* Spacing is handled by 'gap' in the parent ul */
+}
+
+/* Styling for pagination links (a or span elements) */
+.pf-page-link { /* Targets <a class="page-link pf-page-link"> or <span class="page-link pf-page-link"> */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;   /* Minimum width for a good button size */
+    height: 38px;      /* Fixed height for consistency */
+    padding: 0.25rem 0.75rem; /* Padding inside the button */
+    font-size: 0.9rem;
+    font-weight: 600;  /* Bolder text */
+    line-height: 1;    /* Adjusted for flex alignment */
+    color: var(--text-color, #e0e0e0); /* Light text (theme-aware with fallback) */
+    background-color: var(--card-bg-color, #3a3a3a); /* Dark grey background (theme-aware with fallback) */
+    border: none;      /* === CRUCIAL: No border === */
+    border-radius: 50px; /* === CRUCIAL: Pill shape === */
+    text-decoration: none;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    box-shadow: none;  /* Flat design */
+    white-space: nowrap; /* Prevent "Previous", "Next" from wrapping */
+    cursor: pointer;
+}
+
+/* Hover state for default (non-active, non-disabled) pagination links */
+.pf-page-item:not(.active):not(.disabled) .pf-page-link:hover {
+    color: var(--primary-color, #ff9900); /* Orange text on hover (theme-aware) */
+    background-color: var(--hover-bg-color, #4a4a4a); /* Slightly lighter dark grey (theme-aware) */
+}
+
+/* Focus state for default (non-active, non-disabled) pagination links for accessibility */
+.pf-page-item:not(.active):not(.disabled) .pf-page-link:focus {
+    z-index: 3; /* Ensure focus ring is visible */
+    outline: 0;
+    color: var(--primary-color, #ff9900); /* Consistent with hover */
+    background-color: var(--hover-bg-color, #4a4a4a); /* Consistent with hover */
+    /* Focus ring using the primary/accent color (theme-aware) */
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 255,153,0), 0.45);
+}
+
+/* Styling for the ACTIVE (current) pagination item */
+.pf-page-item.active .pf-page-link {
+    z-index: 1; /* Behind focus state but above normal items */
+    color: var(--button-text-color, #ffffff); /* White text on active (theme-aware) */
+    background-color: var(--primary-color, #ff9900); /* Orange background (theme-aware) */
+    box-shadow: none; /* Keep active state flat */
+    cursor: default; /* Usually, the active page link isn't interactive */
+}
+
+/* Ensure active state maintains its style even on hover/focus if it's an <a> tag.
+ *  This is important if you want the focus ring on the active item. */
+.pf-page-item.active .pf-page-link:hover,
+.pf-page-item.active .pf-page-link:focus {
+    color: var(--button-text-color, #ffffff);
+    background-color: var(--primary-color, #ff9900);
+    /* Optional: show focus ring on active item. Remove if not desired. */
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 255,153,0), 0.45);
+}
+
+
+/* Styling for DISABLED pagination items (e.g., Previous on first page, Next on last page, '...') */
+.pf-page-item.disabled .pf-page-link {
+    color: #757575; /* Muted text color for disabled items */
+    pointer-events: none; /* Make it not clickable */
+    /* Use a slightly different background or rely on opacity */
+    background-color: var(--card-bg-color, #303030); /* Can be same as default or a bit duller */
+    opacity: 0.5;     /* Visually indicate disabled state */
+    box-shadow: none;
+    cursor: default;
+}
+
+/* Specific styling for "Previous" and "Next" links if they need more horizontal space */
+/* These use aria-label as per your HTML for Previous/Next */
+.pf-page-link[aria-label="Previous"],
+.pf-page-link[aria-label="Next"] {
+    padding-left: 1rem;  /* More horizontal padding */
+    padding-right: 1rem;
+    min-width: auto;     /* Allow them to be wider than numeric buttons if text is long */
+}
+
+/* If you add icons like '>' for Next (e.g. Next <span class="pf-page-link-icon">&raquo;</span>) */
+.pf-page-link .pf-page-link-icon {
+    margin-left: 0.4em; /* Space between text and icon */
+    font-size: 1em;     /* Adjust icon size if needed */
+}

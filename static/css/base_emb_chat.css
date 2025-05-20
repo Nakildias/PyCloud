@@ -90,6 +90,16 @@
     z-index: 1;
 }
 
+.emb-chat-bubble .emb-bubble-pfp-wrapper {
+    width: 95%;            /* Make wrapper take full width of the bubble */
+    height: 95%;           /* Make wrapper take full height of the bubble */
+    border-radius: 50%;     /* Ensure the wrapper itself is circular */
+    overflow: hidden;       /* THIS IS KEY: Clips the content (image) to the wrapper's circular shape */
+    display: flex;          /* Useful for centering the placeholder text if it's not an image */
+    align-items: center;
+    justify-content: center;
+}
+
 /* ==========================================================================
  * Embedded Chat Box (The pop-up window)
  * ========================================================================== */

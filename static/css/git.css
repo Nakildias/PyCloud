@@ -1,41 +1,53 @@
 /* PyCloud 10/static/css/git.css */
 
 /* ==========================================================================
- * 0. Root Variables (colors are from base.css)
+ * 0. Root Variables
  * ========================================================================== */
 
 :root {
-    /* Assuming these are defined in base.css and available globally */
-    /* --bg-color: #1a1a1a; */
-    /* --text-color: #e0e0e0; */
-    /* --primary-color: #4a90e2; */
-    /* --primary-color-rgb: 74, 144, 226; */
-    /* --secondary-color: #2a2a2a; */
-    /* --border-color: #444; */
-    /* --error-color: #e74c3c; */
-    /* --success-color: #2ecc71; */
-    /* --info-color: #3498db; */
-    /* --warning-color: #f39c12; */
-    /* --placeholder-color: #888; */
+    /* Colors are assumed to be defined in base.css and available globally */
+    /*
+     *   --bg-color: #1a1a1a;
+     *   --text-color: #e0e0e0;
+     *   --primary-color: #4a90e2;
+     *   --primary-color-rgb: 74, 144, 226;
+     *   --secondary-color: #2a2a2a;
+     *   --secondary-color-rgb: 42, 42, 42;
+     *   --border-color: #444;
+     *   --error-color: #e74c3c;
+     *   --error-color-rgb: 231, 76, 60;
+     *   --success-color: #2ecc71;
+     *   --success-color-rgb: 46, 204, 113;
+     *   --info-color: #3498db;
+     *   --info-color-rgb: 52, 152, 219;
+     *   --warning-color: #f39c12;
+     *   --warning-color-rgb: 243, 156, 18;
+     *   --placeholder-color: #888;
+     *   --placeholder-color-rgb: 136, 136, 136;
+     */
 
     /* Spacing and Sizing Units (based on common 0.25rem scale) */
-    --git-space-1: 0.25rem;  /* mb-1, p-1, etc. */
-    --git-space-2: 0.5rem;   /* mb-2, p-2, etc. */
-    --git-space-3: 0.75rem;  /* mb-3, p-3, etc. */
-    --git-space-4: 1rem;     /* mb-4, p-4, etc. */
-    --git-space-5: 1.25rem;  /* mb-5, p-5, etc. */
-    --git-space-6: 1.5rem;   /* mb-6, p-6, etc. */
-    --git-space-8: 2rem;     /* mb-8, p-8, etc. */
-    --git-space-10: 2.5rem;  /* py-10, etc. */
+    --git-space-05: 0.125rem;
+    --git-space-1: 0.25rem;
+    --git-space-1_5: 0.375rem;
+    --git-space-2: 0.5rem;
+    --git-space-2_5: 0.625rem;
+    --git-space-3: 0.75rem;
+    --git-space-4: 1rem;
+    --git-space-5: 1.25rem;
+    --git-space-6: 1.5rem;
+    --git-space-8: 2rem;
+    --git-space-10: 2.5rem;
+    --git-space-12: 3rem;
 
-    /* Font Sizes (approximations of Tailwind classes) */
-    --git-font-size-xs: 0.75rem;    /* text-xs */
-    --git-font-size-sm: 0.875rem;   /* text-sm */
-    --git-font-size-base: 1rem;     /* text-base */
-    --git-font-size-lg: 1.125rem;   /* text-lg */
-    --git-font-size-xl: 1.25rem;    /* text-xl */
-    --git-font-size-2xl: 1.5rem;    /* text-2xl */
-    --git-font-size-3xl: 1.875rem;  /* text-3xl */
+    /* Font Sizes */
+    --git-font-size-xs: 0.75rem;
+    --git-font-size-sm: 0.875rem;
+    --git-font-size-base: 1rem;
+    --git-font-size-lg: 1.125rem;
+    --git-font-size-xl: 1.25rem;
+    --git-font-size-2xl: 1.5rem;
+    --git-font-size-3xl: 1.875rem;
 
     /* Font Weights */
     --git-font-normal: 400;
@@ -48,6 +60,7 @@
     --git-rounded: 0.25rem;
     --git-rounded-md: 0.375rem;
     --git-rounded-lg: 0.5rem;
+    --git-rounded-xl: 0.75rem;
     --git-rounded-full: 9999px;
 
     /* Shadows (simplified) */
@@ -59,22 +72,15 @@
 }
 
 /* ==========================================================================
- * 1. Git Global & Resets
+ * 1. Global & Utility Styles
  * ========================================================================== */
 
-body.git-page-active { /* Add this class to body on git-related pages if needed */
-    font-family: 'Inter', sans-serif; /* From user's original CSS */
+body.git-page-active {
+    font-family: 'Inter', sans-serif;
     /* Assuming base.css handles main body background and text color */
 }
 
-/* General UL reset from user's CSS */
-.git-content ul, .git-card ul, .git-modal ul { /* Scoped to git sections */
-    list-style-type: none;
-    padding-left: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
+/* Screen Reader Only */
 .git-sr-only {
     position: absolute;
     width: 1px;
@@ -87,260 +93,16 @@ body.git-page-active { /* Add this class to body on git-related pages if needed 
     border-width: 0;
 }
 
-/* ==========================================================================
- * 2. Common Git Components
- * ========================================================================== */
-
-/* Container (from user's CSS) */
-.git-container {
-    max-width: 900px;
-    margin-left: auto;
-    margin-right: auto;
-    padding: var(--git-space-5); /* 20px */
-}
-
-/* Card (from user's CSS, adapted) */
-.git-card {
-    background-color: var(--secondary-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    border-radius: var(--git-rounded-lg); /* 0.5rem */
-    padding: var(--git-space-6); /* 1.5rem */
-    margin-bottom: var(--git-space-4); /* 1rem */
-    box-shadow: var(--git-shadow);
-}
-
-/* Navbar (from user's CSS, adapted for .git-navbar) */
-/* Note: base.html likely has its own .base-nav. This would be for a secondary git-specific navbar if used. */
-.git-navbar {
-    background-color: var(--secondary-color);
-    color: var(--text-color);
-    padding: var(--git-space-4); /* 1rem */
-    margin-bottom: var(--git-space-4);
-    border-radius: var(--git-rounded-lg);
-}
-.git-navbar-link { /* For 'a' tags directly within .git-navbar if it's a flat list */
-    color: var(--placeholder-color);
-    text-decoration: none;
-    margin-right: var(--git-space-4);
-}
-.git-navbar-link:hover,
-.git-navbar-link.active { /* Assumes an 'active' class for current page */
-    color: var(--text-color);
-}
-.git-navbar-brand { /* For a brand element within .git-navbar */
-    font-size: var(--git-font-size-2xl); /* 1.5rem */
-    font-weight: var(--git-font-bold);
-    color: var(--text-color);
-}
-
-/* Forms (adapted from user's CSS and new classes) */
-.git-form-label {
-    display: block;
-    font-size: var(--git-font-size-sm);
-    font-weight: var(--git-font-medium);
-    color: var(--text-color); /* Was text-gray-700, map to lighter for dark theme */
-    margin-bottom: var(--git-space-1); /* mb-1 / mb-2 approx. */
-}
-
-.git-form-input {
-    display: block; /* Ensure it takes full width by default */
-    width: 100%;
-    border: 1px solid var(--border-color);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    padding: var(--git-space-3); /* 0.75rem */
-    border-radius: var(--git-rounded-md); /* 0.375rem */
-    box-shadow: var(--git-shadow-sm); /* Was inset shadow, using subtle outer for dark */
-    font-size: var(--git-font-size-sm); /* sm:text-sm */
-    line-height: 1.5; /* Basic line height */
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-.git-form-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.25); /* Adjusted spread */
-    outline: none;
-}
-textarea.git-form-input {
-    min-height: 80px; /* Default reasonable height */
-}
-
-.git-form-radio { /* Basic styling for radio, browser defaults often vary */
-    height: var(--git-space-4);
-    width: var(--git-space-4);
-    color: var(--primary-color); /* text-blue-600 */
-    border: 1px solid var(--border-color); /* border-gray-300 */
-    border-radius: var(--git-rounded-full);
-    margin-right: var(--git-space-2);
-    vertical-align: middle; /* helps alignment with label text */
-}
-.git-form-radio:focus {
-    /* مشابه focus لـ git-form-input */
-    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.25);
-}
-.git-form-help-text {
-    font-size: var(--git-font-size-xs);
-    color: var(--placeholder-color); /* Was text-gray-500 */
-    margin-top: var(--git-space-1);
-}
-.git-form-required-indicator {
-    color: var(--error-color); /* For '*' */
-    margin-left: var(--git-space-1);
-}
-
-/* Buttons (from user's CSS, adapted with .git- prefix) */
-.git-btn {
-    display: inline-flex; /* To align icon and text */
-    align-items: center;
-    justify-content: center;
-    padding: var(--git-space-2) var(--git-space-4); /* 0.6rem 1.2rem approx. */
-    border-radius: var(--git-rounded-md);
-    text-decoration: none;
-    font-weight: var(--git-font-medium);
-    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-    border: 1px solid transparent; /* Base for all buttons */
-    cursor: pointer;
-    white-space: nowrap; /* Prevent wrapping */
-}
-.git-btn-primary {
-    background-color: var(--primary-color);
-    color: #ffffff;
-    border-color: var(--primary-color);
-}
-.git-btn-primary:hover {
-    background-color: hsl(from var(--primary-color) h s calc(l - 10%)); /* Darken primary */
-    border-color: hsl(from var(--primary-color) h s calc(l - 10%));
-}
-.git-btn-secondary {
-    background-color: var(--border-color);
-    color: var(--text-color);
-    border-color: var(--border-color);
-}
-.git-btn-secondary:hover {
-    background-color: hsl(from var(--border-color) h s calc(l + 10%)); /* Lighten secondary for dark theme */
-    border-color: hsl(from var(--border-color) h s calc(l + 10%));
-}
-.git-btn-danger {
-    background-color: var(--error-color);
-    color: #ffffff;
-    border-color: var(--error-color);
-}
-.git-btn-danger:hover {
-    background-color: hsl(from var(--error-color) h s calc(l - 10%)); /* Darken error */
-    border-color: hsl(from var(--error-color) h s calc(l - 10%));
-}
-.git-btn-success { /* Added based on usage in repo_tree_view fork button */
-    background-color: var(--success-color);
-    color: #ffffff;
-    border-color: var(--success-color);
-}
-.git-btn-success:hover {
-    background-color: hsl(from var(--success-color) h s calc(l - 10%)); /* Darken success */
-    border-color: hsl(from var(--success-color) h s calc(l - 10%));
-}
-
-.git-btn-sm { /* For smaller buttons */
-    padding: var(--git-space-1) var(--git-space-2); /* py-1 px-2/px-3 */
-    font-size: var(--git-font-size-xs); /* text-xs */
-}
-.git-btn-icon {
-    width: var(--git-space-4); /* h-4 w-4 */
-    height: var(--git-space-4);
-    margin-right: var(--git-space-1); /* mr-1.5 */
-}
-.git-btn-icon.git-btn-icon-no-text { /* For icon-only buttons */
-    margin-right: 0;
-}
-.git-btn-text { /* For text-like buttons, e.g., delete in table */
-    background-color: transparent;
-    border-color: transparent;
-    padding: var(--git-space-1) var(--git-space-2);
-    font-weight: var(--git-font-medium);
-    color: var(--placeholder-color); /* Default subtle color */
-}
-.git-btn-text:hover {
-    background-color: rgba(var(--primary-color-rgb), 0.1); /* Subtle hover */
-    color: var(--primary-color);
-}
-.git-btn-text.git-btn-danger { /* Specific danger text button */
-    color: var(--error-color);
-}
-.git-btn-text.git-btn-danger:hover {
-    background-color: rgba(var(--error-color-rgb), 0.1); /* Assuming error-color-rgb is defined */
-    color: hsl(from var(--error-color) h s calc(l - 10%));
-}
-
-
-/* Alerts (from user's CSS, adapted) */
-.git-alert {
-    padding: var(--git-space-4); /* 1rem */
-    margin-bottom: var(--git-space-4);
-    border-radius: var(--git-rounded-md);
-    border-width: 1px;
-    border-style: solid;
-    /* Default text color for alerts, overridden by specific types if needed */
-    color: var(--text-color);
-}
-.git-alert-success {
-    background-color: rgba(var(--success-color-rgb), 0.2); /* Softer background */
-    border-color: var(--success-color);
-    color: var(--success-color); /* Brighter text for dark theme */
-}
-.git-alert-danger {
-    background-color: rgba(var(--error-color-rgb), 0.2);
-    border-color: var(--error-color);
-    color: var(--error-color);
-}
-.git-alert-warning {
-    background-color: rgba(var(--warning-color-rgb), 0.2);
-    border-color: var(--warning-color);
-    color: var(--warning-color);
-}
-.git-alert-info {
-    background-color: rgba(var(--info-color-rgb), 0.2);
-    border-color: var(--info-color);
-    color: var(--info-color);
-}
-
-
-/* Headings (from user's CSS, adapted) */
-/* Apply these within .git-content or specific git containers to avoid overly broad styling */
-.git-content h1, .git-card h1 {
-    font-size: var(--git-font-size-3xl); /* 1.875rem */
-    font-weight: var(--git-font-semibold); /* 600 */
-    color: var(--primary-color);
-    margin-bottom: var(--git-space-4);
-}
-.git-content h2, .git-card h2 {
-    font-size: var(--git-font-size-2xl); /* 1.5rem */
-    font-weight: var(--git-font-semibold);
-    color: var(--primary-color);
-    margin-bottom: var(--git-space-4);
-}
-.git-content h3, .git-card h3 {
-    font-size: var(--git-font-size-xl); /* 1.25rem */
-    font-weight: var(--git-font-semibold);
-    color: var(--text-color); /* Aligned with base.css convention for h3 */
-    margin-bottom: var(--git-space-4);
-}
-
-/* Code (from user's CSS, adapted) */
-.git-code {
-    background-color: var(--bg-color);
-    color: var(--placeholder-color);
-    padding: var(--git-space-1) var(--git-space-1); /* 0.2em 0.4em */
-    margin: 0;
-    font-size: 0.875em; /* 85% of parent */
-    border-radius: var(--git-rounded-sm); /* 3px */
-    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    border: 1px solid var(--border-color);
-}
-.git-code-block { /* For multi-line code blocks */
-    display: block;
-    white-space: pre-wrap;
-    padding: var(--git-space-3);
-    margin-bottom: var(--git-space-4);
-    overflow-x: auto;
+/* List Reset */
+.git-content ul,
+.git-card ul,
+.git-modal ul,
+.git-repo-list ul,
+.git-contributor-list ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* General Links */
@@ -349,9 +111,182 @@ textarea.git-form-input {
     text-decoration: none;
     font-weight: var(--git-font-medium);
 }
+
 .git-link:hover {
     text-decoration: underline;
     color: hsl(from var(--primary-color) h s calc(l + 10%));
+}
+
+/* Headings (scoped to git components for specificity) */
+.git-content h1,
+.git-card h1,
+.git-modal h1,
+.git-hp-main-title {
+    font-size: var(--git-font-size-3xl);
+    font-weight: var(--git-font-semibold);
+    color: var(--primary-color);
+    margin-bottom: var(--git-space-4);
+}
+
+.git-content h2,
+.git-card h2,
+.git-modal h2,
+.git-hp-section-title {
+    font-size: var(--git-font-size-2xl);
+    font-weight: var(--git-font-semibold);
+    color: var(--primary-color);
+    margin-bottom: var(--git-space-4);
+}
+
+.git-content h3,
+.git-card h3,
+.git-modal h3 {
+    font-size: var(--git-font-size-xl);
+    font-weight: var(--git-font-semibold);
+    color: var(--text-color);
+    margin-bottom: var(--git-space-4);
+}
+
+/* Code */
+.git-code {
+    background-color: var(--bg-color);
+    color: var(--placeholder-color);
+    padding: var(--git-space-1) var(--git-space-1);
+    margin: 0;
+    font-size: 0.875em;
+    border-radius: var(--git-rounded-sm);
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    border: 1px solid var(--border-color);
+}
+
+.git-code-block {
+    display: block;
+    white-space: pre-wrap;
+    padding: var(--git-space-3);
+    margin-bottom: var(--git-space-4);
+    overflow-x: auto;
+}
+
+/* ==========================================================================
+ * 2. Layout & Structure Components
+ * ========================================================================== */
+
+/* Main Container */
+.git-container {
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: var(--git-space-5);
+}
+
+/* Card */
+.git-card {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: var(--git-rounded-lg);
+    padding: var(--git-space-6);
+    margin-bottom: var(--git-space-4);
+    box-shadow: var(--git-shadow);
+}
+
+/* Navbar (for git-specific nav, separate from base.html's nav) */
+.git-navbar {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: var(--git-space-4);
+    margin-bottom: var(--git-space-4);
+    border-radius: var(--git-rounded-lg);
+}
+
+.git-navbar-link {
+    color: var(--placeholder-color);
+    text-decoration: none;
+    margin-right: var(--git-space-4);
+}
+
+.git-navbar-link:hover,
+.git-navbar-link.active {
+    color: var(--text-color);
+}
+
+.git-navbar-brand {
+    font-size: var(--git-font-size-2xl);
+    font-weight: var(--git-font-bold);
+    color: var(--text-color);
+}
+
+/* Breadcrumbs */
+.git-breadcrumb-container {
+    background-color: var(--bg-color);
+    padding: var(--git-space-2) var(--git-space-4);
+    border-radius: var(--git-rounded-md);
+    margin-bottom: var(--git-space-5);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.git-breadcrumb-nav {
+    display: flex;
+}
+
+.git-breadcrumb-list {
+    list-style-type: none;
+    display: flex;
+    align-items: center;
+    gap: var(--git-space-1);
+}
+
+.git-breadcrumb-item-content {
+    display: flex;
+    align-items: center;
+    padding: var(--git-space-1) var(--git-space-2);
+    border-radius: var(--git-rounded-sm);
+    transition: background-color 0.2s ease;
+}
+
+.git-breadcrumb-link {
+    color: var(--placeholder-color);
+    font-size: var(--git-font-size-sm);
+    font-weight: var(--git-font-medium);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--git-space-1_5);
+}
+
+.git-breadcrumb-link:hover {
+    color: var(--primary-color);
+}
+
+.git-breadcrumb-icon {
+    flex-shrink: 0;
+    width: var(--git-space-4);
+    height: var(--git-space-4);
+}
+
+.git-breadcrumb-icon-home {
+    color: var(--primary-color);
+}
+
+.git-breadcrumb-separator-icon {
+    color: var(--border-color);
+    opacity: 0.6;
+    margin: 0 var(--git-space-1);
+}
+
+.git-breadcrumb-current {
+    font-size: var(--git-font-size-sm);
+    font-weight: var(--git-font-semibold);
+    color: var(--text-color);
+    padding: var(--git-space-1) var(--git-space-2);
+}
+
+/* Responsive Breadcrumbs */
+@media (min-width: 640px) {
+    .git-breadcrumb-list {
+        gap: var(--git-space-4);
+    }
 }
 
 /* Table Styles */
@@ -362,456 +297,780 @@ textarea.git-form-input {
     box-shadow: var(--git-shadow-sm);
     margin-bottom: var(--git-space-4);
 }
+
 .git-table {
-    width: 100%; /* min-w-full */
-    border-collapse: collapse; /* Remove space between borders */
-    /* divide-y divide-gray-200 handled by tr border-bottom */
-}
-.git-table-head {
-    background-color: var(--secondary-color); /* bg-gray-50 -> dark theme adaptation */
-}
-.git-table-th {
-    padding: var(--git-space-3) var(--git-space-4); /* px-4 py-3 */
-    text-align: left;
-    font-size: var(--git-font-size-xs);
-    font-weight: var(--git-font-medium);
-    color: var(--placeholder-color); /* text-gray-500 */
-    text-transform: uppercase;
-    letter-spacing: 0.05em; /* tracking-wider */
-    border-bottom: 1px solid var(--border-color);
-}
-.git-table-body {
-    background-color: var(--bg-color); /* bg-white -> dark theme */
-    /* divide-y divide-gray-200 handled by tr border-bottom */
-}
-.git-table-row:not(:last-child) { /* Emulate divide-y */
-    border-bottom: 1px solid var(--border-color);
-}
-.git-table-td {
-    padding: var(--git-space-3) var(--git-space-4); /* px-4 py-3 */
-    font-size: var(--git-font-size-sm);
-    color: var(--text-color);
-    white-space: nowrap; /* To prevent wrapping by default, can be overridden */
-}
-.git-table-td .git-link { /* Links within table cells */
-    font-weight: var(--git-font-medium); /* Ensure links stand out a bit */
+    width: 100%;
+    border-collapse: collapse;
 }
 
-/* Modal Styles */
-.git-modal {
-    position: fixed;
-    z-index: 50; /* Ensure it's above other content */
-    inset: 0;
-    overflow-y: auto;
+.git-table-head {
+    background-color: var(--secondary-color);
 }
-.git-modal-hidden {
-    display: none !important; /* Ensure it overrides other display properties */
-}
-.git-modal-backdrop-wrapper {
-    display: flex;
-    align-items: flex-end; /* sm:block had items-end for small screens */
-    justify-content: center;
-    min-height: 100vh;
-    padding: var(--git-space-4) var(--git-space-4) var(--git-space-5); /* pt-4 px-4 pb-20 */
-    text-align: center;
-}
-@media (min-width: 640px) { /* sm: equivalent */
-    .git-modal-backdrop-wrapper {
-        display: block;
-        padding: 0;
-    }
-}
-.git-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(10, 10, 10, 0.75); /* bg-gray-500 bg-opacity-75, darker for dark theme */
-    transition-property: opacity;
-    transition-timing-function: ease-in-out;
-    transition-duration: 150ms;
-}
-.git-modal-position-helper { /* For vertical centering on sm+ */
-    display: none; /* hidden */
-}
-@media (min-width: 640px) {
-    .git-modal-position-helper {
-        display: inline-block;
-        vertical-align: middle;
-        height: 100vh;
-    }
-}
-.git-modal-content {
-    display: inline-block;
-    vertical-align: bottom;
-    background-color: var(--secondary-color); /* bg-white */
-    color: var(--text-color);
-    border-radius: var(--git-rounded-lg);
+
+.git-table-th {
+    padding: var(--git-space-3) var(--git-space-4);
     text-align: left;
-    overflow: hidden;
-    box-shadow: var(--git-shadow-xl);
-    transform: translate(0,0); /* Placeholder for transition-all */
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    font-size: var(--git-font-size-xs);
+    font-weight: var(--git-font-medium);
+    color: var(--placeholder-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.git-table-body {
+    background-color: var(--bg-color);
+}
+
+.git-table-row:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.git-table-td {
+    padding: var(--git-space-3) var(--git-space-4);
+    font-size: var(--git-font-size-sm);
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.git-table-td .git-link {
+    font-weight: var(--git-font-medium);
+}
+
+/* Form Elements */
+.git-form-label {
+    display: block;
+    font-size: var(--git-font-size-sm);
+    font-weight: var(--git-font-medium);
+    color: var(--text-color);
+    margin-bottom: var(--git-space-1);
+}
+
+.git-form-input {
+    display: block;
     width: 100%;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    padding: var(--git-space-3);
+    border-radius: var(--git-rounded-md);
+    box-shadow: var(--git-shadow-sm);
+    font-size: var(--git-font-size-sm);
+    line-height: 1.5;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
-@media (min-width: 640px) {
-    .git-modal-content {
-        margin-top: var(--git-space-8); /* sm:my-8 */
-        margin-bottom: var(--git-space-8);
-        vertical-align: middle;
-        max-width: 500px; /* sm:max-w-lg */
-    }
+
+.git-form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.25);
+    outline: none;
 }
-.git-modal-form {
-    /* Form inside modal doesn't need special styling beyond what .git-modal-content provides */
+
+textarea.git-form-input {
+    min-height: 80px;
 }
-.git-modal-body {
-    padding: var(--git-space-5) var(--git-space-6); /* px-4 pt-5 pb-4 sm:p-6 sm:pb-4 */
+
+.git-form-radio {
+    height: var(--git-space-4);
+    width: var(--git-space-4);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--git-rounded-full);
+    margin-right: var(--git-space-2);
+    vertical-align: middle;
 }
-.git-modal-icon-section { /* sm:flex sm:items-start */
-    display: flex;
-    align-items: flex-start; /* Default, can be changed for sm breakpoint if needed */
+
+.git-form-radio:focus {
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.25);
 }
-.git-modal-icon-wrapper {
-    margin-left: auto;
-    margin-right: auto;
-    display: flex;
-    flex-shrink: 0;
+
+.git-form-help-text {
+    font-size: var(--git-font-size-xs);
+    color: var(--placeholder-color);
+    margin-top: var(--git-space-1);
+}
+
+.git-form-required-indicator {
+    color: var(--error-color);
+    margin-left: var(--git-space-1);
+}
+
+/* Buttons */
+.git-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: var(--git-space-10); /* h-10 or h-12 */
-    width: var(--git-space-10);
-    border-radius: var(--git-rounded-full);
-}
-@media (min-width: 640px) {
-    .git-modal-icon-wrapper {
-        margin-left: 0; /* sm:mx-0 */
-        margin-right: 0;
-    }
-}
-.git-modal-icon-wrapper-danger {
-    background-color: rgba(var(--error-color-rgb), 0.1); /* bg-red-100 */
-}
-.git-modal-icon {
-    height: var(--git-space-6); /* h-6 */
-    width: var(--git-space-6);
-}
-.git-modal-icon-danger {
-    color: var(--error-color); /* text-red-600 */
-}
-.git-modal-text-content {
-    margin-top: var(--git-space-3);
-    text-align: center;
-    width: 100%; /* w-full */
-}
-@media (min-width: 640px) {
-    .git-modal-text-content {
-        margin-top: 0;
-        margin-left: var(--git-space-4); /* sm:ml-4 */
-        text-align: left;
-    }
-}
-.git-modal-title {
-    font-size: var(--git-font-size-lg);
-    line-height: 1.5; /* leading-6 */
-    font-weight: var(--git-font-medium);
-    color: var(--text-color); /* text-gray-900 */
-    margin-bottom: var(--git-space-2); /* Part of .mt-2 on description */
-}
-.git-modal-description {
+    padding-top: var(--git-space-2);
+    padding-bottom: var(--git-space-2);
+    padding-left: var(--git-space-4);
+    padding-right: var(--git-space-4);
     font-size: var(--git-font-size-sm);
-    color: var(--placeholder-color); /* text-gray-500 */
+    font-weight: var(--git-font-medium);
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--git-rounded-md);
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    box-sizing: border-box;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
-.git-modal-description p {
-    margin-bottom: var(--git-space-2);
+
+.git-btn-primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
 }
-.git-modal-item-name {
-    font-weight: var(--git-font-semibold);
-    /* break-all if needed by content */
+
+.git-btn-primary:hover {
+    background-color: hsl(from var(--primary-color) h s calc(l - 10%));
+    border-color: hsl(from var(--primary-color) h s calc(l - 10%));
 }
-.git-modal-item-path {
+
+.git-btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.git-btn-secondary:hover {
+    background-color: hsl(from var(--border-color) h s calc(l + 10%));
+    border-color: hsl(from var(--border-color) h s calc(l + 10%));
+}
+
+.git-btn-danger {
+    background-color: var(--error-color);
+    color: #ffffff;
+    border-color: var(--error-color);
+}
+
+.git-btn-danger:hover {
+    background-color: hsl(from var(--error-color) h s calc(l - 10%));
+    border-color: hsl(from var(--error-color) h s calc(l - 10%));
+}
+
+.git-btn-success {
+    background-color: var(--success-color);
+    color: #ffffff;
+    border-color: var(--success-color);
+}
+
+.git-btn-success:hover {
+    background-color: hsl(from var(--success-color) h s calc(l - 10%));
+    border-color: hsl(from var(--success-color) h s calc(l - 10%));
+}
+
+.git-btn-sm {
+    padding-top: var(--git-space-1);
+    padding-bottom: var(--git-space-1);
+    padding-left: var(--git-space-2);
+    padding-right: var(--git-space-2);
     font-size: var(--git-font-size-xs);
-    margin-top: var(--git-space-1);
 }
-.git-modal-item-path-code {
-    /* .git-code already styles this. Could add specifics like: */
-    background-color: var(--secondary-color); /* bg-gray-100 */
-    padding: var(--git-space-05, 0.125rem) var(--git-space-1); /* p-0.5 */
-    border-radius: var(--git-rounded-sm);
-    /* break-all if needed */
+
+.git-btn-icon {
+    width: var(--git-space-4);
+    height: var(--git-space-4);
+    margin-right: var(--git-space-1);
 }
-.git-modal-form-group {
-    margin-top: var(--git-space-4);
+
+.git-btn-icon.git-btn-icon-no-text {
+    margin-right: 0;
 }
-.git-modal-commit-input {
-    /* Uses .git-form-input */
-    margin-top: var(--git-space-1);
+
+.git-btn-text {
+    background-color: transparent;
+    border-color: transparent;
+    padding: var(--git-space-1) var(--git-space-2);
+    font-weight: var(--git-font-medium);
+    color: var(--placeholder-color);
 }
+
+.git-btn-text:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.1);
+    color: var(--primary-color);
+}
+
+.git-btn-text.git-btn-danger {
+    color: var(--error-color);
+}
+
+.git-btn-text.git-btn-danger:hover {
+    background-color: rgba(var(--error-color-rgb), 0.1);
+    color: hsl(from var(--error-color) h s calc(l - 10%));
+}
+
+.git-btn-outline {
+    color: var(--text-color);
+    background-color: transparent;
+    border-color: var(--border-color);
+}
+
+.git-btn-outline:hover {
+    color: var(--primary-color);
+    background-color: rgba(var(--primary-color-rgb), 0.1);
+    border-color: var(--primary-color);
+}
+
+/* Alerts */
+.git-alert {
+    padding: var(--git-space-4);
+    margin-bottom: var(--git-space-4);
+    border-radius: var(--git-rounded-md);
+    border-width: 1px;
+    border-style: solid;
+    color: var(--text-color);
+}
+
+.git-alert-success {
+    background-color: rgba(var(--success-color-rgb), 0.2);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.git-alert-danger {
+    background-color: rgba(var(--error-color-rgb), 0.2);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.git-alert-warning {
+    background-color: rgba(var(--warning-color-rgb), 0.2);
+    border-color: var(--warning-color);
+    color: var(--warning-color);
+}
+
+.git-alert-info {
+    background-color: rgba(var(--info-color-rgb), 0.2);
+    border-color: var(--info-color);
+    color: var(--info-color);
+}
+
+/* Dropdown */
+.git-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.git-dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--git-space-1);
+}
+
+.git-dropdown-arrow {
+    width: var(--git-space-3);
+    height: var(--git-space-3);
+    transition: transform 0.2s ease-in-out;
+}
+
+.git-dropdown-toggle[aria-expanded="true"] .git-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.git-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + var(--git-space-1));
+    right: 1;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--git-rounded-md);
+    box-shadow: var(--git-shadow-lg);
+    z-index: 100;
+    min-width: 200px;
+    padding: var(--git-space-2) 0;
+    overflow: hidden;
+}
+
+.git-dropdown-menu.show {
+    display: block;
+}
+
+.git-dropdown-item,
+.git-dropdown-item-button {
+    display: flex;
+    align-items: center;
+    gap: var(--git-space-2);
+    padding: var(--git-space-2) var(--git-space-4);
+    color: var(--text-color);
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-size: var(--git-font-size-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.git-dropdown-item:hover,
+.git-dropdown-item-button:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.git-dropdown-item:hover .git-dropdown-item-icon,
+.git-dropdown-item-button:hover .git-dropdown-item-icon {
+    color: #ffffff;
+}
+
+.git-dropdown-item-icon {
+    width: var(--git-space-4);
+    height: var(--git-space-4);
+    color: var(--placeholder-color);
+    flex-shrink: 0;
+}
+
+.git-dropdown-form-item {
+    display: block;
+    padding: 0;
+}
+
+/* Modals */
+.git-modal {
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(12, 15, 18, 0.75);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--git-space-4);
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
+}
+
+.git-modal-hidden {
+    display: none !important;
+}
+
+.git-modal-content {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--git-rounded-lg);
+    width: 90%;
+    max-width: 480px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - (2 * var(--git-space-4)));
+    overflow: hidden;
+    transform: scale(1);
+    transition: transform 0.25s ease-out;
+}
+
+.git-modal-header {
+    padding: var(--git-space-4) var(--git-space-5);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.git-modal-title {
+    margin: 0;
+    font-size: var(--git-font-size-lg);
+    font-weight: var(--git-font-semibold);
+    color: var(--text-color);
+}
+
+.git-modal-close {
+    color: var(--placeholder-color);
+    font-size: 1.75rem;
+    font-weight: normal;
+    background: none;
+    border: none;
+    padding: 0 var(--git-space-2);
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.git-modal-close:hover,
+.git-modal-close:focus {
+    color: var(--text-color);
+}
+
+.git-modal-body {
+    padding: var(--git-space-5);
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
 .git-modal-footer {
-    background-color: var(--bg-color); /* bg-gray-50 */
-    padding: var(--git-space-3) var(--git-space-4); /* px-4 py-3 */
-    display: flex; /* sm:flex */
-    flex-direction: column-reverse; /* For mobile stacking */
+    background-color: var(--bg-color);
+    padding: var(--git-space-3) var(--git-space-4);
+    display: flex;
+    flex-direction: column-reverse;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
 }
-@media (min-width: 640px) {
-    .git-modal-footer {
-        flex-direction: row-reverse; /* sm:flex-row-reverse */
-        justify-content: flex-start; /* Overrides implicit from row-reverse for main axis if needed */
-    }
-    .git-modal-footer .git-btn {
-        width: auto; /* sm:w-auto */
-    }
-    .git-modal-footer .git-btn:not(:first-child) { /* sm:ml-3 */
-        margin-left: var(--git-space-3);
-    }
-    .git-modal-footer .git-modal-cancel-btn { /* sm:mt-0 */
-        margin-top: 0;
-    }
-}
+
 .git-modal-footer .git-btn {
     width: 100%;
     justify-content: center;
 }
+
 .git-modal-footer .git-modal-cancel-btn {
-    margin-top: var(--git-space-3); /* mt-3 for mobile */
+    margin-top: var(--git-space-3);
 }
 
+@media (min-width: 640px) {
+    .git-modal-footer {
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+    }
+
+    .git-modal-footer .git-btn {
+        width: auto;
+    }
+
+    .git-modal-footer .git-btn:not(:first-child) {
+        margin-left: var(--git-space-3);
+    }
+
+    .git-modal-footer .git-modal-cancel-btn {
+        margin-top: 0;
+    }
+}
+
+/* Modal Scrollbar */
+.git-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.git-modal-body::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 3px;
+}
+
+.git-modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.git-modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--placeholder-color);
+}
 
 /* ==========================================================================
- * 3. Page Specific Styles: repo_create_file.html (git-rcf-)
+ * 3. Reusable Page Components
  * ========================================================================== */
-.git-rcf-title {
-    font-size: var(--git-font-size-xl);
-    font-weight: var(--git-font-semibold);
+
+/* General Page Header */
+.git-page-header {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.git-page-title {
+    font-size: 2em;
+    font-weight: 600;
     color: var(--primary-color);
-    margin-bottom: var(--git-space-4);
+    margin-bottom: 0.25em;
 }
-.git-rcf-form {
-    /* No specific form styling needed beyond elements */
+
+.git-page-subtitle {
+    font-size: 1.1em;
+    color: var(--placeholder-color);
+    margin-top: 0;
+    margin-bottom: 0;
 }
-.git-rcf-form-group {
-    margin-bottom: var(--git-space-4); /* mb-4, mb-6 */
+
+/* No Results / Empty State Message */
+.git-no-results {
+    text-align: center;
+    padding: 40px 20px;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 20px;
 }
-.git-rcf-filename-input-wrapper {
-    margin-top: var(--git-space-1);
-    display: flex;
-    border-radius: var(--git-rounded-md); /* rounded-md */
-    box-shadow: var(--git-shadow-sm); /* shadow-sm */
-    /* border: 1px solid var(--border-color); Combined with input/prefix */
+
+.git-no-results-icon {
+    width: 60px;
+    height: 60px;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    opacity: 0.7;
 }
-.git-rcf-filename-prefix {
+
+.git-no-results-text {
+    font-size: 1.2em;
+    color: var(--text-color);
+    margin-bottom: 20px;
+}
+
+.git-no-results .git-btn-primary {
+    padding: 10px 20px;
+    font-size: 1em;
+}
+
+/* Privacy Badge */
+.git-privacy-badge {
+    font-size: 0.75em;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 10px;
+    text-transform: capitalize;
+    margin-left: 8px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.git-privacy-badge-private {
+    background-color: rgba(var(--warning-color-rgb), 0.15);
+    color: var(--warning-color);
+    border: 1px solid rgba(var(--warning-color-rgb), 0.4);
+}
+
+.git-privacy-badge-public {
+    background-color: rgba(var(--success-color-rgb), 0.15);
+    color: var(--success-color);
+    border: 1px solid rgba(var(--success-color-rgb), 0.4);
+}
+
+.git-privacy-badge-sm {
+    font-size: 0.7em;
+    padding: 2px 5px;
+}
+
+/* Repo List Icons/Stats */
+.git-repo-icon,
+.git-repo-stat-icon {
+    display: inline-block;
+    vertical-align: middle;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.3em;
+    color: var(--placeholder-color);
+}
+
+.git-link.git-repo-link .git-repo-icon,
+.git-link.git-repo-main-link .git-repo-icon {
+    color: var(--primary-color);
+}
+
+/* Star Buttons & Badges */
+.git-star-button {
+    /* General styling is from .git-btn */
+}
+
+.git-star-button i,
+.git-star-button svg {
+    margin-right: var(--git-space-1_5);
+}
+
+.git-star-button.starred i,
+.git-star-button.starred svg {
+    color: var(--warning-color);
+}
+
+.git-star-button.unstarred i,
+.git-star-button.unstarred svg {
+    color: var(--placeholder-color);
+}
+
+.git-star-count-badge {
     display: inline-flex;
     align-items: center;
-    padding-left: var(--git-space-3); /* px-3 */
-    padding-right: var(--git-space-3);
-    border: 1px solid var(--border-color); /* border border-gray-300 */
-    border-right-width: 0; /* border-r-0 */
-    background-color: var(--secondary-color); /* bg-gray-50 */
-    color: var(--placeholder-color); /* text-gray-500 */
-    font-size: var(--git-font-size-sm);
-    border-top-left-radius: var(--git-rounded-md); /* rounded-l-md */
-    border-bottom-left-radius: var(--git-rounded-md);
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: var(--git-space-1) var(--git-space-2);
+    border-radius: var(--git-rounded);
+    font-size: var(--git-font-size-xs);
+    color: var(--placeholder-color);
+    margin-left: var(--git-space-1);
 }
-.git-rcf-filename-input {
-    /* .git-form-input provides base */
-    flex-grow: 1; /* flex-1 */
+
+.git-star-count-badge i.fas {
+    margin-right: var(--git-space-1);
 }
-.git-rcf-filename-input-prefixed {
-    border-top-left-radius: 0; /* rounded-none */
-    border-bottom-left-radius: 0;
-    border-top-right-radius: var(--git-rounded-md); /* rounded-r-md */
-    border-bottom-right-radius: var(--git-rounded-md);
+
+.git-mygit-star-count i.fas.fa-star {
+    color: var(--warning-color);
+    margin-right: var(--git-space-1);
+    vertical-align: middle;
 }
-.git-rcf-content-textarea {
-    /* .git-form-input provides base */
-    margin-top: var(--git-space-1);
-    min-height: 200px; /* rows="15" */
+
+/* Language Statistics Bar & Legend */
+.language-stats-bar-container {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 0.85em;
 }
-.git-rcf-commit-message-input {
-    /* .git-form-input provides base */
-    margin-top: var(--git-space-1);
-}
-.git-rcf-action-buttons {
+
+.language-stats-bar {
     display: flex;
-    justify-content: flex-end;
-    gap: var(--git-space-3); /* space-x-3 */
-    margin-top: var(--git-space-6); /* From last form-group mb-6 */
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    width: 300px;
+    background-color: var(--border-color);
+    margin-bottom: 8px;
+}
+
+.lang-segment {
+    height: 100%;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.lang-segment:hover {
+    opacity: 0.8;
+}
+
+.language-stats-legend {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.9em;
+}
+
+.language-stats-legend li {
+    display: flex;
+    align-items: center;
+    color: var(--placeholder-color);
+}
+
+.lang-color-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.lang-name {
+    color: var(--text-color);
+    margin-right: 4px;
+}
+
+.lang-perc {
+    color: var(--placeholder-color);
+}
+
+/* Contributors Button & Badge */
+.git-contributors-btn .git-count-badge {
+    background-color: var(--border-color);
+    color: var(--text-color);
+    padding: 0.1em 0.5em;
+    font-size: 0.8em;
+    font-weight: 500;
+    border-radius: var(--git-rounded-full);
+    margin-left: var(--git-space-1_5);
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 /* ==========================================================================
- * 4. Page Specific Styles: repo_base.html (git-rb-, git-breadcrumb-, git-repo-header-)
+ * 4. Page Specific Styles
  * ========================================================================== */
-/* Repo Base Container - .git-rb-container extends .git-card */
-.git-rb-container {
-    /* Example: Add specific padding or subtle background pattern if different from default .git-card */
-    /* padding: var(--git-space-5); */
-    /* background-image: var(--subtle-pattern-url); */
+
+/* --- git_homepage.html (git-hp-) --- */
+.git-hp-page-container {
+    padding: var(--git-space-5) var(--git-space-6);
 }
 
-/* --- Breadcrumbs - New Style --- */
-.git-breadcrumb-container {
-    background-color: var(--bg-color); /* Slightly darker than secondary for an "inset" look */
-    padding: var(--git-space-2) var(--git-space-4);
-    border-radius: var(--git-rounded-md);
-    margin-bottom: var(--git-space-5); /* Increased margin */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); /* Inset shadow for depth */
+.git-hp-page-header {
+    text-align: center;
+    padding: var(--git-space-6) 0 var(--git-space-8);
+    margin-bottom: var(--git-space-8);
+    border-bottom: 1px solid var(--border-color);
 }
 
-.git-breadcrumb-nav {
-    display: flex; /* Retain flex for ol alignment */
-}
-
-.git-breadcrumb-list {
-    display: flex;
-    align-items: center;
-    list-style-type: none;
-    padding-left: 0;
-    margin: 0;
-    gap: var(--git-space-1); /* Smaller gap for a more compact look */
-}
-
-.git-breadcrumb-item-content {
-    display: flex;
-    align-items: center;
-    padding: var(--git-space-1) var(--git-space-2); /* Add some padding to items */
-    border-radius: var(--git-rounded-sm);
-    transition: background-color 0.2s ease;
-}
-
-.git-breadcrumb-item-content:hover:not(.git-breadcrumb-item-content-current) .git-breadcrumb-link,
-.git-breadcrumb-item-content:hover:not(.git-breadcrumb-item-content-current) .git-breadcrumb-icon {
-    /* Slight background on hover for the whole item if it's a link */
-    /* background-color: rgba(var(--primary-color-rgb), 0.1); */
-}
-
-.git-breadcrumb-link {
-    color: var(--placeholder-color);
-    font-size: var(--git-font-size-sm);
-    font-weight: var(--git-font-medium);
-    text-decoration: none; /* Explicitly none */
-    transition: color 0.2s ease;
-    display: flex; /* To align icon and text within the link */
-    align-items: center;
-    gap: var(--git-space-1_5, 0.375rem); /* Gap between icon and text if icon inside <a> */
-}
-.git-breadcrumb-link:hover {
-    color: var(--primary-color); /* Brighter hover */
-}
-
-.git-breadcrumb-icon {
-    flex-shrink: 0;
-    width: var(--git-space-4); /* h-4 w-4 (was 5) */
-    height: var(--git-space-4);
-    /* margin-right handled by gap if icon is part of .git-breadcrumb-link */
-}
-.git-breadcrumb-icon-home {
-    color: var(--primary-color); /* Make home icon stand out a bit */
-}
-
-.git-breadcrumb-separator-icon {
-    color: var(--border-color);
-    opacity: 0.6;
-    margin: 0 var(--git-space-1); /* Reduced horizontal margin for separator */
-}
-
-.git-breadcrumb-current {
-    font-size: var(--git-font-size-sm);
-    font-weight: var(--git-font-semibold); /* Make current item slightly bolder */
-    color: var(--text-color);
-    padding: var(--git-space-1) var(--git-space-2); /* Match item-content padding */
-}
-.git-breadcrumb-item-content-current { /* Class for the div wrapping current span */
-    /* No hover effect for current item's wrapper */
-}
-
-
-/* --- Repo Header - New Style --- */
-.git-repo-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* Keep vertical alignment for title block vs actions */
-    padding: var(--git-space-4) 0; /* Add some vertical padding */
-    margin-bottom: var(--git-space-4); /* Existing margin, maybe increase */
-    border-bottom: 2px solid var(--primary-color); /* Prominent bottom border */
-}
-
-.git-repo-header-main {
-    flex-grow: 1; /* Allow main content to take available space */
-}
-
-.git-repo-header-title { /* h1 */
-    font-size: var(--git-font-size-3xl); /* Larger title */
+.git-hp-main-title {
+    font-size: var(--git-font-size-3xl);
     font-weight: var(--git-font-bold);
-    color: var(--text-color); /* Main text color for less "blueness" */
-    margin-bottom: var(--git-space-1);
+    color: var(--primary-color);
+    margin-bottom: var(--git-space-3);
     line-height: 1.2;
 }
-.git-repo-header-title .git-repo-header-name-link {
-    color: var(--text-color); /* Match title color */
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-.git-repo-header-title .git-repo-header-name-link:hover {
-    color: var(--primary-color); /* Highlight on hover */
-    text-decoration: none; /* Keep no underline */
-}
 
-.git-repo-header-ref {
+.git-hp-subtitle {
     font-size: var(--git-font-size-lg);
-    font-weight: var(--git-font-normal);
     color: var(--placeholder-color);
-    margin-left: var(--git-space-2);
-    background-color: var(--bg-color); /* Subtle background for ref */
-    padding: var(--git-space-05, 0.125rem) var(--git-space-2);
-    border-radius: var(--git-rounded-sm);
-    border: 1px solid var(--border-color);
+    margin-bottom: var(--git-space-6);
+    max-width: 60ch;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.git-repo-header-visibility-badge {
-    font-size: var(--git-font-size-xs);
-    font-weight: var(--git-font-semibold); /* Bolder badge text */
-    padding: var(--git-space-1) var(--git-space-2_5, 0.625rem); /* Slightly more padding */
-    border-radius: var(--git-rounded); /* Less rounded, more pill-like */
-    margin-left: var(--git-space-3); /* More margin */
-    vertical-align: middle;
-    text-transform: uppercase; /* Uppercase for distinction */
+.git-hp-my-repos-link,
+.git-hp-login-link {
+    padding: var(--git-space-2_5) var(--git-space-5);
+    font-size: var(--git-font-size-base);
+    font-weight: var(--git-font-semibold);
+    text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.git-repo-header-visibility-badge-private {
-    background-color: var(--error-color); /* Solid background */
-    color: #ffffff; /* White text */
-    border: 1px solid hsl(from var(--error-color) h s calc(l - 10%)); /* Darker border */
-}
-.git-repo-header-visibility-badge-public {
-    background-color: var(--success-color); /* Solid background */
-    color: #ffffff; /* White text */
-    border: 1px solid hsl(from var(--success-color) h s calc(l - 10%)); /* Darker border */
+
+.git-hp-public-repos-section {
+    padding: var(--git-space-4) 0;
 }
 
-.git-repo-header-description {
-    font-size: var(--git-font-size-base); /* Slightly larger description */
+.git-hp-section-title {
+    font-size: var(--git-font-size-2xl);
+    font-weight: var(--git-font-semibold);
+    color: var(--text-color);
+    margin-bottom: var(--git-space-6);
+    text-align: center;
+    padding-bottom: var(--git-space-3);
+}
+
+.git-hp-no-public-repos-message {
+    padding: var(--git-space-8) var(--git-space-4);
+    border-style: solid;
+    border-color: var(--border-color);
+    background-color: transparent;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.git-hp-no-public-repos-message .git-mygit-no-repos-icon-container {
+    background-color: rgba(var(--placeholder-color-rgb), 0.05);
+}
+
+.git-hp-no-public-repos-message .git-mygit-no-repos-icon {
     color: var(--placeholder-color);
-    margin-top: var(--git-space-2); /* More space above description */
-    line-height: 1.6;
-    max-width: 80ch; /* Limit description width for readability */
-    overflow-wrap: break-word;
 }
 
-.git-repo-header-actions {
-    margin-left: var(--git-space-4); /* Ensure spacing from main content */
-    flex-shrink: 0;
-    align-self: center; /* Vertically align settings button with title block */
-}
-/* .git-repo-settings-link inherits .git-btn styles */
-.git-repo-settings-link .git-btn-icon {
-    /* Ensure icon color matches button text or is distinct */
-    /* color: currentColor; (already likely from .git-btn-icon) */
+.git-hp-no-public-repos-message .git-mygit-no-repos-title {
+    color: var(--placeholder-color);
+    font-size: var(--git-font-size-xl);
 }
 
+.git-hp-no-public-repos-message .git-mygit-no-repos-text {
+    font-size: var(--git-font-size-base);
+}
+
+
+/* --- mygit.html (git-mygit-) --- */
 .git-mygit-page-container {
     padding: var(--git-space-5) var(--git-space-6);
-    /* Consider a very subtle background gradient for the page if not using card style */
-    /* background: linear-gradient(to bottom, var(--bg-color), hsl(from var(--bg-color) h s calc(l - 2%))); */
 }
 
 .git-mygit-page-header {
@@ -823,7 +1082,7 @@ textarea.git-form-input {
     border-bottom: 1px solid var(--border-color);
 }
 
-.git-mygit-main-title { /* h1 */
+.git-mygit-main-title {
     font-size: var(--git-font-size-3xl);
     font-weight: var(--git-font-semibold);
     color: var(--text-color);
@@ -831,49 +1090,49 @@ textarea.git-form-input {
     line-height: 1.2;
 }
 
-/* Enhanced "New Repository" Button */
-.git-mygit-new-repo-cta { /* Extends .git-btn .git-btn-primary */
-    padding: var(--git-space-2_5, 0.625rem) var(--git-space-5); /* Slightly larger padding */
-    font-size: var(--git-font-size-base); /* Ensure text isn't too small */
+.git-mygit-new-repo-cta {
+    padding: var(--git-space-2_5) var(--git-space-5);
+    font-size: var(--git-font-size-base);
     font-weight: var(--git-font-semibold);
-    border-radius: var(--git-rounded-md); /* Consistent rounding */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(var(--primary-color-rgb), 0.3); /* Add a subtle glow */
+    border-radius: var(--git-rounded-md);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 15px rgba(var(--primary-color-rgb), 0.3);
     transition: all 0.25s ease-out;
     background-image: linear-gradient(to bottom, hsl(from var(--primary-color) h s l), hsl(from var(--primary-color) h s calc(l - 8%)));
 }
+
 .git-mygit-new-repo-cta:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.25), 0 0 20px rgba(var(--primary-color-rgb), 0.4);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 0 20px rgba(var(--primary-color-rgb), 0.4);
     background-image: linear-gradient(to bottom, hsl(from var(--primary-color) h s calc(l + 5%)), hsl(from var(--primary-color) h s calc(l - 5%)));
 }
+
 .git-mygit-new-repo-cta .git-btn-icon {
-    width: var(--git-space-4); /* Adjust icon size if needed */
+    width: var(--git-space-4);
     height: var(--git-space-4);
 }
 
-
 .git-mygit-repo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); /* Min width for cards */
-    gap: var(--git-space-6); /* Slightly larger gap */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+    gap: var(--git-space-6);
 }
 
 .git-mygit-repo-card {
     background-color: var(--secondary-color);
     border: 1px solid var(--border-color);
-    border-radius: var(--git-rounded-lg); /* Softer rounding */
+    border-radius: var(--git-rounded-lg);
     padding: var(--git-space-5);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Softer default shadow */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
     transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
     box-shadow 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
     border-color 0.2s ease-in-out;
 }
 
 .git-mygit-repo-card:hover {
-    transform: translateY(-5px); /* More noticeable lift */
-    box-shadow: 0 6px 12px rgba(0,0,0,0.2), 0 0 10px rgba(var(--primary-color-rgb), 0.2); /* Glow effect on hover */
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 0 10px rgba(var(--primary-color-rgb), 0.2);
     border-color: var(--primary-color);
 }
 
@@ -885,12 +1144,12 @@ textarea.git-form-input {
     gap: var(--git-space-3);
 }
 
-.git-mygit-repo-name { /* h3 */
+.git-mygit-repo-name {
     font-size: var(--git-font-size-xl);
     font-weight: var(--git-font-semibold);
     margin: 0;
     line-height: 1.3;
-    word-break: break-word; /* Allow breaking long repo names */
+    word-break: break-word;
 }
 
 .git-mygit-repo-link {
@@ -901,28 +1160,31 @@ textarea.git-form-input {
     gap: var(--git-space-2);
     transition: color 0.2s ease;
 }
+
 .git-mygit-repo-link:hover {
     color: var(--primary-color);
 }
+
 .git-mygit-repo-link .git-mygit-repo-name-strong {
     font-weight: var(--git-font-bold);
 }
+
 .git-mygit-repo-icon {
     width: var(--git-space-5);
     height: var(--git-space-5);
-    color: var(--placeholder-color); /* Subtler icon color by default */
+    color: var(--placeholder-color);
     transition: color 0.2s ease;
     flex-shrink: 0;
 }
+
 .git-mygit-repo-link:hover .git-mygit-repo-icon {
-    color: var(--primary-color); /* Icon matches link hover */
+    color: var(--primary-color);
 }
 
-/* Visibility badge styling inherited */
 .git-mygit-repo-card-header .git-repo-header-visibility-badge {
     font-size: var(--git-font-size-xs);
     padding: 3px var(--git-space-2);
-    margin-top: 2px; /* Align better with potentially taller repo name */
+    margin-top: 2px;
 }
 
 .git-mygit-repo-description {
@@ -931,14 +1193,14 @@ textarea.git-form-input {
     line-height: 1.6;
     margin-bottom: var(--git-space-4);
     flex-grow: 1;
-    min-height: calc(var(--git-font-size-sm) * 1.6 * 2); /* Approx 2 lines */
-    /* Hyphens for better word breaking in descriptions */
+    min-height: calc(var(--git-font-size-sm) * 1.6 * 2);
     overflow-wrap: break-word;
     word-wrap: break-word;
     -webkit-hyphens: auto;
     -ms-hyphens: auto;
     hyphens: auto;
 }
+
 .git-mygit-repo-description-empty {
     font-style: italic;
     opacity: 0.7;
@@ -946,7 +1208,7 @@ textarea.git-form-input {
 
 .git-mygit-repo-card-footer {
     margin-top: auto;
-    padding-top: var(--git-space-3); /* Reduced padding */
+    padding-top: var(--git-space-3);
     border-top: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
@@ -958,17 +1220,19 @@ textarea.git-form-input {
     align-items: center;
     gap: var(--git-space-2);
 }
+
 .git-mygit-repo-clone-label {
     font-size: var(--git-font-size-xs);
     color: var(--placeholder-color);
     font-weight: var(--git-font-medium);
     white-space: nowrap;
 }
+
 .git-mygit-repo-clone-input {
     flex-grow: 1;
     font-family: monospace;
     font-size: var(--git-font-size-xs);
-    padding: var(--git-space-1_5, 0.375rem) var(--git-space-2);
+    padding: var(--git-space-1_5) var(--git-space-2);
     background-color: var(--bg-color);
     color: var(--text-color);
     border: 1px solid var(--border-color);
@@ -976,12 +1240,14 @@ textarea.git-form-input {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.git-mygit-repo-copy-clone-url-btn { /* Extends .git-btn .git-btn-sm */
+
+.git-mygit-repo-copy-clone-url-btn {
     background-color: var(--border-color);
     color: var(--text-color);
-    padding: var(--git-space-1_5, 0.375rem);
-    border-radius: var(--git-rounded-sm); /* Match input field */
+    padding: var(--git-space-1_5);
+    border-radius: var(--git-rounded-sm);
 }
+
 .git-mygit-repo-copy-clone-url-btn:hover {
     background-color: hsl(from var(--border-color) h s calc(l + 10%));
 }
@@ -993,39 +1259,40 @@ textarea.git-form-input {
     gap: var(--git-space-2);
 }
 
-/* --- "No Repositories" Message - Enhanced Style --- */
 .git-mygit-no-repos-message {
     text-align: center;
     padding: var(--git-space-8) var(--git-space-6);
-    background-color: rgba(var(--secondary-color-rgb), 0.5); /* Consistent with previous new style */
-    border-radius: var(--git-rounded-xl, 0.75rem); /* Slightly more rounded */
-    border: 1px solid var(--border-color); /* Changed from dashed for a softer look */
+    background-color: rgba(var(--secondary-color-rgb), 0.5);
+    border-radius: var(--git-rounded-xl);
+    border: 1px solid var(--border-color);
     margin: var(--git-space-8) auto;
     max-width: 600px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--git-space-4); /* Increased gap */
+    gap: var(--git-space-4);
 }
 
 .git-mygit-no-repos-icon-container {
-    padding: var(--git-space-4); /* More padding */
-    background-color: rgba(var(--primary-color-rgb), 0.15); /* Slightly stronger primary bg */
+    padding: var(--git-space-4);
+    background-color: rgba(var(--primary-color-rgb), 0.15);
     border-radius: var(--git-rounded-full);
     margin-bottom: var(--git-space-2);
     box-shadow: 0 0 15px rgba(var(--primary-color-rgb), 0.2);
 }
+
 .git-mygit-no-repos-icon {
-    height: var(--git-space-12, 3rem);
-    width: var(--git-space-12, 3rem);
+    height: var(--git-space-12);
+    width: var(--git-space-12);
     color: var(--primary-color);
 }
 
-.git-mygit-no-repos-title { /* h3 */
+.git-mygit-no-repos-title {
     font-size: var(--git-font-size-2xl);
     font-weight: var(--git-font-semibold);
     color: var(--text-color);
     margin: 0;
+    line-height: 1.2;
 }
 
 .git-mygit-no-repos-text {
@@ -1035,221 +1302,251 @@ textarea.git-form-input {
     line-height: 1.6;
     max-width: 90%;
 }
+
 .git-mygit-no-repos-action {
     margin-top: var(--git-space-3);
 }
 
-/* For the "Create First Repository" button in the empty state */
-.git-mygit-no-repos-cta { /* Extends .git-btn .git-btn-primary .git-btn-lg */
-    /* Shares styling with .git-mygit-new-repo-cta if desired, or can be distinct */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(var(--primary-color-rgb), 0.3);
+.git-mygit-no-repos-cta {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 15px rgba(var(--primary-color-rgb), 0.3);
     transition: all 0.25s ease-out;
     background-image: linear-gradient(to bottom, hsl(from var(--primary-color) h s l), hsl(from var(--primary-color) h s calc(l - 8%)));
 }
+
 .git-mygit-no-repos-cta:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.25), 0 0 20px rgba(var(--primary-color-rgb), 0.4);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 0 20px rgba(var(--primary-color-rgb), 0.4);
     background-image: linear-gradient(to bottom, hsl(from var(--primary-color) h s calc(l + 5%)), hsl(from var(--primary-color) h s calc(l - 5%)));
 }
 
-/* ==========================================================================
- * 6. Page Specific Styles: create_repo.html (git-cr-)
- * ========================================================================== */
-.git-cr-container { /* Extends .git-card */
-    max-width: 500px; /* max-w-lg */
+
+/* --- create_repo.html (git-cr-) --- */
+.git-cr-container {
+    max-width: 500px;
     margin-left: auto;
     margin-right: auto;
 }
-.git-cr-title { /* h1 */
+
+.git-cr-title {
     font-size: var(--git-font-size-2xl);
     font-weight: var(--git-font-bold);
     color: var(--primary-color);
     margin-bottom: var(--git-space-6);
 }
-.git-cr-form {
-    /* no specific styles */
-}
-.git-cr-form-group {
-    margin-bottom: var(--git-space-4); /* mb-4 / mb-6 */
-}
-/* .git-cr-repo-name-label uses .git-form-label */
-/* .git-cr-repo-name-input uses .git-form-input */
-/* .git-cr-repo-name-help uses .git-form-help-text */
 
-.git-cr-visibility-label { /* Extends .git-form-label */
+.git-cr-form-group {
+    margin-bottom: var(--git-space-4);
+}
+
+.git-cr-visibility-label {
     margin-bottom: var(--git-space-2);
 }
+
 .git-cr-visibility-options {
     display: flex;
     flex-direction: column;
-    gap: var(--git-space-2); /* space-y-2 */
+    gap: var(--git-space-2);
 }
+
 .git-cr-visibility-option {
     display: flex;
     align-items: center;
-    padding: var(--git-space-3); /* p-3 */
-    border: 1px solid var(--border-color); /* border border-gray-300 */
+    padding: var(--git-space-3);
+    border: 1px solid var(--border-color);
     border-radius: var(--git-rounded-md);
     cursor: pointer;
     transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+
 .git-cr-visibility-option:hover {
-    background-color: var(--bg-color); /* hover:bg-gray-50 */
+    background-color: var(--bg-color);
 }
-.git-cr-visibility-option-selected { /* For :checked equivalent styling if JS handles parent class */
-    border-color: var(--primary-color); /* border-blue-500 */
-    background-color: rgba(var(--primary-color-rgb), 0.1); /* bg-blue-50 */
+
+.git-cr-visibility-option-selected {
+    border-color: var(--primary-color);
+    background-color: rgba(var(--primary-color-rgb), 0.1);
 }
-/* .git-cr-visibility-radio uses .git-form-radio */
+
 .git-cr-visibility-option-details {
-    margin-left: var(--git-space-3); /* ml-3 */
+    margin-left: var(--git-space-3);
     display: block;
     font-size: var(--git-font-size-sm);
 }
+
 .git-cr-visibility-option-title {
     font-weight: var(--git-font-medium);
-    color: var(--text-color); /* text-gray-900 */
-    display: block; /* for spacing */
-    margin-bottom: var(--git-space-05, 0.125rem);
+    color: var(--text-color);
+    display: block;
+    margin-bottom: var(--git-space-05);
 }
+
 .git-cr-visibility-option-description {
     display: block;
-    color: var(--placeholder-color); /* text-gray-500 */
+    color: var(--placeholder-color);
     font-size: var(--git-font-size-xs);
 }
-.git-cr-submit-button { /* Extends .git-btn .git-btn-primary */
-    width: 100%; /* w-full */
-    margin-top: var(--git-space-2); /* Add some space above button if last group had mb-6 */
+
+.git-cr-submit-button {
+    width: 100%;
+    margin-top: var(--git-space-2);
 }
 
-
-/* ==========================================================================
- * 7. Page Specific Styles: git_homepage.html (git-hp-)
- * ========================================================================== */
-.git-hp-page-container {
-    padding: var(--git-space-5) var(--git-space-6);
+/* --- repo_base.html (git-rb-, git-repo-header-) --- */
+.git-rb-container {
+    /* Base styling inherited from .git-card, add specific overrides here */
 }
 
-.git-hp-page-header {
-    text-align: center; /* Center the header content */
-    padding: var(--git-space-6) 0 var(--git-space-8);
-    margin-bottom: var(--git-space-8);
-    border-bottom: 1px solid var(--border-color);
-    /* Optional: Add a subtle background gradient or image for the header */
-    /* background: linear-gradient(135deg, var(--secondary-color) 0%, var(--bg-color) 100%); */
-    /* border-radius: var(--git-rounded-lg); */
+.git-repo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--git-space-4) 0;
+    margin-bottom: var(--git-space-4);
+    border-bottom: 2px solid var(--primary-color);
 }
 
-.git-hp-main-title { /* h1 */
-    font-size: var(--git-font-size-3xl, 2.25rem); /* Larger main title */
+.git-repo-header-main {
+    flex-grow: 1;
+}
+
+.git-repo-header-title {
+    font-size: var(--git-font-size-3xl);
     font-weight: var(--git-font-bold);
-    color: var(--primary-color);
-    margin-bottom: var(--git-space-3);
+    color: var(--text-color);
+    margin-bottom: var(--git-space-1);
     line-height: 1.2;
 }
 
-.git-hp-subtitle {
-    font-size: var(--git-font-size-lg);
-    color: var(--placeholder-color);
-    margin-bottom: var(--git-space-6);
-    max-width: 60ch; /* Limit width for readability */
-    margin-left: auto;
-    margin-right: auto;
+.git-repo-header-title .git-repo-header-name-link {
+    color: var(--text-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
 }
 
-/* Styling for action buttons in the header */
-.git-hp-my-repos-link,
-.git-hp-login-link { /* Extends .git-btn */
-    padding: var(--git-space-2_5, 0.625rem) var(--git-space-5);
-    font-size: var(--git-font-size-base);
+.git-repo-header-title .git-repo-header-name-link:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.git-repo-header-ref {
+    font-size: var(--git-font-size-lg);
+    font-weight: var(--git-font-normal);
+    color: var(--placeholder-color);
+    margin-left: var(--git-space-2);
+    background-color: var(--bg-color);
+    padding: var(--git-space-05) var(--git-space-2);
+    border-radius: var(--git-rounded-sm);
+    border: 1px solid var(--border-color);
+}
+
+.git-repo-header-visibility-badge {
+    font-size: var(--git-font-size-xs);
     font-weight: var(--git-font-semibold);
+    padding: var(--git-space-1) var(--git-space-2_5);
+    border-radius: var(--git-rounded);
+    margin-left: var(--git-space-3);
+    vertical-align: middle;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.git-hp-my-repos-link { /* Inherits .git-btn-secondary */
-    /* Additional specific styles if needed */
-}
-.git-hp-login-link { /* Inherits .git-btn-primary */
-    /* Additional specific styles if needed */
-}
 
-
-/* Public Repositories Section */
-.git-hp-public-repos-section {
-    /* This div was a .git-card in original template. If you want it card-like: */
-    /* background-color: var(--secondary-color); */
-    /* border: 1px solid var(--border-color); */
-    /* border-radius: var(--git-rounded-lg); */
-    /* padding: var(--git-space-6); */
-    /* box-shadow: var(--git-shadow); */
-    /* Or make it seamless with the page background: */
-    padding: var(--git-space-4) 0; /* Add some padding if not using card style */
+.git-repo-header-visibility-badge-private {
+    background-color: var(--error-color);
+    color: #ffffff;
+    border: 1px solid hsl(from var(--error-color) h s calc(l - 10%));
 }
 
-.git-hp-section-title { /* h2 for "Public Repositories" */
-    font-size: var(--git-font-size-2xl);
-    font-weight: var(--git-font-semibold);
-    color: var(--text-color); /* Less emphasis than primary, more like a standard section title */
-    margin-bottom: var(--git-space-6);
-    text-align: center; /* Center if desired */
-    padding-bottom: var(--git-space-3);
-    /* border-bottom: 1px solid var(--border-color); */ /* Optional separator */
+.git-repo-header-visibility-badge-public {
+    background-color: var(--success-color);
+    color: #ffffff;
+    border: 1px solid hsl(from var(--success-color) h s calc(l - 10%));
 }
 
-/* Styles for .git-mygit-repo-grid and .git-mygit-repo-card are REUSED from mygit.html section */
-/* No need to redefine them if they are globally applicable for repo listings. */
-/* Just ensure those styles are present in your git.css */
-
-/* Styling for "No Public Repositories" message */
-.git-hp-no-public-repos-message {
-    /* Reuses .git-mygit-no-repos-message structure and some classes */
-    /* Specific adjustments if needed for homepage context */
-    padding: var(--git-space-8) var(--git-space-4);
-    border-style: solid; /* Change from dashed if preferred */
-    border-color: var(--border-color);
-    background-color: transparent; /* Make it more subtle on homepage */
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Ensure the icon container and icon styles from .git-mygit-no-repos-* are suitable or override here */
-.git-hp-no-public-repos-message .git-mygit-no-repos-icon-container {
-    background-color: rgba(var(--placeholder-color-rgb), 0.05); /* Even more subtle */
-}
-.git-hp-no-public-repos-message .git-mygit-no-repos-icon {
+.git-repo-header-description {
+    font-size: var(--git-font-size-base);
     color: var(--placeholder-color);
+    margin-top: var(--git-space-2);
+    line-height: 1.6;
+    max-width: 80ch;
+    overflow-wrap: break-word;
 }
-.git-hp-no-public-repos-message .git-mygit-no-repos-title {
-    color: var(--placeholder-color);
+
+.git-repo-header-actions {
+    margin-left: var(--git-space-4);
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* --- repo_create_file.html (git-rcf-) --- */
+.git-rcf-title {
     font-size: var(--git-font-size-xl);
+    font-weight: var(--git-font-semibold);
+    color: var(--primary-color);
+    margin-bottom: var(--git-space-4);
 }
-.git-hp-no-public-repos-message .git-mygit-no-repos-text {
+
+.git-rcf-form-group {
+    margin-bottom: var(--git-space-4);
+}
+
+.git-rcf-filename-input-wrapper {
+    margin-top: var(--git-space-1);
+    display: flex;
+    border-radius: var(--git-rounded-md);
+    box-shadow: var(--git-shadow-sm);
+}
+
+.git-rcf-filename-prefix {
+    display: inline-flex;
+    align-items: center;
+    padding-left: var(--git-space-3);
+    padding-right: var(--git-space-3);
+    border: 1px solid var(--border-color);
+    border-right-width: 0;
+    background-color: var(--secondary-color);
+    color: var(--placeholder-color);
+    font-size: var(--git-font-size-sm);
+    border-top-left-radius: var(--git-rounded-md);
+    border-bottom-left-radius: var(--git-rounded-md);
+}
+
+.git-rcf-filename-input {
+    flex-grow: 1;
+}
+
+.git-rcf-filename-input-prefixed {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: var(--git-rounded-md);
+    border-bottom-right-radius: var(--git-rounded-md);
+}
+
+.git-rcf-content-textarea {
+    margin-top: var(--git-space-1);
+    min-height: 200px;
+}
+
+.git-rcf-commit-message-input {
+    margin-top: var(--git-space-1);
+}
+
+.git-rcf-action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--git-space-3);
+    margin-top: var(--git-space-6);
+}
+
+/* --- repo_settings.html (git-rs-) --- */
+.git-rs-breadcrumb-container .git-breadcrumb-link,
+.git-rs-breadcrumb-container .git-breadcrumb-current {
     font-size: var(--git-font-size-base);
 }
 
-
-/* ==========================================================================
- * 8. Page Specific Styles: repo_settings.html (git-rs-)
- * ========================================================================== */
-/* === PyCloud 10/static/css/git.css === */
-/* ... (other styles, including common components like .git-btn, .git-form-input, .git-card for breadcrumbs if they use it) ... */
-
-/* ==========================================================================
- * 8 . Page Specific Styles: Repo Se*ttings (git-rs-) - NEW STYLE
- * ========================================================================== */
-
-/* Breadcrumbs for settings page (reusing and potentially enhancing .git-breadcrumb-*) */
-.git-rs-breadcrumb-container .git-breadcrumb-link,
-.git-rs-breadcrumb-container .git-breadcrumb-current {
-    font-size: var(--git-font-size-base); /* Slightly larger breadcrumbs for settings page */
-}
-
-/* Main page structure */
 .git-rs-page-container {
-    max-width: 900px; /* Control max width of settings content */
-    margin: 0 auto; /* Center it */
-    padding: var(--git-space-4) 0; /* Vertical padding, horizontal handled by inner elements or global container */
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--git-space-4) 0;
 }
 
 .git-rs-page-header {
@@ -1258,7 +1555,7 @@ textarea.git-form-input {
     border-bottom: 1px solid var(--border-color);
 }
 
-.git-rs-main-title { /* h1 */
+.git-rs-main-title {
     font-size: var(--git-font-size-3xl);
     font-weight: var(--git-font-semibold);
     color: var(--text-color);
@@ -1269,55 +1566,45 @@ textarea.git-form-input {
     color: var(--placeholder-color);
     font-size: var(--git-font-size-lg);
 }
+
 .git-rs-repo-identifier {
     font-weight: var(--git-font-semibold);
     color: var(--primary-color);
 }
 
-/* Form itself doesn't need much styling if sections are styled */
-.git-rs-form {
-    /* display: flex; */
-    /* flex-direction: column; */
-    /* gap: var(--git-space-8); */ /* Spacing between settings groups */
-}
-
 .git-rs-settings-group {
-    background-color: var(--secondary-color); /* Card-like background for group */
+    background-color: var(--secondary-color);
     border: 1px solid var(--border-color);
     border-radius: var(--git-rounded-lg);
-    margin-bottom: var(--git-space-6); /* Space between groups */
+    margin-bottom: var(--git-space-6);
     box-shadow: var(--git-shadow);
-    overflow: hidden; /* Ensure child borders don't poke out */
+    overflow: hidden;
 }
 
 .git-rs-setting-section {
     padding: var(--git-space-5) var(--git-space-6);
     border-bottom: 1px solid var(--border-color);
-    display: grid; /* Using grid for label/control alignment */
-    grid-template-columns: 1fr; /* Default single column */
+    display: grid;
+    grid-template-columns: 1fr;
     gap: var(--git-space-4);
 }
-.git-rs-settings-group > .git-rs-setting-section:last-child {
+
+.git-rs-settings-group>.git-rs-setting-section:last-child {
     border-bottom: none;
 }
 
-/* Two-column layout for larger screens */
-@media (min-width: 768px) { /* md breakpoint */
+@media (min-width: 768px) {
     .git-rs-setting-section {
-        grid-template-columns: minmax(200px, 1fr) 2fr; /* Label column, Control column */
+        grid-template-columns: minmax(200px, 1fr) 2fr;
         gap: var(--git-space-6);
-        align-items: flex-start; /* Align items at the top of their grid cells */
+        align-items: flex-start;
     }
 }
 
-.git-rs-setting-label-group {
-    /* No specific styles needed if using grid for layout */
-}
-
-.git-rs-section-title { /* h3 */
+.git-rs-section-title {
     font-size: var(--git-font-size-xl);
     font-weight: var(--git-font-semibold);
-    color: var(--text-color); /* Less emphasis than primary for settings labels */
+    color: var(--text-color);
     margin-bottom: var(--git-space-2);
 }
 
@@ -1325,32 +1612,28 @@ textarea.git-form-input {
     font-size: var(--git-font-size-sm);
     color: var(--placeholder-color);
     line-height: 1.6;
-    margin-top: 0; /* Handled by gap or title margin */
-}
-
-.git-rs-setting-control-group {
-    /* This will contain the input fields or radio groups */
+    margin-top: 0;
 }
 
 .git-rs-repo-name-input,
-.git-rs-description-textarea { /* Extends .git-form-input */
+.git-rs-description-textarea {
     background-color: var(--bg-color);
-    width: 100%; /* Ensure full width within its grid cell */
+    width: 100%;
 }
-/* Responsive width for repo name input is handled by its direct class */
+
 @media (min-width: 768px) {
     .git-rs-repo-name-input {
-        max-width: 400px; /* Maintain max-width */
+        max-width: 400px;
     }
 }
+
 .git-rs-description-textarea {
     min-height: 120px;
     resize: vertical;
 }
 
-/* Enhanced Visibility Options */
 .git-rs-visibility-options {
-    margin-top: 0; /* No extra top margin if inside control group */
+    margin-top: 0;
     display: flex;
     flex-direction: column;
     gap: var(--git-space-3);
@@ -1358,40 +1641,45 @@ textarea.git-form-input {
 
 .git-rs-visibility-option {
     display: flex;
-    align-items: flex-start; /* Align icon/radio with top of text block */
+    align-items: flex-start;
     padding: var(--git-space-4);
     border: 1px solid var(--border-color);
     border-radius: var(--git-rounded-md);
     cursor: pointer;
     transition: all 0.15s ease-in-out;
-    background-color: var(--secondary-color); /* Match group background for subtle options */
+    background-color: var(--secondary-color);
 }
+
 .git-rs-visibility-option:hover {
     border-color: var(--primary-color);
     background-color: rgba(var(--primary-color-rgb), 0.05);
 }
+
 .git-rs-visibility-option-selected {
     border-color: var(--primary-color);
     background-color: rgba(var(--primary-color-rgb), 0.1);
     box-shadow: 0 0 8px rgba(var(--primary-color-rgb), 0.15);
 }
+
 .git-rs-visibility-option-selected .git-rs-visibility-option-name {
     color: var(--primary-color);
 }
 
 .git-form-radio.git-rs-visibility-radio {
-    margin-top: var(--git-space-1); /* Align better */
+    margin-top: var(--git-space-1);
     margin-right: var(--git-space-3);
     flex-shrink: 0;
 }
+
 .git-rs-visibility-option-icon {
     margin-right: var(--git-space-3);
     color: var(--placeholder-color);
-    width: var(--git-space-6); /* Larger icons */
+    width: var(--git-space-6);
     height: var(--git-space-6);
     flex-shrink: 0;
-    margin-top: -2px; /* Fine-tune alignment */
+    margin-top: -2px;
 }
+
 .git-rs-visibility-option-selected .git-rs-visibility-option-icon {
     color: var(--primary-color);
 }
@@ -1399,19 +1687,20 @@ textarea.git-form-input {
 .git-rs-visibility-option-details {
     margin-left: 0;
 }
+
 .git-rs-visibility-option-name {
     font-weight: var(--git-font-semibold);
     color: var(--text-color);
     font-size: var(--git-font-size-base);
     margin-bottom: var(--git-space-1);
 }
+
 .git-rs-visibility-option-desc {
     color: var(--placeholder-color);
     font-size: var(--git-font-size-sm);
     line-height: 1.5;
 }
 
-/* Form Actions (Save/Cancel buttons) */
 .git-rs-form-actions {
     margin-top: var(--git-space-8);
     padding-top: var(--git-space-5);
@@ -1420,21 +1709,111 @@ textarea.git-form-input {
     justify-content: flex-end;
     gap: var(--git-space-3);
 }
-/* .git-btn styles are inherited */
 
-/* ==========================================================================
- * 9. Page Specific Styles: repo_tree_view.html (git-rtv-)
- * ========================================================================== */
-/* --- Actions Bar --- */
+.git-rs-divider {
+    border: 0;
+    height: 1px;
+    background-color: #444;
+    margin: 2rem 0;
+}
+
+#collaborators-section .git-rs-setting-label-group,
+#collaborators-section .git-rs-setting-control-group {
+padding-bottom: 1rem;
+}
+
+.git-rs-collaborator-add-form {
+    margin-bottom: 1.5rem;
+}
+
+.git-rs-collaborator-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.git-rs-collaborator-username-input {
+    flex-grow: 1;
+    max-width: 300px;
+}
+
+.git-rs-collaborator-add-btn {
+    padding: 0.5rem 1rem;
+}
+
+.git-rs-collaborator-list-container {
+    margin-top: 1rem;
+    border: 1px solid #3a3f44;
+    padding: 1rem;
+    border-radius: 6px;
+    background-color: #2c3136;
+}
+
+.git-rs-subsection-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #c9d1d9;
+    margin-bottom: 0.75rem;
+}
+
+.git-rs-collaborator-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.git-rs-collaborator-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #3a3f44;
+}
+
+.git-rs-collaborator-item:last-child {
+    border-bottom: none;
+}
+
+.git-rs-collaborator-name {
+    font-weight: 500;
+    color: #adbac7;
+}
+
+.git-rs-collaborator-name .git-link-profile {
+    color: #58a6ff;
+    text-decoration: none;
+}
+
+.git-rs-collaborator-name .git-link-profile:hover {
+    text-decoration: underline;
+}
+
+.git-rs-collaborator-remove-form {
+    display: inline;
+}
+
+.git-rs-no-collaborators-message {
+    color: #8b949e;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+.git-rs-danger-zone .git-rs-setting-label-group h3,
+.git-rs-danger-zone .git-rs-setting-label-group p {
+    color: #f85149;
+}
+
+
+/* --- repo_tree_view.html (git-rtv-) --- */
 .git-rtv-actions-bar {
-    padding: var(--git-space-3) 0; /* Add some vertical padding */
-    margin-bottom: var(--git-space-6); /* Increase bottom margin */
+    padding: var(--git-space-3) 0;
+    margin-bottom: var(--git-space-6);
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between; /* Align items to left and right */
-    align-items: center; /* Vertically align items if they wrap */
-    gap: var(--git-space-3); /* Increase gap slightly */
-    border-bottom: 1px solid var(--border-color); /* Add a subtle separator */
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--git-space-3);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .git-repo-actions-left,
@@ -1444,176 +1823,214 @@ textarea.git-form-input {
     gap: var(--git-space-3);
 }
 
-
-/* .git-rtv-action-btn styles are inherited from .git-btn, .git-btn-sm, etc. */
-/* No changes needed for .git-rtv-fork-form unless specific styling is desired beyond inline-block */
 .git-rtv-fork-form {
     display: inline-block;
 }
 
-/* --- Empty States (Repo or Directory) --- */
 .git-rtv-empty-repo-message,
 .git-rtv-empty-dir-message {
     text-align: center;
-    padding: var(--git-space-8) var(--git-space-6); /* py-8 (was 10), px-6 */
-    background-color: rgba(var(--secondary-color-rgb), 0.5); /* Make it slightly more subtle than a full card */
+    padding: var(--git-space-8) var(--git-space-6);
+    background-color: rgba(var(--secondary-color-rgb), 0.5);
     border-radius: var(--git-rounded-lg);
-    border: 1px dashed var(--border-color); /* Change to dashed for "empty" feel */
-    margin: var(--git-space-6) auto; /* Center block and add top/bottom margin */
-    max-width: 700px; /* Give it a max width */
-    color: var(--placeholder-color); /* Base text color for empty state */
+    border: 1px dashed var(--border-color);
+    margin: var(--git-space-6) auto;
+    max-width: 700px;
+    color: var(--placeholder-color);
 }
 
 .git-rtv-empty-repo-icon,
 .git-rtv-empty-dir-icon {
-    margin: 0 auto var(--git-space-4); /* Center and provide more bottom margin */
-    height: var(--git-space-12, 3rem); /* Increased size slightly */
-    width: var(--git-space-12, 3rem);
-    color: var(--primary-color); /* Use primary color for more emphasis */
+    margin: 0 auto var(--git-space-4);
+    height: var(--git-space-12);
+    width: var(--git-space-12);
+    color: var(--primary-color);
     opacity: 0.7;
 }
 
-.git-rtv-empty-repo-title { /* h3 */
-    margin-top: 0; /* Icon provides top margin */
+.git-rtv-empty-repo-title {
+    margin-top: 0;
     margin-bottom: var(--git-space-2);
-    font-size: var(--git-font-size-xl); /* Make title larger */
-    font-weight: var(--git-font-semibold); /* Make it bolder */
+    font-size: var(--git-font-size-xl);
+    font-weight: var(--git-font-semibold);
     color: var(--text-color);
 }
 
 .git-rtv-empty-repo-actions-text,
 .git-rtv-empty-dir-text {
-    margin-top: var(--git-space-2); /* Increased margin */
-    font-size: var(--git-font-size-base); /* Slightly larger help text */
+    margin-top: var(--git-space-2);
+    font-size: var(--git-font-size-base);
     color: var(--placeholder-color);
     line-height: 1.6;
 }
-.git-rtv-empty-repo-actions-text .git-link { /* Style links within this text */
+
+.git-rtv-empty-repo-actions-text .git-link {
     font-weight: var(--git-font-semibold);
 }
 
 .git-rtv-empty-repo-cli-info {
-    margin-top: var(--git-space-6); /* More separation */
-    font-size: var(--git-font-size-sm); /* Slightly larger */
+    margin-top: var(--git-space-6);
+    font-size: var(--git-font-size-sm);
     color: var(--placeholder-color);
 }
 
 .git-rtv-empty-repo-cli-instructions {
     margin-top: var(--git-space-3);
     text-align: left;
-    background-color: var(--bg-color); /* Retain dark background for code */
-    padding: var(--git-space-4); /* More padding */
-    border-radius: var(--git-rounded-md); /* Was --git-rounded */
-    border: 1px solid var(--border-color); /* Add border for definition */
-    font-size: var(--git-font-size-sm); /* Larger code text */
+    background-color: var(--bg-color);
+    padding: var(--git-space-4);
+    border-radius: var(--git-rounded-md);
+    border: 1px solid var(--border-color);
+    font-size: var(--git-font-size-sm);
     overflow-x: auto;
     box-shadow: var(--git-shadow-sm);
 }
 
 .git-rtv-empty-repo-cli-instructions .git-code-block {
-    padding: 0; /* Remove padding from .git-code-block if parent handles it */
+    padding: 0;
     margin: 0;
     background-color: transparent;
     border: none;
 }
 
 .git-rtv-cli-comment {
-    color: var(--success-color); /* Change comment color for better visibility */
+    color: var(--success-color);
     opacity: 0.8;
 }
 
-/* --- File/Directory Table Listing --- */
-/* .git-rtv-table-container styles inherited from .git-table-container */
-/* .git-rtv-file-table styles inherited from .git-table */
-
-.git-rtv-size-header { /* <<<< MODIFIED/ADDED CLASS >>>> */
-    text-align: right; /* Align "Size" header to the right */
+.git-rtv-size-header {
+    text-align: right;
 }
 
-.git-rtv-actions-header { /* th for actions */
+.git-rtv-actions-header {
     text-align: right;
-    padding-right: var(--git-space-6); /* Ensure actions are not cramped */
+    padding-right: var(--git-space-6);
 }
 
 .git-rtv-item-name-cell {
     display: flex;
     align-items: center;
-    gap: var(--git-space-2); /* Consistent gap */
+    gap: var(--git-space-2);
 }
 
 .git-rtv-item-icon {
     height: var(--git-space-5);
     width: var(--git-space-5);
-    /* margin-right removed, using gap on parent .git-rtv-item-name-cell */
     flex-shrink: 0;
     transition: transform 0.2s ease-out;
 }
+
 .git-rtv-item-name-cell:hover .git-rtv-item-icon {
-    transform: scale(1.1); /* Subtle hover effect on icon */
+    transform: scale(1.1);
 }
 
 .git-rtv-parent-dir-icon {
     color: var(--placeholder-color);
     transform: rotate(180deg);
 }
+
 .git-rtv-dir-icon {
     color: var(--primary-color);
 }
+
 .git-rtv-file-icon,
 .git-rtv-symlink-icon {
-    color: var(--placeholder-color); /* Consider a more distinct icon for symlinks if available */
+    color: var(--placeholder-color);
     opacity: 0.8;
 }
 
 .git-rtv-item-link,
-.git-rtv-symlink-name { /* Combined common properties */
+.git-rtv-symlink-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    display: inline-block; /* For truncate and max-width */
-    vertical-align: middle; /* Better alignment with icons */
-    max-width: 400px; /* Increased max-width */
-    line-height: var(--git-space-5); /* Match icon height for better alignment */
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 400px;
+    line-height: var(--git-space-5);
 }
-/* .git-rtv-item-link inherits from .git-link */
+
 .git-rtv-dir-link {
-    font-weight: var(--git-font-semibold); /* Make directories slightly bolder */
+    font-weight: var(--git-font-semibold);
 }
+
 .git-rtv-file-link {
     color: var(--text-color);
 }
+
 .git-rtv-symlink-name {
     font-weight: var(--git-font-medium);
     color: var(--text-color);
-    cursor: default; /* If not clickable */
+    cursor: default;
 }
 
 .git-rtv-item-size {
     color: var(--placeholder-color);
-    font-size: var(--git-font-size-sm); /* Slightly smaller for secondary info */
-    text-align: right; /* Align size to the right if desired */
+    font-size: var(--git-font-size-sm);
+    text-align: right;
 }
 
 .git-rtv-item-actions {
     text-align: right;
-    white-space: nowrap; /* Prevent action buttons from wrapping */
+    white-space: nowrap;
 }
 
-/* .git-rtv-delete-button inherits from .git-btn-text .git-btn-danger */
-/* .git-rtv-delete-button .git-btn-icon inherited from .git-btn-icon */
+.git-rtv-delete-modal .git-modal-content {
+    max-width: 500px;
+}
 
-/* Modal styles are covered by .git-modal-* common components */
-/* .git-rtv-delete-modal can have specific overrides if needed */
+.git-modal-icon-section {
+    display: flex;
+    align-items: flex-start;
+}
 
+.git-modal-icon-wrapper {
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    height: var(--git-space-8);
+    width: var(--git-space-8);
+    border-radius: var(--git-rounded-full);
+}
 
+@media (min-width: 640px) {
+    .git-modal-icon-wrapper {
+        margin-left: 0;
+        margin-right: var(--git-space-4);
+    }
+}
 
+.git-modal-icon-wrapper-danger {
+    background-color: rgba(var(--error-color-rgb), 0.1);
+}
 
-/* ==========================================================================
- * 10. Page Specific Styles: repo_upload_files.html (git-ruf-)
- * ========================================================================== */
+.git-modal-icon {
+    height: 100%;
+    width: 100%;
+}
 
-/* Styles retained from original git.css or generally applicable */
-.git-ruf-title { /* h2 */
+.git-modal-icon-danger {
+    color: var(--error-color);
+}
+
+.git-modal-text-content {
+    margin-top: var(--git-space-3);
+    text-align: center;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .git-modal-text-content {
+        margin-top: 0;
+        text-align: left;
+    }
+}
+
+/* --- repo_upload_files.html (git-ruf-) --- */
+.git-ruf-title {
     font-size: var(--git-font-size-xl);
     font-weight: var(--git-font-semibold);
     color: var(--primary-color);
@@ -1622,44 +2039,35 @@ textarea.git-form-input {
 
 .git-ruf-upload-target-info {
     font-size: var(--git-font-size-sm);
-    color: var(--placeholder-color); /* text-gray-600 */
+    color: var(--placeholder-color);
     margin-bottom: var(--git-space-6);
 }
 
-.git-ruf-path-display { /* Extends .git-code */
-    background-color: var(--secondary-color); /* bg-gray-100 */
-    padding: var(--git-space-1); /* p-1 */
+.git-ruf-path-display {
+    background-color: var(--secondary-color);
+    padding: var(--git-space-1);
     border-radius: var(--git-rounded);
     font-size: var(--git-font-size-xs);
 }
 
 .git-ruf-branch-name {
     font-weight: var(--git-font-bold);
-    color: var(--text-color); /* Emphasize branch name */
-}
-
-.git-ruf-form {
-    /* no specific style */
+    color: var(--text-color);
 }
 
 .git-ruf-form-group {
     margin-bottom: var(--git-space-6);
 }
 
-.git-ruf-dropzone-label { /* Extends .git-form-label, e.g., if used above the dropzone */
-    /* mb-1 already in .git-form-label if that's a global style */
-    /* This class was in the original git.css but not directly in the inline <style> for the dropzone itself */
-}
-
-.git-ruf-dropzone-content { /* Defines structure inside the dropzone */
+.git-ruf-dropzone-content {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--git-space-1); /* space-y-1 */
+    gap: var(--git-space-1);
     text-align: center;
 }
 
-.git-ruf-dropzone-select-label { /* For clickable "Select Files" text (if used instead of buttons) */
+.git-ruf-dropzone-select-label {
     position: relative;
     cursor: pointer;
     border-radius: var(--git-rounded-md);
@@ -1667,20 +2075,17 @@ textarea.git-form-input {
     color: var(--primary-color);
     text-decoration: none;
 }
+
 .git-ruf-dropzone-select-label:hover {
     color: hsl(from var(--primary-color) h s calc(l + 10%));
     text-decoration: underline;
 }
 
-.git-ruf-dropzone-alt-text { /* For "or drag and drop" text */
+.git-ruf-dropzone-alt-text {
     padding-left: var(--git-space-1);
 }
 
-.git-ruf-commit-label { /* Extends .git-form-label */
-    /* Styles from .git-form-label apply */
-}
-
-.git-ruf-commit-input { /* Extends .git-form-input */
+.git-ruf-commit-input {
     margin-top: var(--git-space-1);
 }
 
@@ -1691,73 +2096,54 @@ textarea.git-form-input {
     margin-top: var(--git-space-6);
 }
 
-/* Styles primarily from or updated by the inline <style> block of repo_upload_files.html */
 .git-ruf-dropzone {
-    border: 2px dashed var(--border-color, #777);
-    padding: 20px; /* Overrides original padding if it was different, matches inline */
+    border: 2px dashed var(--border-color);
+    padding: 20px;
     text-align: center;
-    border-radius: 8px; /* Overrides original border-radius if different, matches inline */
-    background-color: rgba(var(--secondary-color-rgb, 42, 42, 42), 0.7);
+    border-radius: 8px;
+    background-color: rgba(var(--secondary-color-rgb), 0.7);
     transition: border-color 0.2s, background-color 0.2s;
-    margin-top: var(--git-space-1); /* From original external, good to keep */
-    display: flex; /* From original external, good for centering content */
-    justify-content: center; /* From original external */
+    margin-top: var(--git-space-1);
+    display: flex;
+    justify-content: center;
 }
 
 .git-ruf-dropzone.git-ruf-dropzone-active {
-    border-color: var(--primary-color, #4a90e2);
-    background-color: rgba(var(--primary-color-rgb, 74, 144, 226), 0.15);
+    border-color: var(--primary-color);
+    background-color: rgba(var(--primary-color-rgb), 0.15);
 }
 
-.git-ruf-dropzone-icon { /* From inline, more specific size */
+.git-ruf-dropzone-icon {
     width: 40px;
     height: 40px;
     margin-bottom: 10px;
-    color: var(--placeholder-color, #999);
-    margin-left: auto; /* For centering within flex parent if needed */
-    margin-right: auto; /* For centering */
+    color: var(--placeholder-color);
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.git-ruf-dropzone-text-wrapper { /* This is the wrapper for the <p> and buttons div */
-    margin-bottom: 8px; /* From inline style */
-    /* The display:flex and align-items:center from external .git-ruf-dropzone-text-wrapper
-     *      are now effectively handled by .git-ruf-dropzone-content being flex column and centering its items.
-     *      If more specific flex behavior for this wrapper itself is needed, it can be added back.
-     *      The inline style for this was simpler.
-     */
-    font-size: var(--git-font-size-sm); /* From original external, good to keep */
-    color: var(--placeholder-color); /* From original external */
+.git-ruf-dropzone-text-wrapper {
+    margin-bottom: 8px;
+    font-size: var(--git-font-size-sm);
+    color: var(--placeholder-color);
 }
 
-.git-ruf-browse-buttons-container button { /* New from inline style */
+.git-ruf-browse-buttons-container button {
     margin: 5px;
 }
 
-.git-ruf-dropzone-help-text { /* From inline style, more specific */
+.git-ruf-dropzone-help-text {
     font-size: 0.85em;
-    color: var(--placeholder-color, #999);
+    color: var(--placeholder-color);
     margin-top: 10px;
 }
 
-.git-sr-only { /* Utility class from inline style */
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0,0,0,0);
-    white-space: nowrap;
-    border: 0;
-}
-
-.git-ruf-file-list-container { /* From inline style */
+.git-ruf-file-list-container {
     margin-top: 15px;
     margin-bottom: 20px;
-    /* font-size and color from original external are implicitly inherited or can be added if needed */
 }
 
-.git-ruf-file-list { /* From inline style, overrides external which had list-style-type: disc */
+.git-ruf-file-list {
     list-style-type: none;
     padding-left: 0;
     max-height: 200px;
@@ -1766,287 +2152,110 @@ textarea.git-form-input {
     border-radius: 4px;
     padding: 10px;
     background-color: var(--bg-color);
-    /* display:flex, flex-direction:column, gap from original external are not in inline,
-     *      but list items will stack naturally. Flex might be useful for more complex item layouts.
-     *      For now, using the simpler inline definition.
-     */
 }
 
-.git-ruf-file-list-item { /* From inline style */
+.git-ruf-file-list-item {
     background-color: var(--secondary-color);
     border-bottom: 1px solid var(--border-color);
     padding: 8px 12px;
-    margin-bottom: -1px; /* For continuous border effect */
+    margin-bottom: -1px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.9em;
     word-break: break-all;
 }
-.git-ruf-file-list-item:first-child { /* New from inline style */
+
+.git-ruf-file-list-item:first-child {
     border-top-left-radius: 3px;
     border-top-right-radius: 3px;
 }
-.git-ruf-file-list-item:last-child { /* New from inline style */
+
+.git-ruf-file-list-item:last-child {
     border-bottom: none;
     margin-bottom: 0;
     border-bottom-left-radius: 3px;
     border-bottom-right-radius: 3px;
 }
-.git-ruf-file-list-item button { /* New from inline style */
+
+.git-ruf-file-list-item button {
     margin-left: 10px;
     padding: 2px 6px;
     font-size: 0.8em;
-    /* Assuming .git-btn .git-btn-danger .git-btn-xs provide visual styling */
 }
 
-.git-ruf-file-list-placeholder { /* New from inline style */
+.git-ruf-file-list-placeholder {
     color: var(--placeholder-color);
     padding: 10px;
     text-align: center;
 }
 
-/* ==========================================================================
- * 11. Page Specific Styles: repo_blob_view.html (git-rbv-)
- * ========================================================================== */
+
+/* --- repo_blob_view.html (git-rbv-) --- */
 .git-rbv-header {
     margin-bottom: var(--git-space-2);
 }
-.git-rbv-filename { /* h2 */
+
+.git-rbv-filename {
     font-size: var(--git-font-size-xl);
     font-weight: var(--git-font-semibold);
-    color: var(--text-color); /* text-gray-800 */
-    margin-bottom: var(--git-space-05, 0.125rem); /* Space between filename and path */
+    color: var(--text-color);
+    margin-bottom: var(--git-space-05);
 }
-.git-rbv-filepath { /* p */
+
+.git-rbv-filepath {
     font-size: var(--git-font-size-sm);
-    color: var(--placeholder-color); /* text-gray-500 */
+    color: var(--placeholder-color);
 }
+
 .git-rbv-content-wrapper {
-    padding: var(--git-space-4); /* p-4 */
-    border: 1px solid var(--border-color); /* border border-gray-200 */
+    padding: var(--git-space-4);
+    border: 1px solid var(--border-color);
     border-radius: var(--git-rounded-md);
-    background-color: var(--bg-color); /* bg-gray-50 */
+    background-color: var(--bg-color);
     overflow-x: auto;
-    margin-bottom: var(--git-space-4); /* For spacing if notice appears */
+    margin-bottom: var(--git-space-4);
 }
-/* .git-rbv-code-highlighted or .git-rbv-code-preformatted extends .git-code-block */
-.git-rbv-code-highlighted div[class*="highlight-"], /* Pygments often wraps in .highlight */
+
+.git-rbv-code-highlighted div[class*="highlight-"],
 .git-rbv-code-highlighted pre {
-    margin: 0; /* Reset any Pygments default margin/padding if it conflicts */
+    margin: 0;
     padding: 0;
-    background-color: transparent !important; /* Ensure our wrapper controls bg */
+    background-color: transparent !important;
     border: none !important;
-    font-size: var(--git-font-size-sm) !important; /* text-sm for pre */
+    font-size: var(--git-font-size-sm) !important;
 }
-.git-rbv-code-preformatted { /* This is a <pre> tag */
+
+.git-rbv-code-preformatted {
     font-size: var(--git-font-size-sm);
-    color: var(--text-color); /* Ensure pre text is visible */
-    margin: 0; /* Reset browser default pre margin */
+    color: var(--text-color);
+    margin: 0;
 }
+
 .git-rbv-highlight-notice {
     font-size: var(--git-font-size-xs);
-    color: var(--placeholder-color); /* text-gray-500 */
+    color: var(--placeholder-color);
     margin-top: var(--git-space-2);
 }
 
-/* Breadcrumbs Styles */
-.git-breadcrumb-list {
-    display: flex; /* Already in your git.css, good for horizontal layout */
-    align-items: center;
-    padding-left: 0; /* Remove default padding */
-    list-style-type: none; /* THIS IS THE KEY TO REMOVE NUMBERS/BULLETS */
-    margin-top: 0; /* Remove default margins */
-    margin-bottom: 0;
-    gap: var(--git-space-2); /* Example gap, adjust as needed */
-}
 
-.git-breadcrumb-item {
-    display: flex; /* To help align icon and text if they are direct children */
-    align-items: center;
-}
-
-.git-breadcrumb-item-content {
-    display: flex;
-    align-items: center;
-}
-
-.git-breadcrumb-link {
-    /* Your existing .git-link styles will apply, plus: */
-    color: var(--placeholder-color);
-    font-size: var(--git-font-size-sm);
-    font-weight: var(--git-font-medium);
-    margin-left: var(--git-space-1); /* Adjust spacing around icons/text */
-}
-.git-breadcrumb-link:hover {
-    color: var(--text-color);
-}
-.git-breadcrumb-link-home .git-breadcrumb-icon-home {
-    /* Specific styling for home icon if needed */
-}
-
-.git-breadcrumb-icon {
-    flex-shrink: 0;
-    width: var(--git-space-5);
-    height: var(--git-space-5);
-    /* margin-right: var(--git-space-1); /* Add margin if icon is before text */
-}
-
-.git-breadcrumb-separator-icon {
-    color: var(--border-color);
-    margin-left: var(--git-space-2); /* Spacing before the separator */
-    margin-right: var(--git-space-2); /* Spacing after the separator */
-}
-
-.git-breadcrumb-current {
-    font-size: var(--git-font-size-sm);
-    font-weight: var(--git-font-medium);
-    color: var(--text-color);
-    margin-left: var(--git-space-1); /* Adjust spacing */
-}
-
-/* Responsive gap for breadcrumb list (if you had sm:space-x-4 before) */
-@media (min-width: 640px) { /* sm: breakpoint */
-    .git-breadcrumb-list {
-        gap: var(--git-space-4);
-    }
-    .git-breadcrumb-link,
-    .git-breadcrumb-current {
-        /* Adjust margin if it was sm:ml-4, assuming icon takes some space */
-        /* This depends on precise layout, the gap on .git-breadcrumb-list might be sufficient */
-    }
-}
-
-/* Ensure container has margin if needed */
-.git-breadcrumb-container {
-    margin-bottom: var(--git-space-4); /* From original mb-4 on the div */
-}
-
-/* sr-only class if not already defined globally */
-.git-sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
-}
-
-/* ==========================================================================
- * Git Dropdown Styles (NEW)
- * ========================================================================== */
-
-.git-dropdown {
-    position: relative;
-    display: inline-block; /* Or block if it should take full width of its container */
-}
-
-.git-dropdown-toggle {
-    /* Uses .git-btn, .git-btn-sm, .git-btn-secondary for base styling */
-    display: inline-flex;
-    align-items: center;
-    gap: var(--git-space-1, 0.25rem); /* Space between text and arrow */
-}
-
-.git-dropdown-arrow {
-    width: var(--git-space-3, 0.75rem); /* Adjust size as needed */
-    height: var(--git-space-3, 0.75rem);
-    transition: transform 0.2s ease-in-out;
-}
-
-.git-dropdown-toggle[aria-expanded="true"] .git-dropdown-arrow {
-    transform: rotate(180deg);
-}
-
-.git-dropdown-menu {
-    display: none; /* Hidden by default */
-    position: absolute;
-    top: calc(100% + var(--git-space-1, 0.25rem));
-    right: 1;
-    background-color: var(--secondary-color, #2a2a2a);
-    border: 1px solid var(--border-color, #444);
-    border-radius: var(--git-rounded-md, 0.375rem);
-    box-shadow: var(--git-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05));
-    z-index: 100;
-    min-width: 200px;
-    padding: var(--git-space-2, 0.5rem) 0;
-    overflow: hidden;
-}
-
-
-.git-dropdown-menu.show {
-    display: block;
-}
-
-.git-dropdown-item,
-.git-dropdown-item-button {
-    display: flex; /* For icon and text alignment */
-    align-items: center;
-    gap: var(--git-space-2, 0.5rem); /* Space between icon and text */
-    padding: var(--git-space-2, 0.5rem) var(--git-space-4, 1rem); /* py-2 px-4 */
-    color: var(--text-color, #e0e0e0);
-    text-decoration: none;
-    white-space: nowrap;
-    background-color: transparent;
-    border: none;
-    width: 100%;
-    text-align: left;
-    font-size: var(--git-font-size-sm, 0.875rem);
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
-}
-
-.git-dropdown-item:hover,
-.git-dropdown-item-button:hover {
-    background-color: var(--primary-color, #4a90e2);
-    color: #ffffff; /* Or your primary button text color */
-}
-.git-dropdown-item:hover .git-dropdown-item-icon,
-.git-dropdown-item-button:hover .git-dropdown-item-icon {
-    color: #ffffff; /* Match text color on hover */
-}
-
-
-.git-dropdown-item-icon {
-    width: var(--git-space-4, 1rem); /* h-4 w-4 */
-    height: var(--git-space-4, 1rem);
-    color: var(--placeholder-color, #888); /* Default icon color */
-    flex-shrink: 0; /* Prevent icon from shrinking */
-}
-
-.git-dropdown-form-item { /* Wrapper for forms if needed, default is block */
-    display: block;
-    padding: 0; /* Reset padding if button inside handles it */
-}
-.git-dropdown-form-item .git-dropdown-item-button {
-    /* Ensure button styling is consistent */
-}
-
-/* ==========================================================================
- * Starred Repositories Page (Alternative Grid Layout)
- * ========================================================================== */
-
+/* --- Starred Repositories Page (git-starred-repos-) --- */
 .git-starred-repos-list-view-container {
     /* Uses .git-page-container for max-width and centering if needed */
-    /* Uses .git-page-header, .git-page-title, .git-page-subtitle from previous CSS */
 }
 
-/* If .git-repo-list is not already styled from mygit.html, add base styles: */
 .git-repo-list {
     margin-top: 20px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: var(--secondary-color);
-    overflow: hidden; /* Ensures borders are contained */
+    overflow: hidden;
 }
 
 .git-repo-list-item {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Vertically center content and action button */
+    align-items: center;
     padding: 15px 20px;
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.15s ease-in-out;
@@ -2057,23 +2266,23 @@ textarea.git-form-input {
 }
 
 .git-repo-list-item:hover {
-    background-color: rgba(var(--primary-color-rgb), 0.05); /* Subtle hover */
+    background-color: rgba(var(--primary-color-rgb), 0.05);
 }
 
 .git-repo-list-item-main {
     flex-grow: 1;
-    padding-right: 20px; /* Space before the actions column */
+    padding-right: 20px;
 }
 
 .git-repo-list-item-name {
     margin-bottom: 5px;
-    display: flex; /* For aligning badge with link */
+    display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .git-repo-list-item-name .git-repo-main-link {
-    font-size: 1.2em; /* Match typical repo list font size */
+    font-size: 1.2em;
     font-weight: 500;
     color: var(--primary-color);
     text-decoration: none;
@@ -2081,33 +2290,28 @@ textarea.git-form-input {
     align-items: center;
     gap: 6px;
 }
+
 .git-repo-list-item-name .git-repo-main-link:hover {
     text-decoration: underline;
 }
 
-.git-repo-list-item-name .git-repo-owner-name {
-    /* Optional: if you want owner name to be less prominent */
-    /* color: var(--placeholder-color); */
-}
 .git-repo-list-item-name .git-repo-name-strong {
-    color: var(--text-color); /* Emphasize repo name */
+    color: var(--text-color);
     font-weight: 600;
 }
 
-
 .git-repo-list-item-description {
-    /* Your existing styles */
     font-size: 0.9em;
     color: var(--placeholder-color);
     margin-bottom: 8px;
     line-height: 1.4;
-    display: block; /* Common choice for descriptions that need to wrap */
+    display: block;
     white-space: normal;
     overflow-wrap: break-word;
-    word-wrap: break-word;     /* Older alias for overflow-wrap */
+    word-wrap: break-word;
     min-width: 0;
     max-width: 60%;
-    overflow: visible; /* Or 'auto' */
+    overflow: visible;
     -webkit-hyphens: auto;
     -ms-hyphens: auto;
     hyphens: auto;
@@ -2116,30 +2320,32 @@ textarea.git-form-input {
 .git-repo-list-item-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 15px; /* Row and column gap */
+    gap: 10px 15px;
     font-size: 0.85em;
     color: var(--placeholder-color);
 }
 
-.git-repo-list-item-meta .git-repo-stat { /* Re-uses .git-repo-stat from previous CSS */
+.git-repo-list-item-meta .git-repo-stat {
     display: inline-flex;
     align-items: center;
     gap: 4px;
 }
-.git-repo-list-item-meta .git-repo-stat-icon { /* Re-uses .git-repo-stat-icon */
+
+.git-repo-list-item-meta .git-repo-stat-icon {
     width: 13px;
     height: 13px;
 }
+
 .git-repo-list-item-meta .git-star-count-badge-inline svg {
     color: var(--warning-color);
 }
+
 .starred-repo-item .starred-item-timestamp .git-repo-stat-icon {
-    color: var(--info-color); /* Different color for "starred at" icon */
+    color: var(--info-color);
 }
 
-
 .git-repo-list-item-actions {
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
 }
 
 .git-repo-list-item-actions .git-star-button.unstar-action-list {
@@ -2149,274 +2355,80 @@ textarea.git-form-input {
     padding: 5px 12px;
     font-size: 0.85em;
 }
+
 .git-repo-list-item-actions .git-star-button.unstar-action-list:hover {
     background-color: var(--border-color);
     border-color: var(--placeholder-color);
     color: var(--primary-color);
 }
+
 .git-repo-list-item-actions .git-star-button.unstar-action-list.starred i.fa-star {
-    color: var(--warning-color); /* Ensure starred icon is yellow */
+    color: var(--warning-color);
 }
 
 @media (max-width: 600px) {
     .git-repo-list-item {
         flex-direction: column;
-        align-items: flex-start; /* Align items to the start */
+        align-items: flex-start;
         gap: 10px;
     }
+
     .git-repo-list-item-main {
         padding-right: 0;
-        width: 100%; /* Take full width */
+        width: 100%;
     }
+
     .git-repo-list-item-actions {
-        align-self: flex-end; /* Push button to the right */
+        align-self: flex-end;
         margin-top: 5px;
     }
+
     .git-repo-list-item-name .git-repo-main-link {
         font-size: 1.1em;
     }
+
     .git-repo-list-item-description {
         font-size: 0.85em;
     }
+
     .git-repo-list-item-meta {
         font-size: 0.8em;
     }
 }
 
-/* ==========================================================================
- * Reusable Git Page Components
- * ========================================================================== */
-
-.git-page-header {
-    margin-bottom: 25px; /* Space below the header block */
-    padding-bottom: 15px; /* Space between title/subtitle and the bottom border */
-    border-bottom: 1px solid var(--border-color); /* Separator line */
-}
-
-.git-page-title {
-    font-size: 2em; /* Large and prominent title */
-    font-weight: 600;
-    color: var(--primary-color); /* Use primary color for main titles */
-    margin-bottom: 0.25em; /* Small space between title and subtitle */
-}
-
-.git-page-subtitle {
-    font-size: 1.1em;
-    color: var(--placeholder-color); /* Subtler color for subtitles/descriptions */
-    margin-top: 0;
-    margin-bottom: 0; /* No extra margin below subtitle if it's the last element in header */
-}
-
-/* No results styling (can be shared across various git pages) */
-.git-no-results {
-    text-align: center;
-    padding: 40px 20px;
-    background-color: var(--secondary-color); /* Match your item background for consistency */
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    margin-top: 20px; /* Space from elements above if any */
-}
-
-.git-no-results-icon {
-    width: 60px;
-    height: 60px;
-    color: var(--primary-color); /* Icon in primary color */
-    margin-bottom: 15px;
-    opacity: 0.7; /* Slightly transparent for a softer look */
-}
-
-.git-no-results-text {
-    font-size: 1.2em;
-    color: var(--text-color); /* Standard text color */
-    margin-bottom: 20px;
-}
-
-.git-no-results .git-btn-primary { /* Assuming .git-btn and .git-btn-primary are defined elsewhere */
-    padding: 10px 20px;
-    font-size: 1em;
-}
-
-/* Privacy badge (can be shared - you might have this already) */
-.git-privacy-badge {
-    font-size: 0.75em;
-    font-weight: 500;
-    padding: 2px 6px;
-    border-radius: 10px; /* Pill shape */
-    text-transform: capitalize;
-    margin-left: 8px; /* Space from the repo name */
-    display: inline-block; /* Proper alignment */
-    vertical-align: middle; /* Align with text */
-}
-.git-privacy-badge-private {
-    /* Assuming --warning-color-rgb is defined in your base.css like --primary-color-rgb */
-    /* If not, you can use a fixed rgba or a lightened version of --warning-color */
-    background-color: rgba(var(--warning-color-rgb, 243, 156, 18), 0.15); /* Light warning background */
-    color: var(--warning-color); /* Warning text color */
-    border: 1px solid rgba(var(--warning-color-rgb, 243, 156, 18), 0.4);
-}
-.git-privacy-badge-public {
-    /* Assuming --success-color-rgb is defined */
-    background-color: rgba(var(--success-color-rgb, 46, 204, 113), 0.15); /* Light success background */
-    color: var(--success-color); /* Success text color */
-    border: 1px solid rgba(var(--success-color-rgb, 46, 204, 113), 0.4);
-}
-.git-privacy-badge-sm { /* For smaller contexts like cards */
-    font-size: 0.7em;
-    padding: 2px 5px;
-}
-
-/* Common icon styling for repo lists/cards if not already defined */
-.git-repo-icon,
-.git-repo-stat-icon {
-    display: inline-block; /* Prevents extra space below icon */
-    vertical-align: middle; /* Aligns well with text */
-    width: 1em; /* Relative to parent font-size */
-    height: 1em; /* Relative to parent font-size */
-    margin-right: 0.3em;
-    color: var(--placeholder-color); /* Default icon color, can be overridden */
-}
-
-.git-link.git-repo-link .git-repo-icon,
-.git-link.git-repo-main-link .git-repo-icon {
-    color: var(--primary-color); /* Match link color */
-}
-
-/* General link styling within git contexts */
-.git-link {
-    color: var(--primary-color);
-    text-decoration: none;
-}
-.git-link:hover {
-    text-decoration: underline;
-}
-
-/* Basic button styling (if you don't have a global .git-btn from repo_base.html) */
-.git-btn {
-    display: inline-block;
-    padding: 6px 12px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: middle;
-    cursor: pointer;
-    user-select: none;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.git-btn-primary {
-    color: #fff; /* Assuming white text on primary color */
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-.git-btn-primary:hover {
-    background-color: rgba(var(--primary-color-rgb), 0.85); /* Slightly darker/desaturated on hover */
-    border-color: rgba(var(--primary-color-rgb), 0.85);
-}
-
-.git-btn-outline { /* For buttons like "Unstar" in list view */
-    color: var(--text-color);
-    background-color: transparent;
-    border-color: var(--border-color);
-}
-.git-btn-outline:hover {
-    color: var(--primary-color);
-    background-color: rgba(var(--primary-color-rgb), 0.1);
-    border-color: var(--primary-color);
-}
-
-.git-btn-sm {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    border-radius: 4px;
-}
-
-/* Ensure star icons in buttons use consistent coloring */
-
-.git-mygit-star-count i.fas.fa-star { /* Targets the Font Awesome solid star specifically */
-    color: var(--warning-color);
-    margin-right: var(--git-space-1, 0.25rem); /* Add a little space before the count number */
-    vertical-align: middle; /* Optional: for better alignment with the count number */
-}
-
-.git-star-button i.fa-star, /* For FontAwesome if used */
-.git-star-button svg.fa-star-svg { /* For SVG stars if used */
-    margin-right: 5px;
-}
-.git-star-button.starred i.fa-star,
-.git-star-button.starred svg.fa-star-svg {
-    color: var(--warning-color); /* Yellow star when starred */
-}
-.git-star-button.unstarred i.fa-star,
-.git-star-button.unstarred svg.fa-star-svg {
-    color: var(--placeholder-color); /* Muted star when not starred */
-}
-
-/* Star button specific styles for git-rtv-actions-bar */
-.git-star-button {
-    /* General styling is from .git-btn */
-    /* Specific icon/text styling if needed */
-}
-.git-star-button i {
-    /* Icon color is handled by fas/far and specific color in HTML */
-    margin-right: var(--git-space-1_5, 0.375rem); /* Space between icon and text */
-}
-.git-star-button .star-button-text {
-    /* Text styling if needed */
-}
-.git-star-count-badge {
-    display: inline-flex;
-    align-items: center;
-    background-color: var(--bg-color); /* Subtle background */
-    border: 1px solid var(--border-color);
-    padding: var(--git-space-1) var(--git-space-2);
-    border-radius: var(--git-rounded);
-    font-size: var(--git-font-size-xs);
-    color: var(--placeholder-color);
-    margin-left: var(--git-space-1); /* Space from the star button */
-}
-.git-star-count-badge i.fas {
-    /* color already set inline, ensure no override conflicts */
-    margin-right: var(--git-space-1);
-}
-
-/* README Display Styles using variables from base.css */
+/* --- README Display Styles --- */
 .git-readme-container {
     margin-top: 20px;
-    border: 1px solid var(--border-color); /* Use variable for border */
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    background-color: var(--secondary-color); /* Use variable for background */
+    background-color: var(--secondary-color);
 }
 
 .git-readme-header {
     padding: 10px 16px;
-    background-color: rgba(var(--primary-color-rgb), 0.1); /* Lighter version of primary for header */
-    border-bottom: 1px solid var(--border-color); /* Use variable */
+    background-color: rgba(var(--primary-color-rgb), 0.1);
+    border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     display: flex;
     align-items: center;
     font-size: 14px;
-    color: var(--primary-color); /* Use primary color for header text */
+    color: var(--primary-color);
 }
 
 .git-readme-icon {
     width: 16px;
     height: 16px;
     margin-right: 8px;
-    color: var(--primary-color); /* Match header text color */
+    color: var(--primary-color);
 }
 
 .git-readme-content {
     padding: 16px 24px;
     font-size: 16px;
     line-height: 1.6;
-    color: var(--text-color); /* Use main text color */
+    color: var(--text-color);
 }
 
-/* Styles for elements within rendered markdown (markdown-body) */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
@@ -2427,27 +2439,46 @@ textarea.git-form-input {
     margin-bottom: 16px;
     font-weight: 600;
     line-height: 1.25;
-    border-bottom: 1px solid var(--border-color); /* Use variable */
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: .3em;
-    color: var(--primary-color); /* Headings in primary color */
+    color: var(--primary-color);
 }
 
-.markdown-body h1 { font-size: 2em; }
-.markdown-body h2 { font-size: 1.5em; }
-.markdown-body h3 { font-size: 1.25em; }
-.markdown-body h4 { font-size: 1em; }
-.markdown-body h5 { font-size: .875em; }
-.markdown-body h6 { font-size: .85em; color: var(--text-color); } /* Slightly less prominent heading */
+.markdown-body h1 {
+    font-size: 2em;
+}
+
+.markdown-body h2 {
+    font-size: 1.5em;
+}
+
+.markdown-body h3 {
+    font-size: 1.25em;
+}
+
+.markdown-body h4 {
+    font-size: 1em;
+}
+
+.markdown-body h5 {
+    font-size: .875em;
+}
+
+.markdown-body h6 {
+    font-size: .85em;
+    color: var(--text-color);
+}
 
 .markdown-body p {
     margin-bottom: 16px;
-    color: var(--text-color); /* Ensure paragraph text uses the main text color */
+    color: var(--text-color);
 }
 
 .markdown-body a {
-    color: var(--primary-color); /* Links use primary color */
+    color: var(--primary-color);
     text-decoration: none;
 }
+
 .markdown-body a:hover {
     text-decoration: underline;
 }
@@ -2466,17 +2497,17 @@ textarea.git-form-input {
 .markdown-body blockquote {
     margin: 0 0 16px 0;
     padding: 0 1em;
-    color: var(--placeholder-color); /* Use placeholder or a slightly muted text color */
-    border-left: .25em solid var(--border-color); /* Use variable */
+    color: var(--placeholder-color);
+    border-left: .25em solid var(--border-color);
 }
 
 .markdown-body pre {
-    background-color: var(--bg-color); /* Darker background for code blocks */
-    color: var(--text-color); /* Text color for code */
+    background-color: var(--bg-color);
+    color: var(--text-color);
     padding: 16px;
     overflow: auto;
     border-radius: 6px;
-    border: 1px solid var(--border-color); /* Subtle border for pre */
+    border: 1px solid var(--border-color);
     margin-bottom: 16px;
     font-size: 85%;
     line-height: 1.45;
@@ -2487,20 +2518,20 @@ textarea.git-form-input {
     font-size: 85%;
     padding: .2em .4em;
     margin: 0;
-    background-color: rgba(var(--primary-color-rgb), 0.15); /* Light primary for inline code */
-    color: var(--primary-color); /* Primary color for inline code text */
+    background-color: rgba(var(--primary-color-rgb), 0.15);
+    color: var(--primary-color);
     border-radius: 3px;
 }
 
-.markdown-body pre > code {
+.markdown-body pre>code {
     padding: 0;
     margin: 0;
     font-size: 100%;
     word-break: normal;
     white-space: pre;
-    background: transparent; /* Code within pre should inherit pre's background */
+    background: transparent;
     border: 0;
-    color: inherit; /* Inherit color from pre */
+    color: inherit;
 }
 
 .markdown-body table {
@@ -2509,20 +2540,20 @@ textarea.git-form-input {
     width: auto;
     display: block;
     overflow-x: auto;
-    border: 1px solid var(--border-color); /* Border for the table */
+    border: 1px solid var(--border-color);
 }
 
 .markdown-body th,
 .markdown-body td {
-    border: 1px solid var(--border-color); /* Use variable */
+    border: 1px solid var(--border-color);
     padding: 6px 13px;
     color: var(--text-color);
 }
 
 .markdown-body th {
     font-weight: 600;
-    background-color: var(--secondary-color); /* Slightly different background for table headers */
-    color: var(--primary-color); /* Primary color for table header text */
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
 }
 
 .markdown-body img {
@@ -2531,114 +2562,111 @@ textarea.git-form-input {
     margin-top: 5px;
     margin-bottom: 10px;
     border-radius: 3px;
-    background-color: var(--text-color); /* Add a light background for images in dark mode */
+    background-color: var(--text-color);
 }
 
-/* Styles for Pygments syntax highlighting (if using codehilite) */
-/* These are example selectors; Pygments generates specific classes. */
-/* You'll need to inspect the output and style accordingly, or use a Pygments CSS theme. */
 .markdown-body .codehilite {
-    background-color: var(--bg-color); /* Match pre background */
+    background-color: var(--bg-color);
     border-radius: 6px;
     border: 1px solid var(--border-color);
 }
+
 .markdown-body .codehilite pre {
     margin-bottom: 0;
-    border: none; /* Remove border from pre inside codehilite if .codehilite has one */
-}
-/* Example Pygments classes - these might need adjustment */
-.markdown-body .codehilite .k { color: var(--primary-color); font-weight: bold; } /* Keyword */
-.markdown-body .codehilite .s, .markdown-body .codehilite .s1, .markdown-body .codehilite .s2 { color: var(--success-color); } /* String */
-.markdown-body .codehilite .c1, .markdown-body .codehilite .cm { color: var(--placeholder-color); font-style: italic; } /* Comment */
-.markdown-body .codehilite .n, .markdown-body .codehilite .p { color: var(--text-color); } /* Name, Punctuation */
-.markdown-body .codehilite .o { color: var(--primary-color); } /* Operator */
-.markdown-body .codehilite .nf { color: #a2e078; } /* Function name (example green) */
-.markdown-body .codehilite .nb { color: #78d0e0; } /* Name.Builtin (example cyan) */
-
-
-/* --- End of README Display Styles --- */
-/* --- Start Language Percentage --- */
-
-
-/* Language Statistics Bar & Legend */
-.language-stats-bar-container {
-    margin-top: 10px;
-    margin-bottom: 10px;
-    font-size: 0.85em; /* Smaller font for this section */
+    border: none;
 }
 
-.language-stats-bar {
-    display: flex;
-    height: 10px;
-    border-radius: 5px;
-    overflow: hidden;
-    width: 300px; /* Set your desired fixed width */
-    background-color: var(--border-color);
-    margin-bottom: 8px;
+.markdown-body .codehilite .k {
+    color: var(--primary-color);
+    font-weight: bold;
 }
 
-.lang-segment {
-    height: 100%;
-    transition: opacity 0.2s ease-in-out;
-}
-.lang-segment:hover {
-    opacity: 0.8;
+.markdown-body .codehilite .s,
+.markdown-body .codehilite .s1,
+.markdown-body .codehilite .s2 {
+    color: var(--success-color);
 }
 
-.language-stats-legend {
+.markdown-body .codehilite .c1,
+.markdown-body .codehilite .cm {
+    color: var(--placeholder-color);
+    font-style: italic;
+}
+
+.markdown-body .codehilite .n,
+.markdown-body .codehilite .p {
+    color: var(--text-color);
+}
+
+.markdown-body .codehilite .o {
+    color: var(--primary-color);
+}
+
+.markdown-body .codehilite .nf {
+    color: #a2e078;
+}
+
+.markdown-body .codehilite .nb {
+    color: #78d0e0;
+}
+
+/* --- Contributors List Specific Styles (from your previous CSS) --- */
+.git-contributor-pfp {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.git-contributor-list {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-wrap: wrap; /* Allow legend items to wrap */
-    gap: 10px; /* Gap between legend items */
-    font-size: 0.9em; /* Slightly smaller font for legend */
 }
 
-.language-stats-legend li {
+.git-contributor-item {
     display: flex;
     align-items: center;
-    color: var(--placeholder-color);
-}
-
-.lang-color-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 5px;
-    border: 1px solid rgba(0,0,0,0.1); /* Subtle border for light colors */
-}
-
-.lang-name {
-    color: var(--text-color);
-    margin-right: 4px;
-}
-
-.lang-perc {
-    color: var(--placeholder-color);
-}
-
-/* Specific placement adjustments for language stats in list items */
-.git-repo-list-item .language-stats-bar-container {
-    margin-top: 8px; /* Add some space above if it's below description */
-    margin-bottom: 5px;
-}
-.git-repo-list-item-langs { /* Wrapper for lang stats in list items */
-    margin-top: 8px;
-    margin-bottom: 8px;
-}
-
-/* Styling for language stats in repo_tree_view.html (if placed under repo header) */
-.git-repo-header + .language-stats-bar-container { /* If stats are directly after a header */
-    margin-top: 15px;
-    padding-bottom: 10px;
+    justify-content: space-between;
+    padding: var(--git-space-2) 0;
     border-bottom: 1px solid var(--border-color);
 }
-/* If language_stats are placed inside .git-rtv-actions-bar or similar context */
-.git-rtv-actions-bar .language-stats-bar-container {
-    margin-top: 0;
-    margin-bottom: 0;
-    /* Adjust width or other properties if needed within a flex bar */
+
+.git-contributor-item:last-child {
+    border-bottom: none;
 }
 
+.git-contributor-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--primary-color);
+    gap: var(--git-space-2);
+}
+
+.git-contributor-link:hover .git-contributor-username {
+    text-decoration: underline;
+}
+
+.git-contributor-username {
+    font-weight: var(--git-font-medium);
+    color: var(--text-color);
+}
+
+.git-contributor-role {
+    font-size: var(--git-font-size-xs);
+    color: var(--placeholder-color);
+    background-color: var(--bg-color);
+    padding: var(--git-space-05) var(--git-space-1_5);
+    border-radius: var(--git-rounded-sm);
+    border: 1px solid var(--border-color);
+    font-weight: var(--git-font-medium);
+}
+
+.git-no-other-contributors {
+    color: var(--placeholder-color);
+    font-style: italic;
+    padding: var(--git-space-3) 0;
+    text-align: center;
+}
