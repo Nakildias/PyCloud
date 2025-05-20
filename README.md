@@ -1,5 +1,7 @@
 # PyCloud ☁️
 
+## Get the latest features here [Nakildias/PyCloud](https://pycloud.nakildias.com/Nakildias/PyCloud/tree/master/)
+
 **A versatile, self-hostable application suite designed to integrate your digital life. PyCloud offers a range of tools from productivity and development to entertainment and social connectivity.**
 
 PyCloud aims to be your personal cloud an all-in-one platform, providing a seamless experience for managing files, code, notes, and communications, with exciting new social and AI capabilities.
