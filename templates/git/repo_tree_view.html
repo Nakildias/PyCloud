@@ -24,7 +24,7 @@
                     </svg>
                 </button>
                 <div class="git-dropdown-menu" id="actionsDropdownMenu" aria-labelledby="actionsDropdownToggle">
-                    {% if is_owner %}
+                    {% if can_commit %}
                         <a href="{{ url_for('create_repo_file', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=current_path) }}" class="git-dropdown-item">
                             <svg xmlns="http://www.w3.org/2000/svg" class="git-dropdown-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -71,6 +71,15 @@
                 <i class="fas fa-star" style="color: var(--warning-color, #ffc107); margin-right: 2px;"></i> {{ repo.star_count | default('0') }}
             </span>
             {% endif %}
+        {# --- NEW CONTRIBUTORS BUTTON --- #}
+        <button type="button" class="git-btn git-btn-sm git-btn-outline git-contributors-btn" id="contributorsModalBtn" style="margin-left: var(--git-space-2);">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="git-btn-icon">
+                <path fill-rule="evenodd" d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412c-.28-.49-.672-.942-1.122-1.336a9.956 9.956 0 00-9.994.001C3.49 13.21 3.054 13.7 2.77 14.22A1.23 1.23 0 003.465 14.493zM10 15a7.956 7.956 0 005.04-1.632c.24-.197.425-.45.539-.737a.75.75 0 00-.251-1.012C14.594 11.06 12.423 10 10 10c-2.423 0-4.594 1.06-5.328 1.619a.75.75 0 00-.251 1.012c.114.287.3.54.539.737A7.956 7.956 0 0010 15z" clip-rule="evenodd"></path>
+            </svg>
+            Contributors
+            <span class="git-count-badge">{{ total_contributors_count }}</span>
+        </button>
+        {# --- END NEW CONTRIBUTORS BUTTON --- #}
         </div>
     </div>
 {{ render_language_stats(language_stats, repo_id=repo.id) }}
@@ -80,7 +89,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             </svg>
             <h3 class="git-rtv-empty-repo-title">This repository is empty.</h3>
-            {% if is_owner %}
+            {% if can_commit %}
             <p class="git-rtv-empty-repo-actions-text">
                 Get started by <a href="{{ url_for('create_repo_file', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=current_path) }}" class="git-link">creating a file</a>
                 or <a href="{{ url_for('upload_repo_files', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=current_path) }}" class="git-link">uploading files</a>.
@@ -106,7 +115,7 @@
                         <th class="git-table-th git-rtv-commit-message-header">Last Commit</th>
                         <th class="git-table-th git-rtv-commit-time-header">Commit Time</th>
                         <th class="git-table-th git-rtv-size-header">Size</th>
-                        {% if is_owner %}
+                        {% if can_commit %}
                         <th class="git-table-th git-rtv-actions-header">Actions</th>
                         {% endif %}
                     </tr>
@@ -125,7 +134,7 @@
                             <td class="git-table-td git-rtv-item-commit-message">-</td>
                             <td class="git-table-td git-rtv-item-commit-time">-</td>
                             <td class="git-table-td git-rtv-item-size">-</td>
-                            {% if is_owner %}
+                            {% if can_commit %}
                             <td class="git-table-td"></td>
                             {% endif %}
                         </tr>
@@ -172,7 +181,7 @@
                             <td class="git-table-td git-rtv-item-size">
                                 {{ item.size | humanreadable(1) if item.size is not none else '-' }}
                             </td>
-                            {% if is_owner %}
+                            {% if can_commit %}
                             <td class="git-table-td git-rtv-item-actions">
                                 {% set item_full_path = (current_path + '/' + item.name if current_path else item.name) %}
                                 <button type="button"
@@ -213,7 +222,7 @@
     {% endif %}
     {# --- END ADDED: README Display Section --- #}
 
-    {% if is_owner %}
+    {% if can_commit %}
     {# Delete Item Modal (existing code) #}
     <div id="deleteItemModal" class="git-modal git-rtv-delete-modal git-modal-hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="git-modal-backdrop-wrapper">
@@ -256,13 +265,56 @@
             </div>
         </div>
     </div>
-    {% endif %} {# End of is_owner check for modal #}
+{# --- MODAL FOR CONTRIBUTORS --- #}
+<div id="contributorsModal" class="git-modal" style="display: none;"> {# Start hidden #}
+    <div class="git-modal-content git-contributors-modal-content"> {# Added specific class #}
+        <div class="git-modal-header">
+            <h3 class="git-modal-title">Repository Contributors</h3>
+            <button type="button" class="git-modal-close" id="contributorsModalCloseBtn">&times;</button>
+        </div>
+        <div class="git-modal-body">
+            <ul class="git-contributor-list">
+                {# Owner #}
+                <li class="git-contributor-item">
+                    <a href="{{ url_for('user_profile', username=repo_owner.username) }}" class="git-contributor-link">
+                        {% if repo_owner.profile_picture_filename %}
+                            <img src="{{ url_for('static', filename='uploads/profile_pics/' + repo_owner.profile_picture_filename) }}" alt="{{ repo_owner.username }}" class="git-contributor-pfp">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="Default Avatar" class="git-contributor-pfp">
+                        {% endif %}
+                        <span class="git-contributor-username">{{ repo_owner.username }}</span>
+                    </a>
+                    <span class="git-contributor-role">Owner</span>
+                </li>
+                {# Collaborators #}
+                {% for collaborator in collaborators_list %}
+                <li class="git-contributor-item">
+                    <a href="{{ url_for('user_profile', username=collaborator.username) }}" class="git-contributor-link">
+                         {% if collaborator.profile_picture_filename %}
+                            <img src="{{ url_for('static', filename='uploads/profile_pics/' + collaborator.profile_picture_filename) }}" alt="{{ collaborator.username }}" class="git-contributor-pfp">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="Default Avatar" class="git-contributor-pfp">
+                        {% endif %}
+                        <span class="git-contributor-username">{{ collaborator.username }}</span>
+                    </a>
+                    <span class="git-contributor-role">Collaborator</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if not collaborators_list %}
+                <p class="git-no-other-contributors">Only the owner contributes to this repository directly.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{# --- END MODAL --- #}
+    {% endif %} {# End of can_commit check for modal #}
 {% endblock %}
 
 {% block scripts %}
     {{ super() }} {# Ensure scripts from base template are included #}
 
-    {% if is_owner %}
+    {% if can_commit %}
     <script>
     // Owner-specific modal functions (existing code)
     function openDeleteModal(itemName, itemFullPath, itemType) {
@@ -276,12 +328,12 @@
         const ref = "{{ ref_name }}";
         deleteForm.action = `/${owner}/${repo}/deleteitem/${ref}/${itemFullPath}`;
         const modal = document.getElementById('deleteItemModal');
-        if(modal) modal.classList.remove('git-modal-hidden');
+        if(modal) modal.classList.remove('git-modal-hidden'); // This uses a class to show/hide
     }
 
     function closeDeleteModal() {
         const modal = document.getElementById('deleteItemModal');
-        if(modal) modal.classList.add('git-modal-hidden');
+        if(modal) modal.classList.add('git-modal-hidden'); // This uses a class to show/hide
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -291,7 +343,7 @@
         }
     });
     </script>
-    {% endif %} {# End of is_owner check for modal script #}
+    {% endif %} {# End of can_commit check for modal script #}
 
     {# General purpose script for dropdown (existing code) #}
     <script>
@@ -384,5 +436,35 @@
         });
     });
     </script>
+
+{# --- SCRIPT FOR CONTRIBUTORS MODAL --- #}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const contributorsModal = document.getElementById('contributorsModal');
+    const openContributorsBtn = document.getElementById('contributorsModalBtn');
+    const closeContributorsBtn = document.getElementById('contributorsModalCloseBtn');
+
+    if (openContributorsBtn && contributorsModal) {
+        openContributorsBtn.onclick = function() {
+            contributorsModal.style.display = "flex";
+        }
+    }
+
+    if (closeContributorsBtn && contributorsModal) {
+        closeContributorsBtn.onclick = function() {
+            contributorsModal.style.display = "none";
+        }
+    }
+
+    // Close modal if clicked outside of its content
+    window.addEventListener('click', function(event) {
+        if (event.target == contributorsModal && contributorsModal) {
+            contributorsModal.style.display = "none";
+        }
+    });
+});
+</script>
+{# --- END SCRIPT FOR CONTRIBUTORS MODAL --- #}
+
     {% endif %}
 {% endblock %}

@@ -70,7 +70,7 @@
 
         <div class="git-rbv-actions">
             {# EDIT FILE BUTTON - Only show if user is the owner of the repo #}
-            {% if current_user.is_authenticated and repo.user_id == current_user.id %}
+            {% if can_commit %}
                 <a href="{{ url_for('repo_edit_view', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path) }}" class="git-btn git-btn-sm git-btn-primary">
                     <i class="fas fa-pencil-alt"></i> Edit File
                 </a>
