@@ -4,6 +4,7 @@ from datetime import timedelta
 import json
 import logging
 import sqlalchemy as sa
+from sqlalchemy import or_
 from wtforms import BooleanField
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import relationship, Mapped, mapped_column, backref, aliased
@@ -101,7 +102,7 @@ EDITABLE_EXTENSIONS = {
 app = Flask(__name__, instance_path=INSTANCE_FOLDER_PATH) # Tell Flask about the instance folder
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Store path for reference if needed
 csrf = CSRFProtect(app)
-app.config['SECRET_KEY'] = '87213721832893718738918237897891328' #os.urandom(24) # Replace with a static key for production
+app.config['SECRET_KEY'] = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, DB_NAME)}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
@@ -151,6 +152,100 @@ repo_stars = db.Table('repo_stars', db.metadata,
     db.Column('starred_at', db.DateTime, default=lambda: datetime.now(timezone.utc)), # Use timezone aware now
     extend_existing=True
 )
+
+repo_collaborators = db.Table('repo_collaborators', db.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', name='fk_repo_collaborators_user_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('git_repository_id', db.Integer, db.ForeignKey('git_repository.id', name='fk_repo_collaborators_git_repo_id', ondelete='CASCADE'), primary_key=True),
+    # You could add a 'permission_level' column here if needed in the future (e.g., 'read', 'write', 'admin')
+    # db.Column('permission', db.String(50), default='write', nullable=False),
+    extend_existing=True
+)
+
+AVAILABLE_THEMES = {
+    "default": "Default (Dark)", # No extra CSS, uses base.css only
+    "true_dark_blue.css": "True Dark Blue",
+    "true_dark_orange.css": "True Dark Orange",
+    "true_dark_red.css": "True Dark Red",
+    "breeze_dark.css": "Breeze Dark",
+    "breeze_light.css": "Breeze Light",
+    "retro_wave_dark.css": "Retro Wave Dark",
+    "retro_wave_light.css": "Retro Wave Light",
+    # Add more themes here as you create them
+}
+
+@app.before_request
+def load_selected_theme():
+    selected_theme_file = None
+    theme_name = "default" # Default theme
+
+    if current_user.is_authenticated:
+        # Option 1: Loading from User Model
+        try:
+            theme_name = getattr(current_user, 'preferred_theme', 'default')
+        except AttributeError:
+            theme_name = 'default'
+
+        # Option 2: Loading from Session
+        # theme_name = session.get('theme', 'default')
+        # print(f"Authenticated user. Loaded theme_name from session: '{theme_name}'")
+
+    else: # For anonymous users
+        theme_name = session.get('theme', 'default')
+        print(f"Anonymous user. Loaded theme_name from session: '{theme_name}'")
+
+    if theme_name != "default" and theme_name in AVAILABLE_THEMES:
+        selected_theme_file = url_for('static', filename=f'css/themes/{theme_name}')
+
+    g.selected_theme_css = selected_theme_file
+    g.current_theme_name = theme_name
+
+# Make selected_theme_css available to all templates
+@app.context_processor
+def inject_theme():
+    return dict(
+        selected_theme_css=getattr(g, 'selected_theme_css', None),
+        current_theme_name=getattr(g, 'current_theme_name', 'default'),
+        available_themes=AVAILABLE_THEMES
+    )
+
+@app.route('/settings', methods=['GET'])
+@login_required
+def user_settings_page():
+    """
+    Displays the user settings page.
+    Other settings forms could be processed here if combined into a single POST,
+    or link to separate pages/routes for editing profile, password, etc.
+    """
+    return render_template('user_settings.html')
+
+# --- Example Route to Change Theme (e.g., from a settings page) ---
+@app.route('/change-theme', methods=['POST'])
+@login_required
+def change_theme():
+    new_theme_file = request.form.get('theme')
+
+    if not new_theme_file:
+        flash("No theme value received.", "error")
+        return redirect(url_for('user_settings_page'))
+
+    if new_theme_file not in AVAILABLE_THEMES:
+        flash(f"Invalid theme value: {new_theme_file}", "error")
+        return redirect(url_for('user_settings_page'))
+
+    try:
+        print(f"Attempting to set current_user.preferred_theme to: {new_theme_file}")
+        current_user.preferred_theme = new_theme_file
+        # Assuming 'db' is your SQLAlchemy instance
+        # from . import db  # Or however you import your db
+        db.session.commit()
+        print(f"DB COMMIT SUCCEEDED. current_user.preferred_theme is now: {getattr(current_user, 'preferred_theme', 'ERROR - NOT SET')}")
+        flash(f"Theme changed to {AVAILABLE_THEMES[new_theme_file]}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! DATABASE ERROR during commit: {e} !!!")
+        flash(f"Database error saving theme: {e}", "error")
+
+    return redirect(url_for('user_settings_page'))
 
 # Helper to get post media upload path
 def get_post_media_path():
@@ -731,6 +826,8 @@ class User(db.Model, UserMixin):
     discord_server_url = db.Column(db.String(255), nullable=True)
     reddit_url = db.Column(db.String(255), nullable=True)
 
+    preferred_theme = db.Column(db.String(100), nullable=True, default='default')
+
     # Relationships (ensure all necessary backrefs and cascades are here)
     files = db.relationship('File', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
     notes = db.relationship('Note', backref='author', lazy='dynamic', cascade="all, delete-orphan")
@@ -775,6 +872,18 @@ class User(db.Model, UserMixin):
         cascade="all" # Optional: if a user is deleted, remove their stars
                                       # Be cautious with cascade on many-to-many
     )
+
+    collaborating_repositories = db.relationship(
+        'GitRepository',
+        secondary=repo_collaborators,
+        back_populates='collaborators', # Will be defined in GitRepository model
+        lazy='dynamic'
+    )
+
+    def is_collaborator_on(self, repo_to_check):
+        if not self.is_authenticated:
+            return False
+        return self.collaborating_repositories.filter(repo_collaborators.c.git_repository_id == repo_to_check.id).count() > 0
 
     def has_starred_repo(self, repo_to_check): # Changed 'repo' to 'repo_to_check' for clarity
         if not self.is_authenticated: # Anonymous users can't have starred repos
@@ -868,6 +977,24 @@ class GitRepository(db.Model):
         lazy='dynamic' # Use dynamic for querying, e.g., count()
         # cascade="all, delete" # Usually not needed here, stars are deleted if user/repo is deleted
     )
+
+    collaborators = db.relationship(
+        'User',
+        secondary=repo_collaborators,
+        back_populates='collaborating_repositories', # Matches User.collaborating_repositories
+        lazy='dynamic'
+    )
+
+    def add_collaborator(self, user_to_add):
+        if not self.is_collaborator(user_to_add) and self.user_id != user_to_add.id: # Owner cannot be a collaborator
+            self.collaborators.append(user_to_add)
+
+    def remove_collaborator(self, user_to_remove):
+        if self.is_collaborator(user_to_remove):
+            self.collaborators.remove(user_to_remove)
+
+    def is_collaborator(self, user_to_check):
+        return self.collaborators.filter(repo_collaborators.c.user_id == user_to_check.id).count() > 0
 
     def __repr__(self):
         return f'<GitRepository {self.id}: {self.owner.username}/{self.name}>'
@@ -1210,6 +1337,7 @@ class Notification(db.Model):
     type = db.Column(db.String(50), nullable=False, index=True)  # e.g., 'like', 'comment', 'share_post', 'share_comment', 'follow', 'system_message'
     related_post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=True, index=True)
     related_comment_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'), nullable=True, index=True)
+    related_repo_id = db.Column(db.Integer, db.ForeignKey('git_repository.id', ondelete='CASCADE'), nullable=True, index=True)
     # Add other related_ids if needed, e.g., related_user_id for follows
     message = db.Column(db.Text, nullable=True) # Optional custom message or generated text
     is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
@@ -1220,6 +1348,7 @@ class Notification(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref=db.backref('notifications_sent', lazy='dynamic'))
     post = db.relationship('Post', foreign_keys=[related_post_id], backref=db.backref('related_notifications', lazy='select', cascade="all, delete-orphan"))
     comment = db.relationship('Comment', foreign_keys=[related_comment_id], backref=db.backref('related_notifications', lazy='select', cascade="all, delete-orphan"))
+    repository = db.relationship('GitRepository', foreign_keys=[related_repo_id], backref=db.backref('related_notifications_repo', lazy='select', cascade="all, delete-orphan")) # ADD THIS RELATIONSHIP
 
     def __repr__(self):
         return f'<Notification {self.id} for User {self.user_id} - Type: {self.type}>'
@@ -1234,6 +1363,7 @@ class Notification(db.Model):
         # Initialize URL generating variables
         post_url_val = None
         comment_url_val = None
+        repo_url_val = None
 
         # Construct human-readable message text based on type
         if self.type == 'like_post' and self.post:
@@ -1252,6 +1382,27 @@ class Notification(db.Model):
             text = f"{sender_username} started following you."
         elif self.type == 'new_post_from_followed_user' and self.post:
             text = f"{sender_username} (whom you follow) created a new post: \"{self.post.text_content[:30]}...\"" if self.post.text_content else f"{sender_username} (whom you follow) created a new media post."
+        elif self.type == 'repo_collaborator_added' and self.related_repo_id: # We'll add related_repo_id
+            # We need to fetch the repo to get its name and owner for the message
+            repo = GitRepository.query.get(self.related_repo_id)
+            if repo and self.sender: # self.sender is the repo owner who added the collaborator
+                text = f"{self.sender.username} added you as a collaborator to the repository: {repo.owner.username}/{repo.name}."
+                try:
+                    repo_url_val = url_for('view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name, _external=False)
+                except Exception as e:
+                    current_app.logger.error(f"Error generating repo_url_val for notification {self.id}: {e}")
+            else:
+                text = f"You've been added as a collaborator to a repository."
+
+        elif self.type == 'repo_collaborator_removed' and self.related_repo_id: # We'll add related_repo_id
+            repo = GitRepository.query.get(self.related_repo_id)
+            if repo and self.sender: # self.sender is the repo owner who removed the collaborator
+                text = f"{self.sender.username} removed you as a collaborator from the repository: {repo.owner.username}/{repo.name}."
+                # No specific link needed for removal, or could link to user's dashboard
+                repo_url_val = url_for('git_homepage', _external=False) # Or user's own repo page
+            else:
+                text = f"You've been removed as a collaborator from a repository."
+
 
         # Generate post_url_val if there's a related post
         if self.related_post_id:
@@ -1298,6 +1449,11 @@ class Notification(db.Model):
             else:
                 primary_link = "#" # Fallback if no post_id for the comment
 
+        elif self.type == 'repo_collaborator_added' and repo_url_val:
+            primary_link = repo_url_val
+        elif self.type == 'repo_collaborator_removed' and repo_url_val: # Optional: link somewhere general
+            primary_link = repo_url_val
+
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -1313,9 +1469,10 @@ class Notification(db.Model):
             'primary_link': primary_link, # This should now always be defined
             'post_url': post_url_val,     # This should now always be defined (as None or a URL)
             'comment_url': comment_url_val, # This should now always be defined (as None or a URL)
+            'repo_url': repo_url_val
         }
 
-def create_notification(recipient_user, sender_user, type, post=None, comment=None, custom_message=None, cooldown_minutes=5): # Added cooldown_minutes
+def create_notification(recipient_user, sender_user, type, post=None, comment=None, repo=None, custom_message=None, cooldown_minutes=5): # MODIFIED DEFINITION
     """
     Helper function to create and save a notification, with spam prevention.
     - recipient_user: The User object who should receive the notification.
@@ -1323,65 +1480,69 @@ def create_notification(recipient_user, sender_user, type, post=None, comment=No
     - type: String representing the notification type.
     - post: Optional Post object related to the notification.
     - comment: Optional Comment object related to the notification.
+    - repo: Optional GitRepository object related to the notification. # ADDED
     - custom_message: Optional string for a specific message.
     - cooldown_minutes: Integer, time window in minutes to check for duplicate notifications.
     """
-    if not recipient_user or not sender_user:
-        app.logger.warning("Attempted to create notification without recipient or sender.")
+    if not recipient_user: # Removed sender_user from this specific check as system notifications might not have a sender_user in the same way
+        app.logger.warning("Attempted to create notification without recipient.")
         return
 
     # Prevent self-notification for actions where it doesn't make sense
-    if recipient_user.id == sender_user.id and type in ['like_post', 'dislike_post', 'comment_on_post', 'reply_to_comment', 'share_post', 'share_comment', 'new_follower']:
+    # Ensure sender_user exists before trying to access its id
+    if sender_user and recipient_user.id == sender_user.id and type in ['like_post', 'dislike_post', 'comment_on_post', 'reply_to_comment', 'share_post', 'share_comment', 'new_follower', 'repo_collaborator_added', 'repo_collaborator_removed']: # Added new types
         app.logger.debug(f"Skipping self-notification for user {recipient_user.id} of type {type}")
         return
 
     # --- Spam Prevention Check ---
-    time_threshold = datetime.now(timezone.utc) - timedelta(minutes=cooldown_minutes)
+    time_threshold = datetime.now(timezone.utc) - timedelta(minutes=cooldown_minutes) #
 
-    # Build a query to find recent, identical, unread notifications
     query_existing = Notification.query.filter(
         Notification.user_id == recipient_user.id,
-        Notification.sender_id == sender_user.id,
+        # Allow sender_id to be None for system type messages if that's a use case
+        Notification.sender_id == (sender_user.id if sender_user else None),
         Notification.type == type,
-        # Only check timestamp if cooldown_minutes is greater than 0
-        Notification.timestamp >= time_threshold if cooldown_minutes > 0 else True
+        Notification.timestamp >= time_threshold if cooldown_minutes > 0 else True #
     )
 
-    # Add related_id checks if applicable
     if post:
         query_existing = query_existing.filter(Notification.related_post_id == post.id)
     else:
-        # Ensure we don't match notifications that DO have a post_id if this one doesn't
         query_existing = query_existing.filter(Notification.related_post_id == None)
 
     if comment:
         query_existing = query_existing.filter(Notification.related_comment_id == comment.id)
     else:
-        # Ensure we don't match notifications that DO have a comment_id if this one doesn't
         query_existing = query_existing.filter(Notification.related_comment_id == None)
 
-    # For 'new_follower', the related items (post/comment) will be None, so the above filters handle it.
+    # MODIFIED: Check for repo relation in spam prevention
+    if repo: #
+        query_existing = query_existing.filter(Notification.related_repo_id == repo.id) #
+    else: #
+        query_existing = query_existing.filter(Notification.related_repo_id == None) #
+
 
     existing_notification = query_existing.first()
 
     if existing_notification:
-        app.logger.info(f"Spam prevention: Similar notification (ID: {existing_notification.id}) already exists for User {recipient_user.id} from User {sender_user.id} - Type: {type}. Skipping new notification.")
-        return # Skip creating a new notification
+        app.logger.info(f"Spam prevention: Similar notification (ID: {existing_notification.id}) already exists for User {recipient_user.id} from User {(sender_user.id if sender_user else 'System')} - Type: {type}. Skipping new notification.")
+        return
     # --- End Spam Prevention Check ---
 
     try:
         notification = Notification(
             user_id=recipient_user.id,
-            sender_id=sender_user.id,
+            sender_id=sender_user.id if sender_user else None,
             type=type,
             related_post_id=post.id if post else None,
             related_comment_id=comment.id if comment else None,
-            message=custom_message, # This is often None, relying on to_dict() for message text
-            timestamp=datetime.now(timezone.utc) # Ensure using timezone-aware now
+            related_repo_id=repo.id if repo else None, # ADDED this argument
+            message=custom_message,
+            timestamp=datetime.now(timezone.utc) #
         )
         db.session.add(notification)
         db.session.commit()
-        app.logger.info(f"Notification created for User {recipient_user.id} from User {sender_user.id} - Type: {type}")
+        app.logger.info(f"Notification created for User {recipient_user.id} from User {(sender_user.id if sender_user else 'System')} - Type: {type}")
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error creating notification: {e}", exc_info=True)
@@ -4482,7 +4643,7 @@ def follow_user(username):
         app.logger.error(f"Error during follow action or notification creation by {current_user.username} for {username}: {e}", exc_info=True)
         flash('An error occurred while trying to follow the user.', 'danger')
 
-    return redirect(url_for('user_profile', username=username))
+    return redirect(request.referrer or url_for('user_profile', username=username))
 
 @app.route('/unfollow/<username>', methods=['POST'])
 @login_required
@@ -4494,7 +4655,7 @@ def unfollow_user(username):
     current_user.unfollow(user_to_unfollow)
     db.session.commit()
     flash(f'You have unfollowed {username}.', 'info')
-    return redirect(url_for('user_profile', username=username))
+    return redirect(request.referrer or url_for('user_profile', username=username))
 
 
 @app.route('/notifications')
@@ -4983,6 +5144,60 @@ def api_delete_comment(comment_id):
         db.session.rollback()
         app.logger.error(f"Error deleting comment {comment_id} by user {current_user.id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": "Could not delete comment due to a server error."}), 500
+
+
+@app.route('/find_people', methods=['GET'])
+@login_required
+def find_people():
+    """
+    Route for the 'Find People' page.
+    Displays all users by default, filters by username or name on search.
+    Shows follow/unfollow status for each user.
+    """
+    search_query = request.args.get('search_query', '').strip()
+
+    # Base query: get all users except the current one
+    # User model is assumed to be imported at the top of the file
+    users_query_builder = User.query.filter(User.id != current_user.id)
+
+    if search_query:
+        # Filter by username, first name, or last name (case-insensitive)
+        search_term = f"%{search_query}%"
+        search_conditions = []
+        # Check if attributes exist before trying to use them in a query
+        if hasattr(User, 'username'):
+            search_conditions.append(User.username.ilike(search_term))
+        if hasattr(User, 'first_name'): # Assuming your User model has 'first_name'
+            search_conditions.append(User.first_name.ilike(search_term))
+        if hasattr(User, 'last_name'):  # Assuming your User model has 'last_name'
+            search_conditions.append(User.last_name.ilike(search_term))
+
+        if search_conditions:
+            # This is where or_ is used. Ensure it's imported from sqlalchemy.
+            users_query_builder = users_query_builder.filter(or_(*search_conditions))
+
+    all_users_profiles = users_query_builder.order_by(User.username).all()
+
+    users_with_follow_status = []
+    if all_users_profiles:
+        for user_profile in all_users_profiles:
+            is_following = False
+            if hasattr(current_user, 'is_following') and isinstance(user_profile, User):
+                try:
+                    is_following = current_user.is_following(user_profile)
+                except Exception as e:
+                    app.logger.error(f"Error checking follow status for {current_user.username} -> {user_profile.username}: {e}")
+                    is_following = False
+
+            users_with_follow_status.append({
+                'profile': user_profile,
+                'is_following': is_following
+            })
+
+    return render_template('find_people.html',
+                           title="Find People",
+                           users_data=users_with_follow_status,
+                           search_query=search_query)
 
 @app.route('/friends')
 @login_required
@@ -6508,6 +6723,19 @@ def get_repo_details_db(owner_username, repo_short_name):
     return GitRepository.query.filter_by(user_id=user.id, name=repo_short_name).first()
 
 
+def user_can_write_to_repo(user, repo_db_obj):
+    """Checks if a user can write to (commit to) a repository."""
+    if not user or not user.is_authenticated or not repo_db_obj:
+        return False
+    # Owner can always write
+    if repo_db_obj.user_id == user.id:
+        return True
+    # Check if the user is a collaborator
+    if repo_db_obj.is_collaborator(user): # Assumes GitRepository.is_collaborator(user_obj) method exists
+        return True
+    return False
+
+
 def get_default_branch(repo_disk_path):
     """Gets the default branch of a repository (e.g., main, master)."""
     git_exe = current_app.config['GIT_EXECUTABLE_PATH']
@@ -6546,37 +6774,45 @@ def get_default_branch(repo_disk_path):
 def repo_auth_required_db(f):
     @wraps(f)
     def decorated_function(owner_username, repo_short_name, *args, **kwargs):
-        # Fetch repository from DB
         repo_db_obj = get_repo_details_db(owner_username, repo_short_name)
         if not repo_db_obj:
             abort(404, "Repository not found.")
 
-        g.repo = repo_db_obj # Store SQLAlchemy object in g
-        g.repo_disk_path = repo_db_obj.disk_path # Already stored in DB
+        g.repo = repo_db_obj
+        g.repo_disk_path = repo_db_obj.disk_path
 
         if repo_db_obj.is_private:
             if not current_user.is_authenticated:
                 flash("You must be logged in to view this private repository.", "warning")
-                # For git_info_refs and git_service_rpc, a 401/403 will be handled differently.
-                # This part is more for web UI access.
                 if request.endpoint not in ['git_info_refs', 'git_service_rpc']:
-                     return redirect(url_for('login', next=request.url))
-                else: # For Git HTTP backend, let the specific routes handle 401/403
-                     pass # Will be checked again in those routes
+                    return redirect(url_for('login', next=request.url))
+                else:
+                    # For Git HTTP backend, let specific routes handle 401/403.
+                    # If we reach here for git operations, it means no WWW-Authenticate was sent yet.
+                    # The git_info_refs and git_service_rpc will trigger the 401 if needed.
+                    pass
 
-            # Check if the authenticated user is the owner
-            if current_user.id != repo_db_obj.user_id:
-                # TODO: Implement collaborator logic if needed in the future
+
+            # Check if the authenticated user is the owner OR a collaborator
+            is_owner = (current_user.id == repo_db_obj.user_id)
+            is_collaborator = repo_db_obj.is_collaborator(current_user) # Assuming current_user is authenticated
+
+            if not (is_owner or is_collaborator):
                 flash("You do not have permission to view this private repository.", "danger")
                 if request.endpoint not in ['git_info_refs', 'git_service_rpc']:
-                    return redirect(url_for('git_homepage')) # Or some other appropriate page
+                    return redirect(url_for('git_homepage'))
                 else:
-                    # For Git HTTP backend, if it's private and not owner, deny.
-                    # The specific Git routes will re-verify for push/pull actions.
-                    if service_rpc == 'git-receive-pack': # Pushing requires ownership strict
+                    # For Git HTTP backend on private repos, if not owner or collaborator, deny.
+                    # This logic is now more aligned with the checks within git_info_refs/git_service_rpc
+                    # based on whether those routes themselves require auth.
+                    # The main denial for git operations will happen within those routes if auth fails.
+                    # Here, we just ensure that if it's private, the user has some link (owner/collaborator).
+                     service = request.args.get('service') # For info/refs
+                     service_rpc_from_url = kwargs.get('service_rpc') # For service_rpc routes
+
+                     if service == 'git-receive-pack' or service_rpc_from_url == 'git-receive-pack': # Pushing
                          abort(403, "Write access denied to private repository.")
-                    # For pull on private, if not owner, also deny (unless collaborators added later)
-                    elif service_rpc == 'git-upload-pack':
+                     elif service == 'git-upload-pack' or service_rpc_from_url == 'git-upload-pack': # Pulling/Cloning
                          abort(403, "Read access denied to private repository.")
 
         return f(owner_username, repo_short_name, *args, **kwargs)
@@ -6618,17 +6854,44 @@ def git_homepage():
 @app.route("/git/mygit")
 @login_required
 def mygit():
-    user_repos_list = GitRepository.query.filter_by(user_id=current_user.id).order_by(GitRepository.updated_at.desc()).all()
-    repos_with_details = []
-    for repo in user_repos_list:
-        git_details = get_repo_git_details(repo.disk_path) # Use repo.disk_path
-        language_stats = get_or_calculate_language_stats(repo)
-        repos_with_details.append({
-            'repo': repo,
+    # 1. Repositories owned by the current user
+    owned_repos_query = GitRepository.query.filter_by(user_id=current_user.id).order_by(GitRepository.updated_at.desc()) #
+    owned_repos_list = owned_repos_query.all() #
+
+    owned_repos_details = []
+    for repo_obj in owned_repos_list:
+        git_details = get_repo_git_details(repo_obj.disk_path) #
+        language_stats = get_or_calculate_language_stats(repo_obj) #
+        owned_repos_details.append({
+            'repo': repo_obj,
             'git_details': git_details,
-            'language_stats': language_stats # Add language stats
+            'language_stats': language_stats,
+            'access_type': 'owner' # Explicitly mark as owner
         })
-    return render_template("git/mygit.html", user_repos_data=repos_with_details) # MODIFIED variable name
+
+    # 2. Repositories the current user collaborates on
+    collaborated_repos_query = current_user.collaborating_repositories.order_by(GitRepository.updated_at.desc()) #
+    collaborated_repos_list = collaborated_repos_query.all() #
+
+    collaborated_repos_details = []
+    for repo_obj in collaborated_repos_list:
+        # Ensure we don't list a repo here if it's already in owned_repos_list
+        # (though current logic prevents owner from being a collaborator on their own repo)
+        if not any(owned_repo_data['repo'].id == repo_obj.id for owned_repo_data in owned_repos_details):
+            git_details = get_repo_git_details(repo_obj.disk_path) #
+            language_stats = get_or_calculate_language_stats(repo_obj) #
+            collaborated_repos_details.append({
+                'repo': repo_obj,
+                'git_details': git_details,
+                'language_stats': language_stats,
+                'access_type': 'collaborator' # Explicitly mark as collaborator
+            })
+
+    return render_template(
+        "git/mygit.html",
+        owned_repos_data=owned_repos_details,
+        collaborated_repos_data=collaborated_repos_details
+    )
 
 
 @app.route("/git/repo/create", methods=["GET", "POST"])
@@ -6694,6 +6957,92 @@ def create_repo_route():
 
     return render_template("git/create_repo.html") # For GET request
 
+@app.route('/<owner_username>/<repo_short_name>/settings/collaborators/add', methods=['POST'])
+@login_required
+@repo_auth_required_db
+def add_collaborator_route(owner_username, repo_short_name):
+    repo_db_obj = g.repo
+    if repo_db_obj.user_id != current_user.id:
+        flash("Only the repository owner can add collaborators.", "danger")
+        return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    username_to_add = request.form.get('username_to_add', '').strip()
+    if not username_to_add:
+        flash("Please enter a username to add as a collaborator.", "warning")
+        return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) + "#collaborators-section")
+
+    user_to_add = User.query.filter_by(username=username_to_add).first()
+
+    if not user_to_add:
+        flash(f"User '{username_to_add}' not found.", "danger")
+    elif user_to_add.id == current_user.id:
+        flash("You cannot add yourself as a collaborator.", "warning")
+    elif repo_db_obj.is_collaborator(user_to_add):
+        flash(f"User '{username_to_add}' is already a collaborator on this repository.", "info")
+    else:
+        try:
+            repo_db_obj.add_collaborator(user_to_add)
+            db.session.commit()
+            flash(f"User '{username_to_add}' has been added as a collaborator.", "success")
+            current_app.logger.info(f"User {user_to_add.username} added as collaborator to {repo_db_obj.name} by {current_user.username}")
+
+            # --- SEND NOTIFICATION ---
+            create_notification(
+                recipient_user=user_to_add,
+                sender_user=current_user, # The repo owner
+                type='repo_collaborator_added',
+                repo=repo_db_obj
+            )
+            # --- END NOTIFICATION ---
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error adding collaborator: {str(e)}", "danger")
+            current_app.logger.error(f"Error adding collaborator {username_to_add} to repo {repo_db_obj.id}: {e}", exc_info=True)
+
+    return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) + "#collaborators-section")
+
+
+
+@app.route('/<owner_username>/<repo_short_name>/settings/collaborators/remove/<int:collaborator_user_id>', methods=['POST'])
+@login_required
+@repo_auth_required_db
+def remove_collaborator_route(owner_username, repo_short_name, collaborator_user_id):
+    repo_db_obj = g.repo
+    if repo_db_obj.user_id != current_user.id:
+        flash("Only the repository owner can remove collaborators.", "danger")
+        return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name))
+
+    user_to_remove = User.query.get(collaborator_user_id)
+
+    if not user_to_remove:
+        flash("Collaborator not found.", "danger")
+    elif not repo_db_obj.is_collaborator(user_to_remove):
+        flash(f"User '{user_to_remove.username}' is not a collaborator on this repository.", "info")
+    else:
+        try:
+            repo_db_obj.remove_collaborator(user_to_remove)
+            db.session.commit()
+            flash(f"User '{user_to_remove.username}' has been removed as a collaborator.", "success")
+            current_app.logger.info(f"User {user_to_remove.username} removed as collaborator from {repo_db_obj.name} by {current_user.username}")
+
+            # --- SEND NOTIFICATION ---
+            create_notification(
+                recipient_user=user_to_remove,
+                sender_user=current_user, # The repo owner
+                type='repo_collaborator_removed',
+                repo=repo_db_obj
+            )
+            # --- END NOTIFICATION ---
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error removing collaborator: {str(e)}", "danger")
+            current_app.logger.error(f"Error removing collaborator {user_to_remove.username} from repo {repo_db_obj.id}: {e}", exc_info=True)
+
+    return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) + "#collaborators-section")
+
+
 @app.route("/git/repo/delete/<int:repo_id>", methods=["POST"]) # Use repo_id from DB
 @login_required
 def delete_repo(repo_id):
@@ -6748,14 +7097,24 @@ def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
     repo_disk_path = g.repo_disk_path
     items_for_template = []
     is_empty_repo = False
-    repo_db = g.repo # The GitRepository DB object
-    readme_html_content = None # Initialize README content
+    repo_db = g.repo
+    readme_html_content = None
+    language_stats_for_view = {}
 
-    language_stats_for_view = {} # Initialize
-    if not object_path: # Only calculate/show for the root of the current ref
-        # Pass the specific ref_name being viewed to the stats calculation
+    # --- Fetch Owner and Collaborators ---
+    repo_owner = repo_db.owner # Assuming repo_db.owner is the User object for the owner
+    collaborators_list = repo_db.collaborators.all() # Get all collaborator User objects
+
+    # Combine owner and collaborators for the modal list, ensure owner is listed first or distinctly
+    # For simplicity, we can pass them separately or combine them here.
+    # Let's pass owner and collaborators_list separately to the template.
+    # The count should be owner + collaborators.
+    total_contributors_count = 1 + len(collaborators_list) # Owner + collaborators
+    # --- End Fetch Owner and Collaborators ---
+
+
+    if not object_path:
         language_stats_for_view = get_or_calculate_language_stats(repo_db, ref_name)
-
 
     GIT_PATH = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
 
@@ -6799,10 +7158,8 @@ def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
                 }
                 items_for_template.append(current_item)
 
-                # --- README.md Detection and Reading ---
                 if name.lower() == 'readme.md' and parts[1] == 'blob':
                     readme_found_in_listing = True
-                    readme_sha = parts[2]
                     try:
                         readme_show_target = f"{ref_name}:{item_path_in_repo}"
                         readme_result = subprocess.run(
@@ -6816,13 +7173,8 @@ def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
                         current_app.logger.error(f"Unexpected error reading README.md content ({item_path_in_repo}): {e_readme_general}", exc_info=True)
 
             if readme_found_in_listing and readme_content_raw:
-                # Convert Markdown to HTML using the 'markdown' library with GitHub Flavored Markdown extensions
-                # Common extensions include: 'fenced_code', 'tables', 'sane_lists', 'codehilite' (requires Pygments)
-                # For basic syntax, 'extra' is often a good starting point.
-                # The link you provided implies GFM, which 'extra' largely covers.
-                # For full GFM, you might need more specific extension configurations or other libraries.
                 html = markdown.markdown(readme_content_raw, extensions=['extra', 'fenced_code', 'codehilite', 'tables'])
-                readme_html_content = Markup(html) # Mark as safe for Jinja rendering
+                readme_html_content = Markup(html)
 
         except subprocess.CalledProcessError as e:
             current_app.logger.warning(f"git ls-tree failed for '{ls_tree_target}' in {repo_disk_path}: {e.stderr.decode(errors='ignore')}")
@@ -6840,7 +7192,9 @@ def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
         current_breadcrumb_path = str(Path(current_breadcrumb_path) / part)
         breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path)})
 
-    is_owner = current_user.is_authenticated and current_user.id == repo_db.user_id
+    is_true_owner = current_user.is_authenticated and current_user.id == repo_db.user_id
+    can_commit = user_can_write_to_repo(current_user, repo_db)
+
     overall_repo_git_stats = get_repo_git_details(repo_disk_path)
     current_user_starred_repo = False
     if current_user.is_authenticated:
@@ -6854,15 +7208,20 @@ def view_repo_tree(owner_username, repo_short_name, ref_name, object_path):
                              current_path=object_path,
                              breadcrumbs=breadcrumbs,
                              is_empty_repo=is_empty_repo and not items_for_template,
-                             is_owner=is_owner,
+                             is_true_owner=is_true_owner,
+                             can_commit=can_commit,
                              repo_is_private=repo_db.is_private,
                              repo=repo_db,
                              overall_repo_git_stats=overall_repo_git_stats,
                              current_user_starred_repo=current_user_starred_repo,
-                             readme_content=readme_html_content, # Pass README content to template
-                             language_stats=language_stats_for_view)
-
-
+                             readme_content=readme_html_content,
+                             language_stats=language_stats_for_view,
+                             # --- ADDED FOR COLLABORATORS MODAL ---
+                             repo_owner=repo_owner,
+                             collaborators_list=collaborators_list,
+                             total_contributors_count=total_contributors_count
+                             # --- END ADDED ---
+                            )
 
 @app.route('/<owner_username>/<repo_short_name>/commit/<commit_id>')
 @repo_auth_required_db # You'll likely want to use your existing auth decorator
@@ -6953,9 +7312,13 @@ def repo_edit_view(owner_username, repo_short_name, ref_name, file_path):
     repo_db_model = g.repo
     repo_disk_path = g.repo_disk_path
 
-    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
+    if not user_can_write_to_repo(current_user, repo_db_model): # MODIFIED
         flash("You do not have permission to edit files in this repository.", "danger")
         return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path))
+
+    # Also update is_owner passed to template, or add can_commit
+    can_commit_to_repo = user_can_write_to_repo(current_user, repo_db_model) # NEW VARIABLE
+
 
     content = ""
     try:
@@ -7006,7 +7369,10 @@ def repo_edit_view(owner_username, repo_short_name, ref_name, file_path):
                            form=form,
                            breadcrumbs=breadcrumbs,
                            codemirror_mode=codemirror_mode,
-                           is_owner=(current_user.is_authenticated and current_user.id == repo_db_model.user_id))
+                           is_owner=can_commit_to_repo,
+                           is_true_owner=(current_user.is_authenticated and current_user.id == repo_db_model.user_id),
+                           can_commit=can_commit_to_repo
+                           )
 
 
 @app.route('/<owner_username>/<repo_short_name>/savefile/<ref_name>/<path:original_file_path>', methods=['POST'])
@@ -7017,11 +7383,12 @@ def save_repo_file(owner_username, repo_short_name, ref_name, original_file_path
     repo_disk_path = repo_db_model.disk_path
     git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
 
-    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
+    if not user_can_write_to_repo(current_user, repo_db_model): # MODIFIED
         if request.is_json:
             return jsonify({"status": "error", "message": "You do not have permission to save files in this repository."}), 403
         flash("You do not have permission to save files in this repository.", "danger")
         return redirect(url_for('view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=original_file_path))
+
 
     if not request.is_json:
         flash("Invalid request format. Expected JSON.", "danger")
@@ -7248,6 +7615,9 @@ def view_repo_blob(owner_username, repo_short_name, ref_name, file_path):
     # +++ ADDED: Get overall repo stats for context (like star count, total commits) +++
     overall_repo_git_stats = get_repo_git_details(repo_disk_path)
 
+    is_true_owner = current_user.is_authenticated and current_user.id == repo_db_model.user_id
+    can_commit_to_repo = user_can_write_to_repo(current_user, repo_db_model)
+
     current_user_starred_status = False
     if current_user.is_authenticated:
         current_user_starred_status = current_user.has_starred_repo(repo_db_model)
@@ -7263,7 +7633,9 @@ def view_repo_blob(owner_username, repo_short_name, ref_name, file_path):
                            repo=repo_db_model, # Pass the GitRepository SQLAlchemy object
                            file_git_details=file_git_details,
                            overall_repo_git_stats=overall_repo_git_stats, # Ensure this is passed
-                           current_user_starred=current_user_starred_status # Pass starring status
+                           current_user_starred=current_user_starred_status, # Pass starring status
+                           is_true_owner=is_true_owner,
+                           can_commit=can_commit_to_repo,
                            # PYGMENTS_AVAILABLE and highlighted_content are removed as per your request
                            )
 
@@ -7279,11 +7651,12 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
     repo_disk_path = repo_db_model.disk_path
     git_exe_path = current_app.config.get('GIT_EXECUTABLE_PATH', "git")
 
-    if not current_user.is_authenticated or repo_db_model.user_id != current_user.id:
-        if request.is_json:
-            return jsonify({"status": "error", "message": "You must be the owner to create files/folders."}), 403
-        flash("You must be the owner to create files/folders in this repository.", "danger")
+    if not user_can_write_to_repo(current_user, repo_db_model): # MODIFIED
+        if request.method == 'POST' and request.is_json: # Check if POST and JSON for API-like response
+             return jsonify({"status": "error", "message": "You do not have permission to create files/folders in this repository."}), 403
+        flash("You do not have permission to create files/folders in this repository.", "danger")
         return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
 
     committer_name = current_user.username
     committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
@@ -7449,9 +7822,10 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
 @repo_auth_required_db # g.repo is the GitRepository SQLAlchemy object
 def upload_repo_files(owner_username, repo_short_name, ref_name, dir_path):
     # Corrected permission check
-    if not current_user.is_authenticated or g.repo.owner.username != current_user.username:
-        flash("You must be the owner to upload files to this repository.", "danger")
+    if not user_can_write_to_repo(current_user, g.repo): # MODIFIED
+        flash("You do not have permission to upload files to this repository.", "danger")
         return redirect(url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+
 
     repo_disk_path = g.repo.disk_path # Access attribute from the object
 
@@ -7668,9 +8042,24 @@ def fork_repo(owner_username, repo_short_name):
 def repo_settings(owner_username, repo_short_name): # repo_short_name is the name from URL
     repo_db_obj = g.repo
 
-    if repo_db_obj.user_id != current_user.id:
-        flash("You do not have permission to change these settings.", "danger")
-        return redirect(url_for('git/view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name))
+    # --- START MODIFICATION ---
+    if request.method == 'GET':
+        # Explicitly refresh the object and its 'collaborators' collection
+        # to ensure we have the absolute latest state from the DB.
+        db.session.refresh(repo_db_obj)
+        # You might also need to expire the collection attribute if refresh alone isn't enough,
+        # though for lazy='dynamic', accessing it should re-query.
+        # If the problem persists after refresh, uncomment the line below:
+        # db.session.expire(repo_db_obj, ['collaborators'])
+
+        # For debugging, log the state after refresh
+        collaborators_after_refresh = repo_db_obj.collaborators.all()
+        count_after_refresh = len(collaborators_after_refresh)
+        current_app.logger.info(f"[repo_settings GET] Repo '{repo_db_obj.name}' (ID: {repo_db_obj.id}) has {count_after_refresh} collaborator(s) after explicit refresh.")
+        for collab in collaborators_after_refresh:
+            current_app.logger.info(f"[repo_settings GET]   - Collaborator: {collab.username} (ID: {collab.id})")
+    # --- END MODIFICATION ---
+
 
     if request.method == 'POST':
         original_repo_name_in_db = repo_db_obj.name
@@ -7684,12 +8073,17 @@ def repo_settings(owner_username, repo_short_name): # repo_short_name is the nam
             if repo_db_obj.is_private != new_is_private:
                 repo_db_obj.is_private = new_is_private
                 settings_updated_successfully = True
+                current_app.logger.info(f"Visibility for repo {repo_db_obj.id} changed to {'private' if new_is_private else 'public'}")
+
 
         # 2. Handle Description Change
         new_description = request.form.get('description', '').strip()
-        if repo_db_obj.description != new_description: # Handles None vs "" correctly
-            repo_db_obj.description = new_description
+        # Ensure comparison handles None from DB vs empty string from form correctly.
+        current_description = repo_db_obj.description if repo_db_obj.description is not None else ""
+        if current_description != new_description:
+            repo_db_obj.description = new_description if new_description else None # Store None if empty
             settings_updated_successfully = True
+            current_app.logger.info(f"Description for repo {repo_db_obj.id} changed.")
 
         # 3. Handle Repository Name Change
         new_repo_name_from_form = request.form.get('repo_name', '').strip()
@@ -7705,6 +8099,8 @@ def repo_settings(owner_username, repo_short_name): # repo_short_name is the nam
                 try:
                     if os.path.exists(old_disk_path):
                         if not os.path.exists(new_intended_disk_path):
+                             # Ensure parent directory of new_intended_disk_path exists
+                            os.makedirs(os.path.dirname(new_intended_disk_path), exist_ok=True)
                             os.rename(old_disk_path, new_intended_disk_path)
                             repo_db_obj.name = new_repo_name_from_form
                             repo_db_obj.disk_path = new_intended_disk_path
@@ -7712,14 +8108,15 @@ def repo_settings(owner_username, repo_short_name): # repo_short_name is the nam
                             new_name_for_redirect = new_repo_name_from_form # Update for redirect
                             current_app.logger.info(f"Repo '{original_repo_name_in_db}' renamed to '{new_repo_name_from_form}'. Path: {new_intended_disk_path}")
                         else:
-                            flash(f"Error renaming: Target path for '{new_repo_name_from_form}' already exists.", "danger")
+                            flash(f"Error renaming: Target path for '{new_repo_name_from_form}' ({new_intended_disk_path}) already exists.", "danger")
+                            current_app.logger.error(f"Path conflict for rename: {new_intended_disk_path} already exists.")
                     else:
                         flash(f"Error renaming: Original repository path for '{original_repo_name_in_db}' not found. Inconsistency detected.", "danger")
                         current_app.logger.error(f"Path not found for rename: {old_disk_path}")
                 except OSError as e:
                     flash(f"Error renaming repository directory: {e}", "danger")
                     current_app.logger.error(f"OSError renaming {old_disk_path} to {new_intended_disk_path}: {e}")
-        elif not new_repo_name_from_form: # Empty name submitted
+        elif not new_repo_name_from_form and request.form.get('repo_name') is not None: # Check if field was submitted empty
              flash("Repository name cannot be empty.", "danger")
 
 
@@ -7727,22 +8124,21 @@ def repo_settings(owner_username, repo_short_name): # repo_short_name is the nam
             try:
                 db.session.commit()
                 flash("Repository settings updated successfully!", "success")
-                # If name changed, redirect to new name's settings page
                 return redirect(url_for('repo_settings', owner_username=owner_username, repo_short_name=new_name_for_redirect))
             except Exception as e:
                 db.session.rollback()
                 flash(f"Error saving settings to database: {str(e)}", "danger")
                 current_app.logger.error(f"Error committing repo settings for {repo_db_obj.id}: {e}", exc_info=True)
-        elif not request.form: # No form data submitted, likely a direct POST without data which shouldn't happen with a form
+        elif not request.form:
             flash("No changes submitted.", "info")
-        # If only errors occurred and no successful update, the page will re-render with errors.
+        # If errors occurred, page will re-render with flashed messages.
 
-    # For GET or if POST had errors preventing successful commit (and didn't redirect)
+    # For GET or if POST had errors and didn't redirect successfully
     return render_template("git/repo_settings.html",
-                           repo=repo_db_obj, # Pass the SQLAlchemy object
-                           owner_username=owner_username, # From URL
-                           repo_short_name=repo_db_obj.name, # Current name from DB for display
-                           current_repo_name_for_url=repo_db_obj.name) # Current name for form action
+                           repo=repo_db_obj,
+                           owner_username=owner_username,
+                           repo_short_name=repo_db_obj.name, # Use current name from DB for display
+                           current_repo_name_for_url=repo_db_obj.name) # current name for form actions
 
 
 # --- Git HTTP Backend ---
@@ -7876,6 +8272,23 @@ def git_service_rpc(username, repo_name_with_git, service_rpc):
             resp.headers['WWW-Authenticate'] = 'Basic realm="Git Repository Access"'
             return resp
 
+        # Permission Check: Owner OR Collaborator (for private repos or push)
+        user_is_owner = (repo_db_obj.owner.username == authenticated_username_for_git)
+
+        # FETCH THE AUTHENTICATED USER OBJECT TO CHECK COLLABORATION STATUS
+        authenticated_user_object = User.query.filter_by(username=authenticated_username_for_git).first()
+        user_is_collaborator = False
+        if authenticated_user_object:
+            user_is_collaborator = repo_db_obj.is_collaborator(authenticated_user_object)
+        if not (user_is_owner or user_is_collaborator):
+            current_app.logger.warning(f"Git RPC: User {authenticated_username_for_git} denied access (not owner or collaborator) to repo {repo_db_obj.owner.username}/{repo_db_obj.name} for {service_rpc}")
+            abort(403, "Access denied. You are not the owner or a collaborator on this repository.")
+
+        # Further refine push access: Only owner or collaborator (assuming collaborators get write access)
+        if is_push_operation and not (user_is_owner or user_is_collaborator):
+            current_app.logger.warning(f"Git RPC: User {authenticated_username_for_git} push denied (not owner or collaborator) to repo {repo_db_obj.owner.username}/{repo_db_obj.name}")
+            abort(403, "Push access denied. Only the repository owner or collaborators can push.")
+
         # Check ownership
         if repo_db_obj.owner.username != authenticated_username_for_git:
             # TODO: Add collaborator check here if relevant for read access on private repos
@@ -7922,11 +8335,12 @@ def git_service_rpc(username, repo_name_with_git, service_rpc):
 @repo_auth_required_db # g.repo is the GitRepository SQLAlchemy object
 def delete_repo_item(owner_username, repo_short_name, ref_name, item_full_path):
     # Corrected permission check
-    if not current_user.is_authenticated or g.repo.owner.username != current_user.username:
+    if not user_can_write_to_repo(current_user, g.repo): # MODIFIED
         flash("You do not have permission to delete items in this repository.", "danger")
         parent_dir_path = str(Path(item_full_path).parent)
         if parent_dir_path == '.': parent_dir_path = ''
         return redirect(url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=parent_dir_path))
+
 
     commit_message = request.form.get("commit_message")
     if not commit_message or not commit_message.strip():
