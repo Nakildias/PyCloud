@@ -27,7 +27,7 @@ import mimetypes
 import codecs
 from sqlalchemy.exc import IntegrityError
 from wtforms.validators import Optional, InputRequired
-from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app, make_response, abort, g)
+from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app, make_response, abort, g, send_file)
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, DateTime, Boolean, inspect
 from git import Repo as PyGitRepo, InvalidGitRepositoryError, NoSuchPathError
@@ -172,6 +172,126 @@ AVAILABLE_THEMES = {
     "retro_wave_light.css": "Retro Wave Light",
     # Add more themes here as you create them
 }
+
+# BEGIN UPSCALER
+
+class ImageUpscalerForm(FlaskForm):
+
+    submit = SubmitField('Upscale Image')
+
+
+PILLOW_UPSCALING_ONLY = False # Use this to control behavior
+
+UPSCALED_IMAGE_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'uploads', 'upscaled_images')
+os.makedirs(UPSCALED_IMAGE_FOLDER, exist_ok=True)
+
+ALLOWED_EXTENSIONS_UPSCALER = {'png', 'jpg', 'jpeg', 'webp'}
+
+def allowed_file_upscaler(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_UPSCALER
+
+@app.route('/image_upscaler', methods=['GET', 'POST'])
+@login_required
+def image_upscaler():
+    form = ImageUpscalerForm()
+    original_file_saved_name = None
+    upscaled_file_saved_name = None
+    original_filename_for_download = None
+    upscaled_img_dimensions = {}
+
+    if request.method == 'POST':
+
+        if 'image_file' not in request.files:
+            flash('No image file part in the request.', 'danger')
+            return redirect(request.url)
+
+        file = request.files['image_file']
+        scale_factor = int(request.form.get('scale_factor', 2))
+
+        if file.filename == '':
+            flash('No image selected for uploading.', 'warning')
+            return redirect(request.url)
+
+        if file and allowed_file_upscaler(file.filename):
+            original_filename_for_download = secure_filename(file.filename)
+            original_ext = os.path.splitext(original_filename_for_download)[1].lower()
+            original_file_saved_name = str(uuid.uuid4()) + original_ext
+            original_file_path = os.path.join(UPSCALED_IMAGE_FOLDER, original_file_saved_name)
+
+            try:
+                file.save(original_file_path)
+                input_img_pil = Image.open(original_file_path)
+
+                if input_img_pil.mode == 'RGBA' or input_img_pil.mode == 'P':
+                    input_img_pil = input_img_pil.convert('RGB')
+
+                original_width, original_height = input_img_pil.size
+                new_width = original_width * scale_factor
+                new_height = original_height * scale_factor
+
+                app.logger.info(f"Resizing image with Pillow to {new_width}x{new_height}")
+                upscaled_img_pil = input_img_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                upscaled_ext = original_ext if original_ext in ['.png', '.jpg', '.jpeg', '.webp'] else '.png'
+                upscaled_file_saved_name = "upscaled_" + str(uuid.uuid4()) + upscaled_ext
+                upscaled_file_path = os.path.join(UPSCALED_IMAGE_FOLDER, upscaled_file_saved_name)
+
+                if upscaled_ext in ['.jpg', '.jpeg']:
+                    if upscaled_img_pil.mode != 'RGB':
+                        upscaled_img_pil = upscaled_img_pil.convert('RGB')
+                    upscaled_img_pil.save(upscaled_file_path, quality=90, optimize=True)
+                else:
+                    upscaled_img_pil.save(upscaled_file_path, optimize=True)
+
+                upscaled_img_dimensions = {'width': upscaled_img_pil.width, 'height': upscaled_img_pil.height}
+                flash(f'Image resized ({scale_factor}x) using Pillow (basic resize).', 'success')
+
+            except Exception as e:
+                flash(f'An error occurred during basic resizing: {str(e)}', 'danger')
+                app.logger.error(f"Error basic resizing file {original_filename_for_download}: {e}", exc_info=True)
+                upscaled_file_saved_name = None
+        else:
+            flash('Invalid file type for upscaling. Allowed: PNG, JPG, JPEG, WEBP.', 'warning')
+
+    # Simple cleanup of old files in UPSCALED_IMAGE_FOLDER
+    try:
+        now_ts = datetime.now().timestamp()
+        for f_name in os.listdir(UPSCALED_IMAGE_FOLDER):
+            f_path = os.path.join(UPSCALED_IMAGE_FOLDER, f_name)
+            if f_name == original_file_saved_name or f_name == upscaled_file_saved_name:
+                continue
+            try:
+                if (now_ts - os.path.getmtime(f_path)) > 600:
+                    os.remove(f_path)
+            except Exception:
+                pass
+    except Exception as e_clean:
+        app.logger.warning(f"Error during temporary upscaled image cleanup: {e_clean}")
+
+    return render_template('image_upscaler.html',
+                           title='Image Upscaler (Basic Resize)',
+                           form=form,  # Pass the form object
+                           original_filename=original_file_saved_name,
+                           upscaled_filename=upscaled_file_saved_name,
+                           original_filename_for_download=original_filename_for_download,
+                           upscaled_dimensions=upscaled_img_dimensions
+                           # No need to pass csrf_token=generate_csrf if using form.hidden_tag()
+                           )
+
+# Ensure the serve_temp_upscaled_image route is still present
+@app.route('/temp_upscaled_images/<filename>')
+@login_required
+def serve_temp_upscaled_image(filename):
+    safe_filename = secure_filename(filename)
+    if safe_filename != filename:
+        abort(404)
+    try:
+        return send_from_directory(UPSCALED_IMAGE_FOLDER, safe_filename)
+    except FileNotFoundError:
+        abort(404)
+
+# END UPSCALER
 
 @app.before_request
 def load_selected_theme():
