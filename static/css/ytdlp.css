@@ -1,0 +1,142 @@
+/* static/css/ytdlp.css */
+.ytdlp-page-container {
+    max-width: 750px;
+    margin: 2rem auto;
+    padding: 25px 30px;
+    background-color: var(--secondary-bg-color, #2c2c2e); /* Adapts to theme */
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    color: var(--text-color, #f0f0f0);
+}
+
+.ytdlp-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.ytdlp-header h2 {
+    color: var(--primary-color, #007bff);
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.ytdlp-header p {
+    font-size: 1rem;
+    opacity: 0.85;
+}
+
+.ytdlp-form .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.ytdlp-form .form-control,
+.ytdlp-form .form-select {
+    background-color: var(--bg-color, #1c1c1e);
+    color: var(--text-color, #f0f0f0);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    padding: 0.65rem 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ytdlp-form .form-control:focus,
+.ytdlp-form .form-select:focus {
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255), 0.35); /* Adapts to theme */
+    background-color: var(--bg-color, #1c1c1e); /* Keep bg on focus */
+    color: var(--text-color, #f0f0f0); /* Keep text color on focus */
+}
+
+.ytdlp-form .form-control::placeholder {
+    color: var(--placeholder-color, #888);
+    opacity: 0.7;
+}
+
+.ytdlp-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    margin-top: 1rem;
+}
+
+.ytdlp-form .btn-primary {
+    background-color: var(--primary-color, #007bff);
+    border-color: var(--primary-color, #007bff);
+    color: var(--button-text-color, #fff); /* Adapts to theme */
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.ytdlp-form .btn-primary:hover {
+    background-color: var(--primary-hover-color, #0056b3); /* Adapts to theme */
+    border-color: var(--primary-hover-color, #0056b3);
+    transform: translateY(-1px);
+}
+.ytdlp-form .btn-primary:active {
+    transform: translateY(0px);
+}
+
+.ytdlp-form .btn-primary .spinner-border-sm {
+    margin-right: 0.5rem;
+}
+
+
+.ytdlp-download-success {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    background-color: var(--success-bg-color, #198754); /* Adapts to theme */
+    color: var(--success-text-color, #fff); /* Adapts to theme */
+    border: 1px solid var(--success-border-color, #146c43); /* Adapts to theme */
+    border-radius: 8px;
+    text-align: center;
+}
+.ytdlp-download-success h4 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+.ytdlp-download-success p {
+    margin-bottom: 0.75rem;
+}
+.ytdlp-download-success .btn {
+    margin: 0.25rem;
+}
+.ytdlp-download-success .btn-outline-success { /* Custom for success context */
+    color: var(--success-text-color, #fff);
+    border-color: var(--success-text-color, #fff);
+}
+.ytdlp-download-success .btn-outline-success:hover {
+    background-color: var(--success-text-color, #fff);
+    color: var(--success-bg-color, #198754);
+}
+.ytdlp-download-success .btn-outline-secondary {
+    color: var(--success-text-color, #fff);
+    border-color: rgba(255,255,255,0.7);
+}
+.ytdlp-download-success .btn-outline-secondary:hover {
+    background-color: rgba(255,255,255,0.1);
+    border-color: #fff;
+}
+
+.invalid-feedback.d-block { /* Ensure WTForms errors are visible */
+    color: var(--error-color, #dc3545);
+    font-size: 0.875em;
+    margin-top: .25rem;
+}
+
+/* Hide video quality by default */
+#videoQualityGroup {
+display: block; /* Default to block, JS will hide if mp3 selected initially */
+}
