@@ -53,7 +53,7 @@
                     <li {% if request.endpoint == 'find_people' %}class="active"{% endif %}><a href="{{ url_for('find_people') }}" class="base-nav-dropdown-item-link">Find People</a></li>
                 </ul>
             </li>
-            {% set misc_active = request.endpoint in ['emulator_gba', 'image_upscaler', 'emulator_gb'] %}
+            {% set misc_active = request.endpoint in ['emulator_gba', 'image_upscaler', 'ytdlp_downloader'] %}
             <li class="base-nav-item base-nav-dropdown {% if misc_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     <img src="{{ url_for('static', filename='icons/controller.svg') }}" alt="" class="base-nav-icon">
@@ -62,6 +62,7 @@
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
                     <li {% if request.endpoint == 'image_upscaler' %}class="active"{% endif %}><a href="{{ url_for('image_upscaler') }}" class="base-nav-dropdown-item-link">Upscale Image</a></li>
+                    <li {% if request.endpoint == 'ytdlp_downloader' %}class="active"{% endif %}><a href="{{ url_for('ytdlp_downloader') }}" class="base-nav-dropdown-item-link">YT-DLP</a></li>
                 </ul>
             </li>
             {% set git_active = request.endpoint in ['git_homepage', 'mygit', 'starred_repositories_page'] %}
