@@ -18,7 +18,7 @@ import requests
 from wtforms import BooleanField, IntegerField
 from wtforms.validators import NumberRange
 import re
-from wtforms import URLField
+from wtforms import URLField, SelectField
 from wtforms.validators import URL
 from werkzeug.exceptions import BadRequest
 import shutil
@@ -172,6 +172,215 @@ AVAILABLE_THEMES = {
     "retro_wave_light.css": "Retro Wave Light",
     # Add more themes here as you create them
 }
+
+# BEGIN YOUTUBE DOWNLOADER
+import yt_dlp # For downloading YouTube videos
+from yt_dlp import YoutubeDL # Specifically for the YoutubeDL class
+
+# Folder for temporary ytdlp downloads before moving to user's main storage
+YTDLP_TEMP_DOWNLOAD_FOLDER = os.path.join(INSTANCE_FOLDER_PATH, 'temp_ytdlp_downloads')
+os.makedirs(YTDLP_TEMP_DOWNLOAD_FOLDER, exist_ok=True)
+
+# Helper to get user-specific temporary ytdlp download path
+def get_user_ytdlp_temp_path(user_id):
+    path = os.path.join(YTDLP_TEMP_DOWNLOAD_FOLDER, str(user_id))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+class YtdlpForm(FlaskForm):
+    youtube_url = URLField('YouTube Video URL', validators=[DataRequired(), URL(message="Please enter a valid URL.")])
+    download_format = SelectField('Format', choices=[
+        ('mp4', 'MP4 Video'),
+        ('mp3', 'MP3 Audio')
+    ], default='mp4', validators=[DataRequired()])
+    video_quality = SelectField('Video Quality (for MP4)', choices=[
+        ('best', 'Best Available'), # Default best
+        ('1080', '1080p'),
+        ('720', '720p'),
+        ('480', '480p'),
+        ('360', '360p')
+    ], default='best', validators=[Optional()]) # Optional as it only applies to MP4
+    submit = SubmitField('Download')
+
+@app.route('/ytdlp', methods=['GET', 'POST'])
+@login_required
+def ytdlp_downloader():
+    form = YtdlpForm()
+    # downloaded_file_info = None # Using session flash now
+
+    if form.validate_on_submit():
+        video_url = form.youtube_url.data
+        download_format = form.download_format.data
+        video_quality = form.video_quality.data # Only relevant if download_format is 'mp4'
+
+        user_id = current_user.id
+        user_temp_ytdlp_path = get_user_ytdlp_temp_path(user_id)
+
+        # Clean the temporary directory for this user before new download
+        try:
+            for item in os.listdir(user_temp_ytdlp_path):
+                item_path = os.path.join(user_temp_ytdlp_path, item)
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.unlink(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+        except Exception as e_clean:
+            app.logger.warning(f"Could not fully clean temp ytdlp dir {user_temp_ytdlp_path}: {e_clean}")
+
+        app.logger.info(f"User {user_id} attempting to download: {video_url} as {download_format} (Quality: {video_quality if download_format == 'mp4' else 'N/A'})")
+
+        video_title_for_filename = "yt_download"
+        try:
+            with YoutubeDL({'quiet': True, 'noplaylist': True, 'extract_flat': True, 'logger': app.logger}) as ydl_info:
+                pre_info_dict = ydl_info.extract_info(video_url, download=False)
+            video_title_for_filename = pre_info_dict.get('title', video_title_for_filename)
+        except Exception as e_pre_info:
+            app.logger.warning(f"Could not pre-fetch video title for {video_url}: {e_pre_info}. Using default.")
+
+        temp_dl_uuid_filename = str(uuid.uuid4())
+        # Extension will be determined by yt-dlp based on format choice
+        temp_output_template = os.path.join(user_temp_ytdlp_path, f"{temp_dl_uuid_filename}.%(ext)s")
+
+        ydl_opts = {
+            'outtmpl': temp_output_template,
+            'noplaylist': True,
+            'quiet': False,
+            'noprogress': True,
+            'logger': app.logger,
+            'continuedl': True,
+            'ignoreerrors': False,
+        }
+
+        if download_format == 'mp3':
+            ydl_opts.update({
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192', # Bitrate for MP3
+                }],
+            })
+            final_extension_hint = ".mp3"
+        else: # mp4
+            quality_filter = ""
+            if video_quality != 'best':
+                quality_filter = f"[height<={video_quality}]" # e.g., [height<=720]
+
+            # Format selection string for yt-dlp
+            # Try for mp4 container directly with specified quality, fallback to best mp4, then any best.
+            ydl_opts['format'] = f"bestvideo{quality_filter}[ext=mp4]+bestaudio[ext=m4a]/best{quality_filter}[ext=mp4]/best{quality_filter}/best"
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }]
+            final_extension_hint = ".mp4"
+
+
+        downloaded_video_actual_path = None
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                result_info = ydl.extract_info(video_url, download=True)
+
+            if result_info and result_info.get('filepath'):
+                downloaded_video_actual_path = result_info['filepath']
+            elif result_info and result_info.get('requested_downloads') and result_info['requested_downloads'][0].get('filepath'):
+                downloaded_video_actual_path = result_info['requested_downloads'][0]['filepath']
+            elif result_info and result_info.get('_filename'):
+                _fn = result_info['_filename']
+                downloaded_video_actual_path = os.path.join(user_temp_ytdlp_path, os.path.basename(_fn)) if not os.path.isabs(_fn) else _fn
+
+            if not downloaded_video_actual_path or not os.path.exists(downloaded_video_actual_path):
+                app.logger.warning(f"Path from info_dict ('{downloaded_video_actual_path}') not valid. Searching by UUID pattern '{temp_dl_uuid_filename}'.")
+                found_files = [f for f in os.listdir(user_temp_ytdlp_path) if f.startswith(temp_dl_uuid_filename)]
+                if found_files:
+                    full_paths = [os.path.join(user_temp_ytdlp_path, f) for f in found_files]
+                    # For MP3, the file might have .mp3. For video, it might be .mp4 or other.
+                    # Prefer the one matching the final_extension_hint if possible.
+                    preferred_found_file = next((p for p in full_paths if p.endswith(final_extension_hint)), None)
+                    if preferred_found_file:
+                        downloaded_video_actual_path = preferred_found_file
+                    else: # Fallback to largest or first
+                        downloaded_video_actual_path = max(full_paths, key=lambda p: os.path.getsize(p) if os.path.exists(p) else -1)
+                    app.logger.info(f"Found file by UUID pattern: {downloaded_video_actual_path}")
+                else:
+                    downloaded_video_actual_path = None
+
+            if not downloaded_video_actual_path:
+                app.logger.error(f"yt-dlp finished, but failed to determine the final downloaded file path. Result info: {json.dumps(result_info, indent=2, default=str)}")
+                raise Exception("Could not locate the downloaded file after yt-dlp execution.")
+
+            if not os.path.exists(downloaded_video_actual_path):
+                app.logger.error(f"File path determined as '{downloaded_video_actual_path}', but it does not exist on disk. Result info: {json.dumps(result_info, indent=2, default=str)}")
+                raise Exception(f"Post-download check: File path '{downloaded_video_actual_path}' does not exist.")
+
+            app.logger.info(f"File successfully processed by yt-dlp, final temp path: {downloaded_video_actual_path}")
+
+            file_size_bytes = os.path.getsize(downloaded_video_actual_path)
+
+            actual_extension = os.path.splitext(downloaded_video_actual_path)[1].lower()
+            # Ensure final_extension_hint is used if actual_extension is something generic like .tmp
+            if not actual_extension or actual_extension == '.tmp':
+                actual_extension = final_extension_hint
+
+            original_filename_for_db = secure_filename(video_title_for_filename + actual_extension)
+            if not original_filename_for_db.endswith(actual_extension):
+                original_filename_for_db = secure_filename(video_title_for_filename) + actual_extension
+
+            stored_filename_on_disk = str(uuid.uuid4()) + actual_extension
+            user_main_upload_path = get_user_upload_path(user_id)
+            final_file_path_on_disk = os.path.join(user_main_upload_path, stored_filename_on_disk)
+
+            storage_info = get_user_storage_info(current_user)
+            available_bytes = storage_info['limit_bytes'] - storage_info['usage_bytes']
+            if file_size_bytes > available_bytes:
+                os.remove(downloaded_video_actual_path)
+                flash(f"Downloaded file size ({file_size_bytes / (1024*1024):.2f}MB) exceeds your available storage ({available_bytes / (1024*1024):.2f}MB).", 'danger')
+                return redirect(url_for('ytdlp_downloader'))
+
+            shutil.move(downloaded_video_actual_path, final_file_path_on_disk)
+            app.logger.info(f"Moved downloaded file to: {final_file_path_on_disk}")
+
+            mime_type, _ = mimetypes.guess_type(final_file_path_on_disk)
+            if not mime_type: # Fallback based on chosen format
+                mime_type = 'audio/mpeg' if download_format == 'mp3' else 'video/mp4'
+
+            new_file_db_record = File(
+                original_filename=original_filename_for_db,
+                stored_filename=stored_filename_on_disk,
+                filesize=file_size_bytes,
+                mime_type=mime_type,
+                user_id=user_id,
+                parent_folder_id=None
+            )
+            db.session.add(new_file_db_record)
+            db.session.commit()
+
+            flash(f"Successfully downloaded and saved '{new_file_db_record.original_filename}'!", 'success')
+            app.logger.info(f"File '{new_file_db_record.original_filename}' (File ID: {new_file_db_record.id}) saved for user {user_id}.")
+            session['last_downloaded_ytdlp_info'] = {
+                'original_filename': new_file_db_record.original_filename,
+                'filesize': new_file_db_record.filesize,
+                'id': new_file_db_record.id
+            }
+            return redirect(url_for('ytdlp_downloader'))
+
+        except yt_dlp.utils.DownloadError as e:
+            app.logger.error(f"yt-dlp DownloadError for {video_url} by user {user_id}: {str(e)}")
+            flash(f"Could not download. Error: {str(e)}", 'danger')
+        except Exception as e:
+            app.logger.error(f"Error during ytdlp processing for {video_url} by user {user_id}: {str(e)}", exc_info=True)
+            flash(f"An unexpected error occurred: {str(e)}", 'danger')
+            if downloaded_video_actual_path and os.path.exists(downloaded_video_actual_path):
+                 try: os.remove(downloaded_video_actual_path)
+                 except OSError: pass
+
+    downloaded_file_info_from_session = session.pop('last_downloaded_ytdlp_info', None)
+    return render_template('ytdlp.html',
+                           title='YouTube Downloader',
+                           form=form,
+                           downloaded_file_info=downloaded_file_info_from_session)
+
+# END YOUTUBE DOWNLOADER
 
 # BEGIN UPSCALER
 
