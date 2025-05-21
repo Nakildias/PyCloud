@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Youtube Downloader - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ytdlp.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ytdlp-page-container">
+    <header class="ytdlp-header">
+        <h2>YouTube Downloader</h2>
+        <p>Enter the URL of the YouTube video and choose your preferred format and quality.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="ytdlp-form" id="ytdlpForm">
+        {{ form.hidden_tag() }} {# CSRF token #}
+
+        <div class="mb-3">
+            {{ form.youtube_url.label(class="form-label") }}
+            {{ form.youtube_url(class="form-control form-control-lg", placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ") }}
+            {% if form.youtube_url.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.youtube_url.errors %}
+                        <span>{{ error }}</span><br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="ytdlp-options-grid">
+            <div class="mb-3">
+                {{ form.download_format.label(class="form-label") }}
+                {{ form.download_format(class="form-select form-select-lg", id="downloadFormat") }}
+                {% if form.download_format.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.download_format.errors %}<span>{{ error }}</span><br>{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3" id="videoQualityGroup">
+                {{ form.video_quality.label(class="form-label") }}
+                {{ form.video_quality(class="form-select form-select-lg", id="videoQuality") }}
+                {% if form.video_quality.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.video_quality.errors %}<span>{{ error }}</span><br>{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" id="downloadButton">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-download me-2" viewBox="0 0 16 16" style="display: inline-block;">
+                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L6.354 8.146a.5.5 0 1 0-.708.708z"/>
+            </svg>
+            <span class="button-text">Download</span>
+        </button>
+    </form>
+
+    {% if downloaded_file_info %}
+    <div class="ytdlp-download-success">
+        <h4>Download Complete!</h4>
+        <p><strong>{{ downloaded_file_info.original_filename }}</strong> ({{ (downloaded_file_info.filesize / (1024*1024)) | round(2) }} MB) has been saved to your files.</p>
+        <p>
+            <a href="{{ url_for('view_file', file_id=downloaded_file_info.id) }}" class="btn btn-sm btn-outline-success">View File</a>
+            <a href="{{ url_for('list_files') }}" class="btn btn-sm btn-outline-secondary">Go to My Files</a>
+        </p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const downloadFormatSelect = document.getElementById('downloadFormat');
+    const videoQualityGroup = document.getElementById('videoQualityGroup');
+    const ytdlpForm = document.getElementById('ytdlpForm');
+    const downloadButton = document.getElementById('downloadButton');
+    const buttonSpinner = downloadButton.querySelector('.spinner-border');
+    const buttonText = downloadButton.querySelector('.button-text');
+    const buttonIcon = downloadButton.querySelector('.bi-download');
+
+
+    function toggleVideoQuality() {
+        if (downloadFormatSelect.value === 'mp4') {
+            videoQualityGroup.style.display = 'block';
+        } else {
+            videoQualityGroup.style.display = 'none';
+        }
+    }
+
+    if (downloadFormatSelect && videoQualityGroup) {
+        downloadFormatSelect.addEventListener('change', toggleVideoQuality);
+        // Initial check
+        toggleVideoQuality();
+    }
+
+    if (ytdlpForm && downloadButton && buttonSpinner && buttonText && buttonIcon) {
+        ytdlpForm.addEventListener('submit', function() {
+            buttonSpinner.style.display = 'inline-block';
+            buttonIcon.style.display = 'none';
+            buttonText.textContent = 'Processing...';
+            downloadButton.disabled = true;
+        });
+    }
+});
+</script>
+{% endblock %}
