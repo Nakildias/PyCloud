@@ -201,7 +201,6 @@ def image_upscaler():
     upscaled_img_dimensions = {}
 
     if request.method == 'POST':
-
         if 'image_file' not in request.files:
             flash('No image file part in the request.', 'danger')
             return redirect(request.url)
@@ -215,70 +214,118 @@ def image_upscaler():
 
         if file and allowed_file_upscaler(file.filename):
             original_filename_for_download = secure_filename(file.filename)
-            original_ext = os.path.splitext(original_filename_for_download)[1].lower()
-            original_file_saved_name = str(uuid.uuid4()) + original_ext
-            original_file_path = os.path.join(UPSCALED_IMAGE_FOLDER, original_file_saved_name)
+            # original_ext is determined later for the output, input format is handled by Pillow
+
+            # Use a unique name for the initially saved (original) file as well
+            temp_original_ext = os.path.splitext(original_filename_for_download)[1].lower()
+            temp_original_saved_name = "original_" + str(uuid.uuid4()) + temp_original_ext
+            original_file_path = os.path.join(UPSCALED_IMAGE_FOLDER, temp_original_saved_name)
+            original_file_saved_name = temp_original_saved_name # To show original in template
 
             try:
                 file.save(original_file_path)
                 input_img_pil = Image.open(original_file_path)
 
-                if input_img_pil.mode == 'RGBA' or input_img_pil.mode == 'P':
-                    input_img_pil = input_img_pil.convert('RGB')
+                img_to_resize = None
+                if input_img_pil.mode in ['RGBA', 'LA']:
+                    # Image already has an alpha channel, use it as is (or copy)
+                    img_to_resize = input_img_pil.copy()
+                    app.logger.info(f"Input image mode {input_img_pil.mode} (has alpha), processing as is.")
+                elif input_img_pil.mode == 'P':
+                    # Palette-based image, convert to RGBA.
+                    # .convert('RGBA') correctly handles transparency in P mode.
+                    img_to_resize = input_img_pil.convert('RGBA')
+                    app.logger.info(f"Input image mode P, converted to {img_to_resize.mode} for processing (to preserve transparency).")
+                else:
+                    # For other modes (like RGB, L, CMYK etc.), convert to RGB.
+                    img_to_resize = input_img_pil.convert('RGB')
+                    app.logger.info(f"Input image mode {input_img_pil.mode}, converted to {img_to_resize.mode} for processing.")
 
-                original_width, original_height = input_img_pil.size
+                original_width, original_height = img_to_resize.size # Use size of the processed image
                 new_width = original_width * scale_factor
                 new_height = original_height * scale_factor
 
-                app.logger.info(f"Resizing image with Pillow to {new_width}x{new_height}")
-                upscaled_img_pil = input_img_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                app.logger.info(f"Resizing image (mode: {img_to_resize.mode}) with Pillow to {new_width}x{new_height}")
+                upscaled_img_pil = img_to_resize.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-                upscaled_ext = original_ext if original_ext in ['.png', '.jpg', '.jpeg', '.webp'] else '.png'
-                upscaled_file_saved_name = "upscaled_" + str(uuid.uuid4()) + upscaled_ext
+                # Determine output extension based on original, defaulting to PNG for wider compatibility if needed
+                output_ext = os.path.splitext(original_filename_for_download)[1].lower()
+                if output_ext not in ['.png', '.jpg', '.jpeg', '.webp']:
+                    output_ext = '.png' # Default to PNG if original extension isn't ideal or for non-web formats
+
+                upscaled_file_saved_name = "upscaled_" + str(uuid.uuid4()) + output_ext
                 upscaled_file_path = os.path.join(UPSCALED_IMAGE_FOLDER, upscaled_file_saved_name)
 
-                if upscaled_ext in ['.jpg', '.jpeg']:
-                    if upscaled_img_pil.mode != 'RGB':
-                        upscaled_img_pil = upscaled_img_pil.convert('RGB')
-                    upscaled_img_pil.save(upscaled_file_path, quality=90, optimize=True)
-                else:
+                # Save the upscaled image, respecting its mode and the target extension
+                if output_ext in ['.jpg', '.jpeg']:
+                    final_save_img = upscaled_img_pil
+                    if final_save_img.mode != 'RGB':
+                        # JPGs cannot have alpha. Convert to RGB if it has alpha (RGBA, LA) or is grayscale (L).
+                        app.logger.info(f"Converting upscaled image from {final_save_img.mode} to RGB for JPG saving.")
+                        final_save_img = final_save_img.convert('RGB')
+                    final_save_img.save(upscaled_file_path, quality=90, optimize=True)
+
+                elif output_ext == '.png':
+                    # PNG supports various modes including RGBA. Save in its current mode.
+                    app.logger.info(f"Saving PNG in mode {upscaled_img_pil.mode}")
                     upscaled_img_pil.save(upscaled_file_path, optimize=True)
 
+                elif output_ext == '.webp':
+                    # WebP supports RGBA.
+                    app.logger.info(f"Saving WebP in mode {upscaled_img_pil.mode}")
+                    if upscaled_img_pil.mode in ['RGBA', 'LA']: # Check if it has alpha
+                        upscaled_img_pil.save(upscaled_file_path, lossless=True, optimize=True) # Lossless is good for graphics with alpha
+                    else:
+                        # If not RGBA/LA, ensure it's RGB for quality-based saving
+                        img_to_save_webp = upscaled_img_pil
+                        if img_to_save_webp.mode != 'RGB':
+                           img_to_save_webp = img_to_save_webp.convert('RGB')
+                        img_to_save_webp.save(upscaled_file_path, quality=90, optimize=True)
+
+                else: # Should not be reached if output_ext is one of the above or defaulted to .png
+                    app.logger.warning(f"Attempting to save with an unexpected extension: {output_ext}. Saving as is.")
+                    upscaled_img_pil.save(upscaled_file_path, optimize=True)
+
+
                 upscaled_img_dimensions = {'width': upscaled_img_pil.width, 'height': upscaled_img_pil.height}
-                flash(f'Image resized ({scale_factor}x) using Pillow (basic resize).', 'success')
+                flash(f'Image resized ({scale_factor}x) using Pillow (basic resize). Processed as {img_to_resize.mode}, saved as {output_ext}.', 'success')
 
             except Exception as e:
                 flash(f'An error occurred during basic resizing: {str(e)}', 'danger')
                 app.logger.error(f"Error basic resizing file {original_filename_for_download}: {e}", exc_info=True)
-                upscaled_file_saved_name = None
+                upscaled_file_saved_name = None # Ensure this is cleared on error
+                # original_file_saved_name might still be set if initial save worked, cleanup will handle it or show original.
+
         else:
             flash('Invalid file type for upscaling. Allowed: PNG, JPG, JPEG, WEBP.', 'warning')
+            return redirect(request.url) # Redirect if file type is not allowed
 
+    # ... (rest of your cleanup code and render_template call)
     # Simple cleanup of old files in UPSCALED_IMAGE_FOLDER
     try:
         now_ts = datetime.now().timestamp()
         for f_name in os.listdir(UPSCALED_IMAGE_FOLDER):
             f_path = os.path.join(UPSCALED_IMAGE_FOLDER, f_name)
+            # Keep current session's original and upscaled files
             if f_name == original_file_saved_name or f_name == upscaled_file_saved_name:
                 continue
             try:
+                # Remove files older than 10 minutes (600 seconds)
                 if (now_ts - os.path.getmtime(f_path)) > 600:
                     os.remove(f_path)
-            except Exception:
-                pass
-    except Exception as e_clean:
+            except Exception: # pylint: disable=broad-except
+                pass # Ignore errors during cleanup of individual files
+    except Exception as e_clean: # pylint: disable=broad-except
         app.logger.warning(f"Error during temporary upscaled image cleanup: {e_clean}")
 
     return render_template('image_upscaler.html',
                            title='Image Upscaler (Basic Resize)',
-                           form=form,  # Pass the form object
+                           form=form,
                            original_filename=original_file_saved_name,
                            upscaled_filename=upscaled_file_saved_name,
                            original_filename_for_download=original_filename_for_download,
                            upscaled_dimensions=upscaled_img_dimensions
-                           # No need to pass csrf_token=generate_csrf if using form.hidden_tag()
                            )
-
 # Ensure the serve_temp_upscaled_image route is still present
 @app.route('/temp_upscaled_images/<filename>')
 @login_required
