@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         TerminalClass = window.Terminal.Terminal;
     } else {
         console.error("Terminal (xterm.js) is not available.");
-        if (window.showToast) window.showToast('Terminal library failed to load.', 'danger');
+        // Consider a fallback or a warning for the user
         return;
     }
 
@@ -46,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
         term.loadAddon(fitAddon);
     } else {
         console.error("FitAddon is not available.");
-        // Consider a fallback or a warning for the user
     }
 
     if (window.WebLinksAddon && typeof window.WebLinksAddon.WebLinksAddon === 'function') {
@@ -55,14 +54,27 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("WebLinksAddon is not available, web links in terminal will not be clickable.");
     }
 
-    term.open(terminalContainer); // Open terminal immediately in the pop-up
-    term.focus(); // Focus the terminal for immediate typing
+    term.open(terminalContainer);
+    term.focus();
 
     // --- Core term.onData logic ---
     term.onData(data => {
         if (!isConnected || !socket) return;
 
         const charCode = data.charCodeAt(0);
+
+        // Handle Tab key for completion
+        if (charCode === 9) { // ASCII for Tab
+            if (isPasswordPrompt) {
+                // If it's a password prompt, treat Tab as a regular character or ignore
+                // For simplicity, we'll send it as part of the password buffer, but it's unlikely to be useful.
+                passwordBuffer += data;
+            } else {
+                // For regular command input, send Tab to the server for shell completion
+                socket.emit('ssh_command', { command: data });
+            }
+            return; // Prevent default xterm.js behavior if any, and don't process further
+        }
 
         if (isPasswordPrompt) {
             // Password Input Mode: buffer locally, do not echo to terminal
@@ -90,7 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Function to write directly to xterm.js
+    // ... (rest of your ssh_terminal_popup.js code remains the same) ...
+
     function writeToTerminal(text) {
         term.write(text);
     }
@@ -98,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function disconnectSshSession() {
         if (socket && isConnected) {
             socket.emit('ssh_disconnect_request');
-            isConnected = false; // Optimistic update
+            isConnected = false;
         }
     }
 
@@ -109,15 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isConnected = false;
         popupTerminalTitle.textContent = "SSH Terminal: Disconnected";
         writeToTerminal("\r\n\x1b[33mSession disconnected.\r\n\x1b[0m");
-        // Inform the opener window about disconnection
         if (window.opener && window.opener.postMessage) {
             window.opener.postMessage({ type: 'SSH_DISCONNECTED_FROM_POPUP' }, window.location.origin);
         }
     }
 
-    // Listen for messages from the opener window (main page)
     window.addEventListener('message', (event) => {
-        // Ensure the message is from the expected origin
         if (event.origin !== window.location.origin) return;
 
         const data = event.data;
@@ -153,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.on('ssh_output', (data) => {
                 writeToTerminal(data.output);
                 const outputLower = data.output.toLowerCase();
-                const currentUsernameValue = username.toLowerCase(); // Use username passed from main page
+                const currentUsernameValue = username.toLowerCase();
 
                 const passwordPrompts = [
                     'password for ' + currentUsernameValue + ':',
@@ -173,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else if (isPasswordPrompt) {
                     const failureMessages = ['sorry, try again', 'incorrect password', 'authentication failed', 'permission denied'];
-                    const shellPromptIndicators = [`${username}@`, '$ ', '> ', '# ']; // Use original username for prompt detection
+                    const shellPromptIndicators = [`${username}@`, '$ ', '> ', '# '];
 
                     if (failureMessages.some(msg => outputLower.includes(msg))) {
                         passwordBuffer = '';
@@ -198,8 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.on('ssh_connected', () => {
                 writeToTerminal('\x1b[32mConnection established.\r\n\x1b[0m');
                 isConnected = true;
-                fitAddon.fit(); // Fit terminal after connection
-                socket.emit('ssh_resize', { cols: term.cols, rows: term.rows }); // Send initial size
+                if (fitAddon) { // Ensure fitAddon exists before calling fit
+                    fitAddon.fit();
+                    socket.emit('ssh_resize', { cols: term.cols, rows: term.rows }); // Send initial size
+                }
             });
 
             socket.on('ssh_disconnected', (message) => {
@@ -210,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             socket.on('disconnect', (reason) => {
                 console.log('WebSocket disconnected in pop-up:', reason);
-                if (isConnected) { // Only show system message if SSH was active
+                if (isConnected) {
                     writeToTerminal(`\x1b[31m\r\nWebSocket disconnected: ${reason}\r\n\x1b[0m`);
                 }
                 handleDisconnect();
@@ -227,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle window resize for xterm.js
     window.addEventListener('resize', () => {
         if (fitAddon) {
             fitAddon.fit();
@@ -237,23 +248,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Disconnect button in the pop-up window
     popupDisconnectButton.addEventListener('click', () => {
         disconnectSshSession();
     });
 
-    // Handle closing the pop-up window directly
     window.addEventListener('beforeunload', () => {
         if (isConnected) {
-            disconnectSshSession(); // Attempt to disconnect if user closes window
+            disconnectSshSession();
         }
-        // Inform the opener window about disconnection
         if (window.opener && window.opener.postMessage) {
             window.opener.postMessage({ type: 'SSH_DISCONNECTED_FROM_POPUP' }, window.location.origin);
         }
     });
 
-    // Initial fit
     if (fitAddon) {
         fitAddon.fit();
     }
