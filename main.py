@@ -27,7 +27,7 @@ import mimetypes
 import codecs
 from sqlalchemy.exc import IntegrityError
 from wtforms.validators import Optional, InputRequired
-from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app, make_response, abort, g, send_file)
+from flask import (Flask, render_template, redirect, url_for, flash, request, session, jsonify, current_app, make_response, abort, g, send_file, Response)
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, DateTime, Boolean, inspect
 from git import Repo as PyGitRepo, InvalidGitRepositoryError, NoSuchPathError
@@ -172,7 +172,6 @@ AVAILABLE_THEMES = {
     "retro_wave_light.css": "Retro Wave Light",
     # Add more themes here as you create them
 }
-
 # BEGIN YOUTUBE DOWNLOADER
 import yt_dlp # For downloading YouTube videos
 from yt_dlp import YoutubeDL # Specifically for the YoutubeDL class
@@ -266,9 +265,16 @@ def ytdlp_downloader():
             if video_quality != 'best':
                 quality_filter = f"[height<={video_quality}]" # e.g., [height<=720]
 
-            # Format selection string for yt-dlp
-            # Try for mp4 container directly with specified quality, fallback to best mp4, then any best.
-            ydl_opts['format'] = f"bestvideo{quality_filter}[ext=mp4]+bestaudio[ext=m4a]/best{quality_filter}[ext=mp4]/best{quality_filter}/best"
+            # Strategy:
+            # 1. Try to get the best video and best audio, potentially with quality filter, then merge and convert to mp4.
+            # 2. Fallback to just the 'best' overall format (potentially webm, etc.), then convert to mp4.
+            # The 'postprocessors' section with FFmpegVideoConvertor will handle the final conversion to MP4.
+
+            # This format string will attempt to download the highest quality video and audio streams
+            # (optionally filtered by height) and merge them.
+            # If that fails, it falls back to the single 'best' format available.
+            ydl_opts['format'] = f"bestvideo{quality_filter}+bestaudio/best{quality_filter}/best"
+
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4',
@@ -368,7 +374,7 @@ def ytdlp_downloader():
             app.logger.error(f"yt-dlp DownloadError for {video_url} by user {user_id}: {str(e)}")
             flash(f"Could not download. Error: {str(e)}", 'danger')
         except Exception as e:
-            app.logger.error(f"Error during ytdlp processing for {video_url} by user {user_id}: {str(e)}", exc_info=True)
+            app.logger.error(f"An unexpected error occurred: {str(e)}", exc_info=True)
             flash(f"An unexpected error occurred: {str(e)}", 'danger')
             if downloaded_video_actual_path and os.path.exists(downloaded_video_actual_path):
                  try: os.remove(downloaded_video_actual_path)
@@ -535,6 +541,7 @@ def image_upscaler():
                            original_filename_for_download=original_filename_for_download,
                            upscaled_dimensions=upscaled_img_dimensions
                            )
+
 # Ensure the serve_temp_upscaled_image route is still present
 @app.route('/temp_upscaled_images/<filename>')
 @login_required
@@ -751,36 +758,37 @@ def configure_mail_from_db(current_app):
 # --- Helper function to recursively register extracted items ---
 def register_extracted_items(extract_base_dir, user_id, parent_folder_id_in_db, user_upload_root):
 
-    newly_created_folder_map = {} # Maps disk path -> new DB Folder ID
+    # This map will store the mapping from temporary disk paths to their corresponding DB folder IDs
+    # e.g., { 'temp_extract_dir/folder_name': folder_db_id, 'temp_extract_dir/folder_name/subfolder_name': subfolder_db_id }
+    # It starts with the base extraction directory mapping to the initial parent_folder_id_in_db
+    newly_created_folder_map = {extract_base_dir: parent_folder_id_in_db}
 
-    for root, dirs, files in os.walk(extract_base_dir, topdown=True): # topdown=True helps create parent folders first
-        # Determine current parent folder ID in DB for items in this 'root'
-        current_parent_db_id = parent_folder_id_in_db
-        relative_path_from_extract_base = os.path.relpath(root, extract_base_dir)
+    # IMPORTANT: Iterate `topdown=False` for robust directory handling in case of empty subdirs being removed
+    # or if we need to ensure child items are processed before their parent might be manipulated.
+    # However, for creating DB records and physical moves, `topdown=True` is usually better for ensuring parents exist.
+    # Let's stick with topdown=True, as we're managing `newly_created_folder_map` carefully.
+    for root, dirs, files in os.walk(extract_base_dir, topdown=True):
 
-        if relative_path_from_extract_base != '.':
-             # It's a sub-directory within the extracted structure
-             parent_disk_path = os.path.dirname(root)
-             if parent_disk_path in newly_created_folder_map:
-                 current_parent_db_id = newly_created_folder_map[parent_disk_path]
-             # else: it should theoretically be the initial parent_folder_id_in_db
-             #      or an error occurred. More robust path mapping needed for deep nesting.
+        # Determine the database parent ID for the current `root` directory being processed
+        # This will be the ID of the folder in our DB that corresponds to the `root` path.
+        current_db_parent_id = newly_created_folder_map[root]
 
-        # Register Directories first
+        # Register Directories first (when topdown=True, dirs list can be modified in-place to prune walk)
         for dirname in dirs:
             dir_path_on_disk = os.path.join(root, dirname)
             sanitized_dirname = secure_filename(dirname) # Sanitize folder name
 
             if not sanitized_dirname: # Skip folders with unusable names
                 app.logger.warning(f"Skipping extracted folder with invalid name: {dirname} in {root}")
-                # Remove the directory from 'dirs' so os.walk doesn't descend into it
-                dirs.remove(dirname) # Careful when modifying dirs list during iteration
+                # Remove the directory from `dirs` to prevent os.walk from descending into it
+                # when its name is invalid. This means `os.walk` will skip its contents too.
+                dirs.remove(dirname)
                 continue
 
-            # Check if folder already exists in DB under this parent
+            # Check if a folder with this name already exists under the current DB parent
             existing_folder = Folder.query.filter_by(
                 user_id=user_id,
-                parent_folder_id=current_parent_db_id,
+                parent_folder_id=current_db_parent_id,
                 name=sanitized_dirname
             ).first()
 
@@ -789,47 +797,60 @@ def register_extracted_items(extract_base_dir, user_id, parent_folder_id_in_db, 
                     new_folder = Folder(
                         name=sanitized_dirname,
                         user_id=user_id,
-                        parent_folder_id=current_parent_db_id
+                        parent_folder_id=current_db_parent_id
                     )
                     db.session.add(new_folder)
                     db.session.flush() # Assigns an ID to new_folder without full commit
+                    # Store the mapping from the physical path of this new folder to its DB ID
                     newly_created_folder_map[dir_path_on_disk] = new_folder.id
-                    app.logger.info(f"Registered extracted folder: {sanitized_dirname} (ID: {new_folder.id})")
+                    app.logger.info(f"Registered extracted folder: {sanitized_dirname} (ID: {new_folder.id}) in DB parent {current_db_parent_id}")
                 except Exception as e:
                     app.logger.error(f"Error registering extracted folder '{sanitized_dirname}': {e}", exc_info=True)
-                    # Should ideally trigger a rollback of the whole extraction registration
                     raise # Re-raise to be caught by the main route's try/except
-
             else:
-                 # Folder already exists, map its path to its existing ID
-                 newly_created_folder_map[dir_path_on_disk] = existing_folder.id
+                # Folder already exists, so use its existing ID for its children
+                newly_created_folder_map[dir_path_on_disk] = existing_folder.id
+                app.logger.debug(f"Extracted folder '{sanitized_dirname}' already exists (ID: {existing_folder.id}), using existing record.")
 
 
         # Register Files
         for filename in files:
-            filepath_on_disk = os.path.join(root, filename)
+            filepath_in_temp_extract = os.path.join(root, filename) # Full path in the temporary extraction dir
             original_sanitized_filename = secure_filename(filename)
 
             if not original_sanitized_filename:
-                 app.logger.warning(f"Skipping extracted file with invalid name: {filename} in {root}")
-                 continue # Skip this file
+                app.logger.warning(f"Skipping extracted file with invalid name: {filename} in {root}")
+                continue # Skip this file
 
-            # --- Rename file to UUID on disk ---
+            # --- Critical Change: Determine NEW physical destination path based on desired structure ---
+            # The destination for the file on disk should be directly within user_upload_root,
+            # but its *database parent* (current_db_parent_id) will reflect its logical folder.
+            # We will generate a UUID for the stored_filename as you currently do.
+            _, ext = os.path.splitext(filename)
+            new_stored_filename = str(uuid.uuid4()) + ext
+
+            # The actual path where the file will physically reside on the server
+            # This remains flattened in user_upload_root
+            final_physical_file_path = os.path.join(user_upload_root, new_stored_filename)
+
+            # --- Perform Physical Move ---
             try:
-                _, ext = os.path.splitext(filename)
-                new_stored_filename = str(uuid.uuid4()) + ext
-                new_filepath_on_disk = os.path.join(user_upload_root, new_stored_filename) # Save in user's flat root dir
-                os.rename(filepath_on_disk, new_filepath_on_disk)
-                app.logger.debug(f"Renamed extracted file {filepath_on_disk} to {new_filepath_on_disk}")
-                filepath_on_disk = new_filepath_on_disk # Update path for DB record
+                # Check if the source file actually exists in the temporary directory
+                if not os.path.exists(filepath_in_temp_extract):
+                    app.logger.warning(f"Physical extracted source file not found for move: {filepath_in_temp_extract}. Skipping.")
+                    continue
+
+                os.rename(filepath_in_temp_extract, final_physical_file_path)
+                app.logger.debug(f"Moved extracted file {filepath_in_temp_extract} to {final_physical_file_path}")
+
             except OSError as e:
-                app.logger.error(f"Error renaming extracted file '{filename}' to UUID: {e}", exc_info=True)
-                continue # Skip this file if rename fails
+                app.logger.error(f"Error moving extracted file '{filename}' from temp to final location: {e}", exc_info=True)
+                continue # Skip this file if move fails
 
             # Create DB record
             try:
-                filesize = os.path.getsize(filepath_on_disk)
-                mime_type = mimetypes.guess_type(filepath_on_disk)[0] or 'application/octet-stream'
+                filesize = os.path.getsize(final_physical_file_path) # Get size from the moved file
+                mime_type = mimetypes.guess_type(final_physical_file_path)[0] or 'application/octet-stream'
 
                 new_file = File(
                     original_filename=original_sanitized_filename,
@@ -837,18 +858,18 @@ def register_extracted_items(extract_base_dir, user_id, parent_folder_id_in_db, 
                     filesize=filesize,
                     mime_type=mime_type,
                     user_id=user_id,
-                    parent_folder_id=current_parent_db_id # Belongs to the folder it was found in
+                    parent_folder_id=current_db_parent_id # <--- This is KEY: Link to the correct DB folder ID
                 )
                 db.session.add(new_file)
-                app.logger.info(f"Registered extracted file: {original_sanitized_filename} (Stored: {new_stored_filename}, Parent ID: {current_parent_db_id})")
+                app.logger.info(f"Registered extracted file: {original_sanitized_filename} (Stored: {new_stored_filename}, Parent ID: {current_db_parent_id})")
 
             except Exception as e:
-                 app.logger.error(f"Error registering extracted file '{original_sanitized_filename}': {e}", exc_info=True)
-                 # Clean up the renamed file if DB registration fails
-                 if os.path.exists(filepath_on_disk):
-                     try: os.remove(filepath_on_disk)
-                     except OSError: pass
-                 raise # Re-raise to be caught by the main route's try/except
+                app.logger.error(f"Error registering extracted file '{original_sanitized_filename}' into DB: {e}", exc_info=True)
+                # Clean up the moved file if DB registration fails
+                if os.path.exists(final_physical_file_path):
+                    try: os.remove(final_physical_file_path)
+                    except OSError: pass
+                raise # Re-raise to be caught by the main route's try/except
 
 def get_codemirror_mode_from_filename(filename):
     """
@@ -2930,7 +2951,7 @@ def photos():
 
     return render_template('photos.html', title='My Photos', image_files=image_files)
 
-
+VIDEO_THUMBNAIL_FOLDER = os.path.join(app.root_path, 'static', 'uploads', 'video_thumbnails')
 @app.route('/videos')
 @login_required
 def videos():
@@ -2943,9 +2964,16 @@ def videos():
 
     for vid_file in video_files:
         vid_file.view_url = url_for('view_file', file_id=vid_file.id)
-        # For videos, a poster image would be nice. If you implement thumbnail generation:
-        # vid_file.poster_url = url_for('static', filename=f'uploads/video_thumbnails/{vid_file.id}.jpg') # Example
-        vid_file.poster_url = None # Placeholder
+        # MODIFIED: Assign a URL for the poster image
+        # This assumes a .jpg thumbnail exists with the same ID as the video file
+        # in the static/uploads/video_thumbnails directory.
+        thumbnail_filename = f"{vid_file.id}.jpg"
+        thumbnail_path_on_disk = os.path.join(VIDEO_THUMBNAIL_FOLDER, thumbnail_filename)
+        if os.path.exists(thumbnail_path_on_disk):
+            vid_file.poster_url = url_for('static', filename=f'uploads/video_thumbnails/{thumbnail_filename}')
+        else:
+            # Fallback to None if no thumbnail exists
+            vid_file.poster_url = None
 
     return render_template('videos.html', title='My Videos', video_files=video_files)
 
@@ -3183,6 +3211,42 @@ def upload_file():
             db.session.add(new_file)
             db.session.commit()
 
+            # --- NEW: Thumbnail Generation for Videos ---
+            if new_file.mime_type and new_file.mime_type.startswith('video/'):
+                thumbnail_filename = f"{new_file.id}.jpg"
+                thumbnail_path = os.path.join(VIDEO_THUMBNAIL_FOLDER, thumbnail_filename)
+                video_input_path = file_path_on_disk # The full path to the uploaded video
+
+                # Ensure the thumbnail directory exists (already handled in create_db, but good to be safe)
+                os.makedirs(VIDEO_THUMBNAIL_FOLDER, exist_ok=True)
+
+                try:
+                    # ffmpeg command to extract a frame at 1 second mark, resize to 320px width, and save as JPG
+                    # "-ss 00:00:01" seeks to 1 second
+                    # "-vframes 1" extracts only one frame
+                    # "-q:v 2" sets video quality (2 is high quality for JPEG)
+                    # "-vf scale='min(320,iw):-1'" scales the width to a maximum of 320px, preserving aspect ratio
+                    ffmpeg_command = [
+                        "ffmpeg", "-i", video_input_path,
+                        "-ss", "00:00:01",
+                        "-vframes", "1",
+                        "-q:v", "2",
+                        "-vf", "scale='min(320,iw):-1'",
+                        thumbnail_path
+                    ]
+                    app.logger.info(f"Attempting to generate thumbnail for video ID {new_file.id}: {' '.join(ffmpeg_command)}")
+                    subprocess.run(ffmpeg_command, check=True, capture_output=True, text=True, timeout=60)
+                    app.logger.info(f"Thumbnail generated successfully for video ID {new_file.id} at {thumbnail_path}")
+                except FileNotFoundError:
+                    app.logger.warning("ffmpeg not found. Please ensure it is installed and in your system's PATH to enable video thumbnail generation.")
+                except subprocess.CalledProcessError as e:
+                    app.logger.error(f"ffmpeg failed to generate thumbnail for video ID {new_file.id}. Stderr: {e.stderr}", exc_info=True)
+                except subprocess.TimeoutExpired:
+                    app.logger.error(f"ffmpeg timed out generating thumbnail for video ID {new_file.id}.")
+                except Exception as e:
+                    app.logger.error(f"Unexpected error during thumbnail generation for video ID {new_file.id}: {e}", exc_info=True)
+            # --- END NEW: Thumbnail Generation ---
+
             if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
                 # For AJAX, return JSON success (client should then refresh file list or update UI)
                 return jsonify({
@@ -3261,10 +3325,22 @@ def download_file(file_id):
     user_upload_path = get_user_upload_path(file_record.user_id)
 
     try:
-        return send_from_directory(user_upload_path,
-                                   file_record.stored_filename,
-                                   as_attachment=True,
-                                   download_name=file_record.original_filename)
+        if not os.path.exists(full_file_path):
+            app.logger.error(f"File not found on disk for record {file_id}: {file_record.stored_filename} in {user_upload_path}")
+            abort(404)
+
+        mime_type = file_record.mime_type or mimetypes.guess_type(full_file_path)[0] or 'application/octet-stream'
+
+        response = Response(
+            send_from_directory(user_upload_path, file_record.stored_filename, as_attachment=False), # Set as_attachment=False here, we'll override it with manual headers
+            mimetype=mime_type
+        )
+
+        safe_original_filename = file_record.original_filename.replace('"', '\\"')
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_original_filename}"'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        return response
     except FileNotFoundError:
         app.logger.error(f"File not found on disk for record {file_id}: {file_record.stored_filename} in {user_upload_path}")
         abort(404)
@@ -3936,7 +4012,10 @@ def ollama_chat():
 
     # --- Fetch history (runs on GET and POST) ---
     try:
-        db_messages = current_user.ollama_chat_messages.order_by(OllamaChatMessage.timestamp).all()
+        # Eager load the 'user' relationship to get sender details (username, profile_picture_filename)
+        db_messages = current_user.ollama_chat_messages.options(
+            db.joinedload(OllamaChatMessage.user)
+        ).order_by(OllamaChatMessage.timestamp).all()
         history_for_ollama = [msg.to_dict() for msg in db_messages]
         history_for_template = list(history_for_ollama)
     except Exception as e:
@@ -4025,7 +4104,10 @@ def api_ollama_chat_send():
     # --- Fetch CURRENT history from DB before sending ---
     history_for_ollama = []
     try:
-        db_messages = current_user.ollama_chat_messages.order_by(OllamaChatMessage.timestamp).all()
+        # Eager load the 'user' relationship for history context
+        db_messages = current_user.ollama_chat_messages.options(
+            db.joinedload(OllamaChatMessage.user)
+        ).order_by(OllamaChatMessage.timestamp).all()
         history_for_ollama = [msg.to_dict() for msg in db_messages]
     except Exception as e:
         app.logger.error(f"API: Error fetching ollama chat history for user {current_user.id}: {e}", exc_info=True)
@@ -4045,7 +4127,6 @@ def api_ollama_chat_send():
         return jsonify({"status": "error", "message": error_message}), 500 # 500 for server-side/API issues
 
     elif ai_response_content:
-        # --- Save BOTH user message and AI response to DB ---
         try:
             user_msg_db = OllamaChatMessage(
                 user_id=current_user.id,
@@ -4056,18 +4137,20 @@ def api_ollama_chat_send():
                 user_id=current_user.id,
                 role='assistant',
                 content=ai_response_content
-             )
-            # Add user message first, then AI response
+            )
             db.session.add(user_msg_db)
             db.session.add(ai_msg_db)
             db.session.commit()
+            # Refresh the AI message object to ensure it has its 'id' and any relationships loaded
+            # before calling to_dict().
+            db.session.refresh(ai_msg_db)
             app.logger.info(f"API: Saved user/ollama chat messages for user {current_user.id}")
 
-            # --- Return success with AI response ---
             return jsonify({
                 "status": "success",
-                "ai_message": ai_response_content
+                "ai_message": ai_msg_db.to_dict() # NOW it returns a dict with all sender details
             })
+
 
         except Exception as e:
              db.session.rollback()
@@ -6317,6 +6400,11 @@ def create_db(app_instance):
                  os.makedirs(static_profile_pics_path, exist_ok=True)
                  app_instance.logger.info(f"Created static profile picture folder: {static_profile_pics_path}")
 
+            # NEW: Ensure video thumbnail folder exists
+            if not os.path.exists(VIDEO_THUMBNAIL_FOLDER):
+                os.makedirs(VIDEO_THUMBNAIL_FOLDER, exist_ok=True)
+                app_instance.logger.info(f"Created video thumbnail folder: {VIDEO_THUMBNAIL_FOLDER}")
+
 
         except OSError as e:
             app_instance.logger.error(f"OSError creating instance or upload folders: {e}", exc_info=True)
@@ -6466,10 +6554,31 @@ class OllamaChatMessage(db.Model):
 
     # Helper to convert DB object to the dictionary format Ollama/template expects
     def to_dict(self):
+        # Access the 'user' relationship (the sender of the message)
+        sender_username = None
+        sender_profile_picture_filename = None
+
+        # For 'user' role messages, fetch the actual sender details from the User model
+        if self.role == 'user' and self.user: # self.user refers to the User object linked by user_id
+            sender_username = self.user.username
+            sender_profile_picture_filename = self.user.profile_picture_filename
+        # For 'assistant' role messages, hardcode Ollama AI details
+        elif self.role == 'assistant':
+            sender_username = 'Ollama AI'
+            sender_profile_picture_filename = 'ollama_pfp.png' # Assuming this is in static/icons/
+        # For 'thinking' or other system messages, hardcode System details (using Ollama's pfp for consistency)
+        elif self.role == 'thinking':
+            sender_username = 'System'
+            sender_profile_picture_filename = 'ollama_pfp.png' # Using Ollama pfp for system messages too
+
         return {
+            "id": self.id, # Include ID for frontend to track messages
+            "user_id": self.user_id, # Include user_id for frontend to determine current-user class
             "role": self.role,
             "content": self.content,
-            "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None
+            "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None,
+            "sender_username": sender_username,
+            "sender_profile_picture_filename": sender_profile_picture_filename
         }
 
 class OllamaChatForm(FlaskForm):
