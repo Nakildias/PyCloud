@@ -606,7 +606,8 @@ def handle_ssh_command(data):
         emit('ssh_error', {'message': 'No active SSH connection.'}, room=socket_id)
         return
 
-    app.logger.info(f"Executing command '{command}' for user {current_user.id} (Socket ID: {socket_id})")
+# DEBUG FOR INPUT
+#   app.logger.info(f"Executing command '{command}' for user {current_user.id} (Socket ID: {socket_id})")
     ssh_session.execute_command(command)
 
 @socketio.on('ssh_disconnect_request')
