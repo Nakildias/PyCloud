@@ -53,7 +53,7 @@
                     <li {% if request.endpoint == 'find_people' %}class="active"{% endif %}><a href="{{ url_for('find_people') }}" class="base-nav-dropdown-item-link">Find People</a></li>
                 </ul>
             </li>
-            {% set misc_active = request.endpoint in ['emulator_gba', 'image_upscaler', 'ytdlp_downloader'] %}
+            {% set misc_active = request.endpoint in ['emulator_gba', 'image_upscaler', 'ytdlp_downloader', 'ssh_client_page'] %}
             <li class="base-nav-item base-nav-dropdown {% if misc_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21h4l13 -13a1.5 1.5 0 0 0 -4 -4l-13 13v4" /><path d="M14.5 5.5l4 4" /><path d="M12 8l-5 -5l-4 4l5 5" /><path d="M7 8l-1.5 1.5" /><path d="M16 12l5 5l-4 4l-5 -5" /><path d="M16 17l-1.5 1.5" /></svg>
@@ -63,6 +63,7 @@
                     <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
                     <li {% if request.endpoint == 'image_upscaler' %}class="active"{% endif %}><a href="{{ url_for('image_upscaler') }}" class="base-nav-dropdown-item-link">Upscale Image</a></li>
                     <li {% if request.endpoint == 'ytdlp_downloader' %}class="active"{% endif %}><a href="{{ url_for('ytdlp_downloader') }}" class="base-nav-dropdown-item-link">YT-DLP</a></li>
+                    <li {% if request.endpoint == 'ssh_client_page' %}class="active"{% endif %}><a href="{{ url_for('ssh_client_page') }}" class="base-nav-dropdown-item-link">SSH Client</a></li>
                 </ul>
             </li>
             {% set git_active = request.endpoint in ['git_homepage', 'mygit', 'starred_repositories_page'] %}
