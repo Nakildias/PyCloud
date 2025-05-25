@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     modalFilenameDisplay.textContent = currentOriginalFilename;
                 }
                 if (modalDownloadLink) {
-                    modalDownloadLink.href = currentVideoSrc; /* view_url is suitable for download */
+                    modalDownloadLink.href = `${DOWNLOAD_VIDEO_URL_BASE}${currentFileId}`;
                     modalDownloadLink.download = currentOriginalFilename;
                 }
 

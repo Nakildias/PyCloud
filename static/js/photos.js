@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 if (modalDownloadLink) {
-                    modalDownloadLink.href = imageUrl;
+                    modalDownloadLink.href = `${DOWNLOAD_FILE_URL_BASE}${currentFileId}`;
                     modalDownloadLink.download = currentOriginalFilename;
                 }
 

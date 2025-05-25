@@ -1,11 +1,12 @@
 // static/js/files.js
+
 document.addEventListener('DOMContentLoaded', function() {
 
     // === CSRF Token Setup ===
     const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
     if (!csrfToken) {
-        console.warn('CSRF token meta tag not found. Actions might fail.');
+        console.warn('Critical Error: CSRF token meta tag not found. Page actions may fail.');
         if (typeof showToast === 'function') {
             showToast('Critical Error: Missing security token. Page actions may fail.', 'danger', 10000);
         }
@@ -26,11 +27,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputFolderName = formCreateFolder ? formCreateFolder.querySelector('.fl-input-foldername') : null;
 
     const selectAllCheckbox = document.getElementById('fl-select-all-checkbox');
-    const itemCheckboxes = fileTable ? Array.from(fileTable.querySelectorAll('.fl-item-checkbox')) : [];
+    // MODIFIED: itemRows now refers to all selectable item rows (folders and files)
+    const itemRows = fileTable ? Array.from(fileTable.querySelectorAll('.fl-item-row')) : [];
     const multiSelectActionsContainer = document.getElementById('fl-multi-select-actions-toolbar');
     const btnDeleteSelected = document.getElementById('fl-btn-delete-selected');
     const btnCutSelected = document.getElementById('fl-btn-cut-selected');
     const btnCopySelected = document.getElementById('fl-btn-copy-selected');
+    const btnArchiveSelected = document.getElementById('fl-btn-archive-selected');
+    const btnUnarchiveSelected = document.getElementById('fl-btn-unarchive-selected');
+    const btnEditSelected = document.getElementById('fl-btn-edit-selected');
+    const btnDownloadSelected = document.getElementById('fl-btn-download-selected'); // Renamed variable for consistency
+    const downloadFileBaseUrl = window.PyCloud_DownloadFileEndpoint;
 
     let clipboardData = window.PyCloud_ClipboardData || null;
 
@@ -45,6 +52,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const unsupportedFilename = document.getElementById('fl-unsupported-filename');
     const unsupportedDownloadLink = document.getElementById('fl-unsupported-download-link');
     const btnCloseModal = document.getElementById('fl-btn-close-modal');
+
+    // NEW: Unselect everything on page refresh (modified for new selection model)
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    itemRows.forEach(row => {
+        row.classList.remove('selected');
+    });
 
     // --- Helper Functions ---
     function handleFetchErrors(response) {
@@ -89,15 +105,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // MODIFIED: getSelectedItems to work with .selected class on item rows
     function getSelectedItems() {
-        return itemCheckboxes
-        .filter(checkbox => checkbox.checked)
-        .map(checkbox => {
-            const row = checkbox.closest('.fl-item-row');
+        return itemRows
+        .filter(row => row.classList.contains('selected'))
+        .map(row => {
+            // IMPORTANT: Ensure data-is-editable and data-file-ext are present in your HTML <tr> elements
+            // For example: <tr ... data-is-editable="{{ 'true' if file.is_editable else 'false' }}" data-file-ext="{{ file_ext }}">
             return {
                 id: row.dataset.itemId,
                 type: row.dataset.itemType,
-                name: row.dataset.itemName
+                name: row.dataset.itemName,
+                isEditable: row.dataset.isEditable === 'true',
+                fileExt: row.dataset.fileExt || '' // Ensure fileExt is retrieved
             };
         });
     }
@@ -106,16 +126,49 @@ document.addEventListener('DOMContentLoaded', function() {
         if (multiSelectActionsContainer) {
             const selectedItems = getSelectedItems();
             multiSelectActionsContainer.style.display = selectedItems.length > 0 ? 'flex' : 'none';
+
+            // Hide all conditional buttons initially
+            if (btnArchiveSelected) btnArchiveSelected.style.display = 'none';
+            if (btnUnarchiveSelected) btnUnarchiveSelected.style.display = 'none';
+            if (btnEditSelected) btnEditSelected.style.display = 'none';
+            if (btnDownloadSelected) btnDownloadSelected.style.display = 'none'; // Updated variable name
+
+            if (selectedItems.length > 0) {
+                const allFolders = selectedItems.every(item => item.type === 'folder');
+                const allFiles = selectedItems.every(item => item.type === 'file');
+                const allArchives = allFiles && selectedItems.every(item => ['zip', '7z', 'rar'].includes(item.fileExt));
+                const singleEditableFile = selectedItems.length === 1 && selectedItems[0].type === 'file' && selectedItems[0].isEditable;
+
+                // Show Archive button if all selected are folders
+                if (allFolders) {
+                    if (btnArchiveSelected) btnArchiveSelected.style.display = 'inline-block';
+                }
+                // Show Unarchive button if all selected are archive files
+                if (allArchives) {
+                    if (btnUnarchiveSelected) btnUnarchiveSelected.style.display = 'inline-block';
+                }
+                // Show Edit button if exactly one editable file is selected
+                if (singleEditableFile) {
+                    if (btnEditSelected) btnEditSelected.style.display = 'inline-block';
+                }
+
+                // NEW: Show Download button if all selected are files (not folders)
+                if (allFiles && selectedItems.length > 0) {
+                    if (btnDownloadSelected) btnDownloadSelected.style.display = 'inline-block';
+                }
+
+            }
         }
     }
 
+    // MODIFIED: updateSelectAllCheckboxState to work with .selected class on item rows
     function updateSelectAllCheckboxState() {
-        if (!selectAllCheckbox || itemCheckboxes.length === 0) return;
+        if (!selectAllCheckbox || itemRows.length === 0) return; // Use itemRows instead of itemCheckboxes
         const selectedCount = getSelectedItems().length;
         if (selectedCount === 0) {
             selectAllCheckbox.checked = false;
             selectAllCheckbox.indeterminate = false;
-        } else if (selectedCount === itemCheckboxes.length) {
+        } else if (selectedCount === itemRows.length) { // Use itemRows instead of itemCheckboxes
             selectAllCheckbox.checked = true;
             selectAllCheckbox.indeterminate = false;
         } else {
@@ -127,14 +180,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Create Folder Form Toggle Logic ---
     if (btnShowCreateFolder && formCreateFolder && btnCancelCreateFolder && inputFolderName) {
         btnShowCreateFolder.addEventListener('click', () => {
-            formCreateFolder.style.display = 'block'; // Or 'flex' if it's a flex container
+            formCreateFolder.style.display = 'block';
             btnShowCreateFolder.style.display = 'none';
             inputFolderName.value = '';
             inputFolderName.focus();
         });
         btnCancelCreateFolder.addEventListener('click', () => {
             formCreateFolder.style.display = 'none';
-            btnShowCreateFolder.style.display = ''; // Revert to default display
+            btnShowCreateFolder.style.display = '';
         });
     }
 
@@ -302,8 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Rename Handling ---
-    function handleRenameButtonClick(menuItemOrButton) {
-        const row = menuItemOrButton.closest('.fl-item-row');
+    function handleRenameButtonClick(sourceElement) {
+        const row = sourceElement.closest('.fl-item-row');
         if (!row) return;
         const id = row.dataset.itemId;
         const currentName = row.dataset.itemName;
@@ -311,7 +364,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const inputField = row.querySelector('.fl-itemname-input');
 
         if (displayElement && inputField) {
-            closeAllItemMenus(); // Use new function
             if(fileTable){
                 fileTable.querySelectorAll('.fl-itemname-input').forEach(inp => {
                     if (inp !== inputField && inp.style.display !== 'none') { resetRenameInput(inp); }
@@ -384,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Share/Unshare Handling ---
-    function handleShareFile(fileId, shareToggleButton) {
+    function handleShareFile(fileId, sourceElement) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
         const addPassword = confirm("Protect this share link with a password?");
         let password = null;
@@ -403,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 if (typeof showToast === 'function') showToast(data.message || 'File shared!', 'success');
-                updateShareUI(fileId, true, data.share_url, data.password_protected, shareToggleButton);
+                updateShareUI(fileId, true, data.share_url, data.password_protected);
             } else {
                 throw new Error(data.message || 'Failed to share file.');
             }
@@ -414,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function handleUnshareFile(fileId, shareToggleButton) {
+    function handleUnshareFile(fileId, sourceElement) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
         fetch(`/files/unshare/${fileId}`, {
             method: 'POST',
@@ -424,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 if (typeof showToast === 'function') showToast(data.message || 'Sharing disabled.', 'success');
-                updateShareUI(fileId, false, null, false, shareToggleButton);
+                updateShareUI(fileId, false, null, false);
             } else {
                 throw new Error(data.message || 'Failed to unshare file.');
             }
@@ -435,12 +487,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function updateShareUI(fileId, isShared, shareUrl, passwordProtected, shareToggleButton) {
+    function updateShareUI(fileId, isShared, shareUrl, passwordProtected) {
         const linkRow = document.getElementById(`fl-share-link-row-${fileId}`);
         const linkDisplayDiv = linkRow ? linkRow.querySelector('.fl-share-link-display-area') : null;
         const row = document.querySelector(`.fl-item-row[data-item-id="${fileId}"][data-item-type="file"]`);
 
-        if (shareToggleButton) { shareToggleButton.innerHTML = isShared ? `Unshare ${passwordProtected ? '&#128274;' : ''}` : 'Share'; }
         if(row){ row.dataset.isPublic = isShared ? 'true' : 'false'; row.dataset.isPasswordProtected = passwordProtected ? 'true' : 'false'; row.dataset.shareUrl = shareUrl || ''; }
 
         if (linkDisplayDiv) linkDisplayDiv.innerHTML = '';
@@ -474,8 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Archive/Extract Handling ---
     function handleArchiveFolder(folderId, folderName) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
-        if (!confirm(`Archive the folder "${folderName}"? This might take a while.`)) return;
-        if (typeof showToast === 'function') showToast('Archiving folder... (this may take a moment)', 'info', 10000);
+        if (typeof showToast === 'function') showToast(`Archiving folder '${folderName}'... (this may take a moment)`, 'info', 10000);
         fetch(`/files/folder/archive/${folderId}`, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
@@ -483,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(handleFetchErrors)
         .then(data => {
             if (data.status === 'success') {
-                if (typeof showToast === 'function') showToast(data.message || 'Folder archived! Reloading...', 'success');
+                if (typeof showToast === 'function') showToast(data.message || `Folder '${folderName}' archived! Reloading...`, 'success');
                 setTimeout(() => { location.reload(); }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to archive folder.');
@@ -497,8 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleExtractFile(fileId, fileName) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
-        if (!confirm(`Extract the archive "${fileName}" here? Existing files might be overwritten.`)) return;
-        if (typeof showToast === 'function') showToast('Extracting archive... (this may take a moment)', 'info', 10000);
+        if (typeof showToast === 'function') showToast(`Extracting archive '${fileName}'... (this may take a moment)`, 'info', 10000);
         fetch(`/files/extract/${fileId}`, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
@@ -506,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(handleFetchErrors)
         .then(data => {
             if (data.status === 'success') {
-                if (typeof showToast === 'function') showToast(data.message || 'Archive extracted! Reloading...', 'success');
+                if (typeof showToast === 'function') showToast(data.message || `Archive '${fileName}' extracted! Reloading...`, 'success');
                 setTimeout(() => { location.reload(); }, 1500);
             } else {
                 if (data.message && data.message.toLowerCase().includes('insufficient storage')) {
@@ -523,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Delete Handling ---
-    function handleDeleteFile(fileId, fileName, menuItemOrRow) {
+    function handleDeleteFile(fileId, fileName, sourceElement) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
         fetch(`/files/delete/${fileId}`, {
             method: 'POST',
@@ -533,7 +582,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 if (typeof showToast === 'function') showToast(data.message || `File '${fileName}' deleted!`, 'success');
-                const rowToRemove = menuItemOrRow.closest && menuItemOrRow.closest('tr.fl-item-row') ? menuItemOrRow.closest('tr.fl-item-row') : document.querySelector(`.fl-item-row[data-item-id="${fileId}"][data-item-type="file"]`);
+                const rowToRemove = document.querySelector(`.fl-item-row[data-item-id="${fileId}"][data-item-type="file"]`);
                 if (rowToRemove) rowToRemove.remove();
                 const shareRow = document.getElementById(`fl-share-link-row-${fileId}`);
                 if(shareRow) shareRow.remove();
@@ -549,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function handleDeleteFolder(folderId, folderName, menuItemOrRow) {
+    function handleDeleteFolder(folderId, folderName, sourceElement) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
         fetch(`/files/folder/delete/${folderId}`, {
             method: 'POST',
@@ -559,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 if (typeof showToast === 'function') showToast(data.message || `Folder '${folderName}' deleted!`, 'success');
-                const rowToRemove = menuItemOrRow.closest && menuItemOrRow.closest('tr.fl-item-row') ? menuItemOrRow.closest('tr.fl-item-row') : document.querySelector(`.fl-item-row[data-item-id="${folderId}"][data-item-type="folder"]`);
+                const rowToRemove = document.querySelector(`.fl-item-row[data-item-id="${folderId}"][data-item-type="folder"]`);
                 if (rowToRemove) rowToRemove.remove();
                 updateSelectAllCheckboxState();
                 updateMultiSelectActionsVisibility();
@@ -572,44 +621,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showToast === 'function') showToast(`Delete Error: ${error.message}`, 'danger');
         });
     }
-
-    // --- NEW Context Menu Handling ---
-    function closeAllItemMenus(exceptMenu = null) {
-        document.querySelectorAll('.pm-post-menu-dropdown').forEach(menu => {
-            if (menu !== exceptMenu) {
-                menu.style.display = 'none';
-            }
-        });
-    }
-
-    function toggleItemMenu(buttonElement) {
-        const dropdown = buttonElement.nextElementSibling; // Assumes dropdown is the immediate next sibling
-
-        if (dropdown && dropdown.classList.contains('pm-post-menu-dropdown')) {
-            const isCurrentlyVisible = dropdown.style.display === 'block';
-            closeAllItemMenus(); // Close any other open menus first
-
-            if (!isCurrentlyVisible) {
-                dropdown.style.display = 'block';
-                // Add event listener to close menu when clicking outside THIS SPECIFIC MENU
-                const clickOutsideHandler = (event) => {
-                    // Check if the click is outside the button AND outside the dropdown
-                    if (!buttonElement.contains(event.target) && !dropdown.contains(event.target)) {
-                        dropdown.style.display = 'none';
-                        document.removeEventListener('click', clickOutsideHandler, true);
-                    }
-                };
-                // Add with capture to ensure it runs before other click events that might stop propagation
-                // and to catch clicks on the document root.
-                setTimeout(() => { // Timeout to allow current event cycle to complete
-                    document.addEventListener('click', clickOutsideHandler, true);
-                }, 0);
-
-            }
-            // If it was visible, closeAllItemMenus already handled it.
-        }
-    }
-
 
     // === File Viewer Modal Logic ===
     function openFileViewerModal(fileUrl, filename, originalFileIdForDownload) {
@@ -703,95 +714,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // === Event Listeners ===
+    // MODIFIED: Select all checkbox logic
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            itemCheckboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
+            itemRows.forEach(row => { // Iterate through itemRows
+                if (selectAllCheckbox.checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
             });
             updateSelectAllCheckboxState();
             updateMultiSelectActionsVisibility();
         });
     }
 
-    // Add event listeners to individual item checkboxes
-    if (itemCheckboxes.length > 0) {
-        itemCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                updateSelectAllCheckboxState();       // Update the state of the "select all" checkbox
-                updateMultiSelectActionsVisibility(); // Update the visibility of the action buttons
-            });
-        });
-    }
-
+    // NEW: Click listener for selecting/deselecting individual file boxes
     if (fileTable && fileTable.querySelector('tbody')) {
         const tableBody = fileTable.querySelector('tbody');
 
         tableBody.addEventListener('click', function(event) {
             const target = event.target;
-            const viewableLink = target.classList.contains('fl-viewable-file-link') ? target : target.closest('.fl-viewable-file-link');
+            const clickedRow = target.closest('.fl-item-row');
 
-            if (viewableLink) {
-                event.preventDefault();
-                const fileUrl = viewableLink.href;
-                const filename = viewableLink.dataset.filename || viewableLink.textContent || 'File';
-                const row = viewableLink.closest('.fl-item-row');
-                const fileId = row ? row.dataset.itemId : null;
-                openFileViewerModal(fileUrl, filename, fileId);
-                return;
+            if (clickedRow) {
+                // Prevent selection toggle if clicking directly on a link or input within the row
+                if (target.tagName === 'A' || target.tagName === 'INPUT' || target.closest('a') || target.closest('input')) {
+                    // If it's a viewable link, let its default behavior happen (opening modal/new page)
+                    const viewableLink = target.classList.contains('fl-viewable-file-link') ? target : target.closest('.fl-viewable-file-link');
+                    if (viewableLink) {
+                        event.preventDefault(); // Prevent default link behavior to handle modal
+                        const fileUrl = viewableLink.href;
+                        const filename = viewableLink.dataset.filename || viewableLink.textContent || 'File';
+                        const fileId = clickedRow.dataset.itemId;
+                        openFileViewerModal(fileUrl, filename, fileId);
+                        return; // Exit after handling viewable link click
+                    }
+                    // For other links/inputs (like rename input, copy link button), don't toggle selection
+                    return;
+                }
+
+                // Toggle 'selected' class on the clicked row
+                clickedRow.classList.toggle('selected');
+                updateSelectAllCheckboxState();
+                updateMultiSelectActionsVisibility();
             }
 
-            const row = target.closest('.fl-item-row');
-            // Check for new context menu toggle button
-            const clickedContextMenuButton = target.closest('.pm-item-menu-toggle-button');
-            // Check for new menu item (which now has .pm-menu-item and .fl-menu-item-*)
-            const isMenuItem = target.classList.contains('pm-menu-item') || target.closest('.pm-menu-item');
-            const actualMenuItem = isMenuItem ? (target.classList.contains('pm-menu-item') ? target : target.closest('.pm-menu-item')) : null;
             const isCopyLinkButton = target.classList.contains('fl-btn-copy-share-link');
-
-            if (clickedContextMenuButton) {
-                toggleItemMenu(clickedContextMenuButton); // Use new toggle function
-                event.stopPropagation(); // Prevent global click listener from closing it immediately
-            } else if (actualMenuItem && row) {
-                const itemId = row.dataset.itemId;
-                const itemType = row.dataset.itemType;
-                const itemName = row.dataset.itemName;
-                const isPublic = row.dataset.isPublic === 'true';
-                const isEditable = row.dataset.isEditable === 'true';
-
-                // Action logic remains the same, relying on 'fl-menu-item-*' classes
-                if (actualMenuItem.classList.contains('fl-menu-item-copy')) {
-                    setClipboard([{ id: itemId, type: itemType, name: itemName }], 'copy');
-                } else if (actualMenuItem.classList.contains('fl-menu-item-cut')) {
-                    setClipboard([{ id: itemId, type: itemType, name: itemName }], 'cut');
-                } else if (actualMenuItem.classList.contains('fl-menu-item-edit')) {
-                    if (itemType === 'file' && isEditable) {
-                        window.location.href = `/files/edit/${itemId}`;
-                    } else {
-                        if (typeof showToast === 'function') showToast('This item cannot be edited.', 'info');
-                    }
-                } else if (itemType === 'file') {
-                    if (actualMenuItem.classList.contains('fl-menu-item-rename')) { handleRenameButtonClick(actualMenuItem); }
-                    else if (actualMenuItem.classList.contains('fl-menu-item-extract')) { handleExtractFile(itemId, itemName); }
-                    else if (actualMenuItem.classList.contains('fl-menu-item-share-toggle')) { if(isPublic) { handleUnshareFile(itemId, actualMenuItem); } else { handleShareFile(itemId, actualMenuItem); } }
-                    else if (actualMenuItem.classList.contains('fl-menu-item-delete')) {
-                        if (confirm(`Are you sure you want to permanently delete '${itemName}'?`)) {
-                            handleDeleteFile(itemId, itemName, actualMenuItem);
-                        }
-                    }
-                } else if (itemType === 'folder') {
-                    if (actualMenuItem.classList.contains('fl-menu-item-rename-folder')) { handleRenameButtonClick(actualMenuItem); }
-                    else if (actualMenuItem.classList.contains('fl-menu-item-archive-folder')) { handleArchiveFolder(itemId, itemName); }
-                    else if (actualMenuItem.classList.contains('fl-menu-item-delete-folder')) {
-                        if (confirm(`WARNING: This will permanently delete the folder '${itemName}' and ALL its contents. Are you sure?`)) {
-                            handleDeleteFolder(itemId, itemName, actualMenuItem);
-                        }
-                    }
-                }
-                closeAllItemMenus(); // Use new close function
-            } else if (isCopyLinkButton) {
+            if (isCopyLinkButton) {
                 copyToClipboard(target.dataset.link);
             }
-            // If click was not on a menu toggle or inside a menu, the global listener will handle closing.
         });
 
         tableBody.addEventListener('focusout', function(event) {
@@ -815,16 +787,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Global click listener to close menus if click is outside
-    document.addEventListener('click', function(event) {
-        const isToggleButton = event.target.closest('.pm-item-menu-toggle-button');
-        const isInsideDropdown = event.target.closest('.pm-post-menu-dropdown');
-
-        if (!isToggleButton && !isInsideDropdown) {
-            closeAllItemMenus();
-        }
-    });
-
 
     if (pasteButton) {
         pasteButton.addEventListener('click', handlePaste);
@@ -840,32 +802,53 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmMessage = `Are you sure you want to delete ${selectedItems.length} selected item(s)? This action cannot be undone.`;
             if (confirm(confirmMessage)) {
                 if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
-                fetch(`/api/files/batch_delete`, {
+
+                // Track promises for all deletions
+                const deletePromises = selectedItems.map(item =>
+                fetch(`/${item.type === 'folder' ? 'files/folder/delete' : 'files/delete'}/${item.id}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ items: selectedItems })
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken }
                 })
                 .then(handleFetchErrors)
                 .then(data => {
                     if (data.status === 'success') {
-                        if (typeof showToast === 'function') showToast(data.message || `${selectedItems.length} item(s) deleted.`, 'success');
-                        selectedItems.forEach(item => {
-                            const rowToRemove = fileTable.querySelector(`.fl-item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
-                            if (rowToRemove) rowToRemove.remove();
-                            if (item.type === 'file') {
-                                const shareRow = document.getElementById(`fl-share-link-row-${item.id}`);
-                                if (shareRow) shareRow.remove();
-                            }
-                        });
-                        updateSelectAllCheckboxState();
-                        updateMultiSelectActionsVisibility();
+                        const rowToRemove = fileTable.querySelector(`.fl-item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
+                        if (rowToRemove) rowToRemove.remove();
+                        if (item.type === 'file') {
+                            const shareRow = document.getElementById(`fl-share-link-row-${item.id}`);
+                            if (shareRow) shareRow.remove();
+                        }
+                        return { success: true, item: item.name };
                     } else {
-                        throw new Error(data.message || 'Failed to delete selected items.');
+                        throw new Error(data.message || `Failed to delete ${item.name}`);
                     }
                 })
                 .catch(error => {
-                    console.error('Error deleting selected items:', error);
-                    if (typeof showToast === 'function') showToast(`Batch Delete Error: ${error.message}`, 'danger');
+                    console.error(`Error deleting ${item.name}:`, error);
+                    return { success: false, item: item.name, error: error.message };
+                })
+                );
+
+                Promise.allSettled(deletePromises).then(results => {
+                    const successfulDeletes = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+                    const failedDeletes = results.length - successfulDeletes;
+
+                    let toastMessage = '';
+                    let toastType = 'success';
+
+                    if (successfulDeletes > 0 && failedDeletes === 0) {
+                        toastMessage = `${successfulDeletes} item(s) deleted successfully!`;
+                    } else if (successfulDeletes > 0 && failedDeletes > 0) {
+                        toastMessage = `${successfulDeletes} item(s) deleted, but ${failedDeletes} failed. Check console for details.`;
+                        toastType = 'warning';
+                    } else {
+                        toastMessage = `Failed to delete any items.`;
+                        toastType = 'danger';
+                    }
+
+                    if (typeof showToast === 'function') showToast(toastMessage, toastType);
+                    updateSelectAllCheckboxState();
+                    updateMultiSelectActionsVisibility();
                 });
             }
         });
@@ -889,6 +872,152 @@ document.addEventListener('DOMContentLoaded', function() {
                 setClipboard(selectedItems, 'copy');
             } else {
                 if (typeof showToast === 'function') showToast('No items selected to copy.', 'info');
+            }
+        });
+    }
+
+    // Event Listeners for new action buttons
+    if (btnArchiveSelected) {
+        btnArchiveSelected.addEventListener('click', function() {
+            const selectedItems = getSelectedItems();
+            const foldersToArchive = selectedItems.filter(item => item.type === 'folder');
+
+            if (foldersToArchive.length === 0) {
+                if (typeof showToast === 'function') showToast('Please select one or more folders to archive.', 'warning');
+                return;
+            }
+
+            if (confirm(`Archive ${foldersToArchive.length} selected folder(s)? This might take a while.`)) {
+                const archivePromises = foldersToArchive.map(folder =>
+                fetch(`/files/folder/archive/${folder.id}`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+                })
+                .then(handleFetchErrors)
+                .then(data => {
+                    if (data.status === 'success') {
+                        return { success: true, item: folder.name };
+                    } else {
+                        throw new Error(data.message || `Failed to archive folder '${folder.name}'.`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error archiving folder '${folder.name}':`, error);
+                    return { success: false, item: folder.name, error: error.message };
+                })
+                );
+
+                Promise.allSettled(archivePromises).then(results => {
+                    const successfulArchives = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+                    const failedArchives = results.length - successfulArchives;
+
+                    let toastMessage = '';
+                    let toastType = 'success';
+
+                    if (successfulArchives > 0 && failedArchives === 0) {
+                        toastMessage = `${successfulArchives} folder(s) archived successfully! Reloading...`;
+                    } else if (successfulArchives > 0 && failedArchives > 0) {
+                        toastMessage = `${successfulArchives} folder(s) archived, but ${failedArchives} failed. Check console for details. Reloading...`;
+                        toastType = 'warning';
+                    } else {
+                        toastMessage = `Failed to archive any folders.`;
+                        toastType = 'danger';
+                    }
+                    if (typeof showToast === 'function') showToast(toastMessage, toastType);
+                    setTimeout(() => { location.reload(); }, 1500); // Reload after all attempts
+                });
+            }
+        });
+    }
+
+    if (btnUnarchiveSelected) {
+        btnUnarchiveSelected.addEventListener('click', function() {
+            const selectedItems = getSelectedItems();
+            const archivesToUnarchive = selectedItems.filter(item => item.type === 'file' && ['zip', '7z', 'rar'].includes(item.fileExt));
+
+            if (archivesToUnarchive.length === 0) {
+                if (typeof showToast === 'function') showToast('Please select one or more archive files (.zip, .7z, .rar) to unarchive.', 'warning');
+                return;
+            }
+
+            if (confirm(`Unarchive ${archivesToUnarchive.length} selected archive(s)? Existing files might be overwritten.`)) {
+                const unarchivePromises = archivesToUnarchive.map(file =>
+                fetch(`/files/extract/${file.id}`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+                })
+                .then(handleFetchErrors)
+                .then(data => {
+                    if (data.status === 'success') {
+                        return { success: true, item: file.name };
+                    } else {
+                        throw new Error(data.message || `Failed to unarchive '${file.name}'.`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error unarchiving '${file.name}':`, error);
+                    return { success: false, item: file.name, error: error.message };
+                })
+                );
+
+                Promise.allSettled(unarchivePromises).then(results => {
+                    const successfulUnarchives = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+                    const failedUnarchives = results.length - successfulUnarchives;
+
+                    let toastMessage = '';
+                    let toastType = 'success';
+
+                    if (successfulUnarchives > 0 && failedUnarchives === 0) {
+                        toastMessage = `${successfulUnarchives} archive(s) unarchived successfully! Reloading...`;
+                    } else if (successfulUnarchives > 0 && failedUnarchives > 0) {
+                        toastMessage = `${successfulUnarchives} archive(s) unarchived, but ${failedUnarchives} failed. Check console for details. Reloading...`;
+                        toastType = 'warning';
+                    } else {
+                        toastMessage = `Failed to unarchive any items.`;
+                        toastType = 'danger';
+                    }
+                    if (typeof showToast === 'function') showToast(toastMessage, toastType);
+                    setTimeout(() => { location.reload(); }, 1500); // Reload after all attempts
+                });
+            }
+        });
+    }
+
+    if (btnEditSelected) {
+        btnEditSelected.addEventListener('click', function() {
+            const selectedItems = getSelectedItems();
+            if (selectedItems.length !== 1 || selectedItems[0].type !== 'file' || !selectedItems[0].isEditable) {
+                if (typeof showToast === 'function') showToast('Please select a single editable text file to edit.', 'warning');
+                return;
+            }
+            window.location.href = `/files/edit/${selectedItems[0].id}`;
+        });
+    }
+
+    // NEW: Event listener for "Download Selected" button
+    if (btnDownloadSelected) {
+        btnDownloadSelected.addEventListener('click', function() {
+            const filesToDownload = getSelectedItems().filter(item => item.type === 'file');
+
+            if (filesToDownload.length > 0) {
+                if (confirm(`Download ${filesToDownload.length} selected file(s)?`)) {
+                    filesToDownload.forEach(file => {
+                        // Use the base URL passed from Jinja and append the file ID
+                        const downloadUrl = `${downloadFileBaseUrl}${file.id}`; // Correctly concatenates ID
+
+                        // Create a temporary anchor tag to trigger download
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = file.name; // Use the original filename
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    });
+                    showToast(`${filesToDownload.length} file(s) are downloading.`, 'info');
+                }
+            } else {
+                showToast('No files selected for download.', 'warning');
             }
         });
     }
