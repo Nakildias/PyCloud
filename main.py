@@ -3304,51 +3304,62 @@ def download_file(file_id):
             can_access = True # Authenticated users can access files shared in the global group chat
 
         # 3. ADD THIS: Check if file is in a DirectMessage involving the current user
-        if not can_access:
-            dm_association = DirectMessage.query.filter(
-                DirectMessage.file_id == file_record.id,
-                ((DirectMessage.sender_id == current_user.id) | (DirectMessage.receiver_id == current_user.id))
-            ).first()
-            if dm_association:
-                # Ensure the other party in the DM is the one who actually owns/uploaded the file,
-                # or if the file owner is one of the participants in the DM.
-                # This check is to prevent accessing a file if it was somehow linked to a DM
-                # but the file owner isn't part of that DM.
-                if file_record.user_id == dm_association.sender_id or file_record.user_id == dm_association.receiver_id:
-                    can_access = True
-
     if not can_access:
         app.logger.warning(f"Access denied: User {current_user.id} attempted download of file {file_id}. Owner: {file_record.user_id}. Not shared in chat or user is not owner.")
         abort(403)  # Forbidden
 
-    # IMPORTANT: Use the actual file owner's ID to construct the path
     user_upload_path = get_user_upload_path(file_record.user_id)
+    full_file_path = os.path.join(user_upload_path, file_record.stored_filename)
 
     try:
         if not os.path.exists(full_file_path):
             app.logger.error(f"File not found on disk for record {file_id}: {file_record.stored_filename} in {user_upload_path}")
             abort(404)
 
-        mime_type = file_record.mime_type or mimetypes.guess_type(full_file_path)[0] or 'application/octet-stream'
-
-        response = Response(
-            send_from_directory(user_upload_path, file_record.stored_filename, as_attachment=False), # Set as_attachment=False here, we'll override it with manual headers
-            mimetype=mime_type
-        )
-
         safe_original_filename = file_record.original_filename.replace('"', '\\"')
-        response.headers['Content-Disposition'] = f'attachment; filename="{safe_original_filename}"'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
 
-        return response
+        # Determine if it's a problematic image type (like .webp for you)
+        # You might extend this to other image/video types if they also misbehave
+        _, file_extension = os.path.splitext(file_record.original_filename)
+        file_extension = file_extension.lower()
+
+        if file_extension == '.webp' or file_extension == '.avif': # Add other problematic extensions
+            # --- Handle problematic files by zipping on the fly ---
+            with tempfile.TemporaryDirectory() as temp_dir:
+                zip_file_path = os.path.join(temp_dir, f"{os.path.splitext(file_record.original_filename)[0]}.zip")
+
+                with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(full_file_path, arcname=file_record.original_filename) # Add original file to zip
+
+                # Now send the zip file
+                response = send_file(
+                    zip_file_path,
+                    mimetype='application/zip', # Explicitly zip MIME type
+                    as_attachment=True,
+                    download_name=f"{os.path.splitext(file_record.original_filename)[0]}.zip", # Suggest .zip filename
+                    conditional=True # Enable browser caching headers
+                )
+                response.headers['X-Content-Type-Options'] = 'nosniff'
+                return response
+        else:
+            # --- For non-problematic files, send as is ---
+            mime_type = file_record.mime_type or mimetypes.guess_type(full_file_path)[0] or 'application/octet-stream'
+            response = send_file(
+                full_file_path,
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=safe_original_filename,
+                conditional=True
+            )
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            return response
+
     except FileNotFoundError:
         app.logger.error(f"File not found on disk for record {file_id}: {file_record.stored_filename} in {user_upload_path}")
         abort(404)
     except Exception as e:
         app.logger.error(f"Error downloading file {file_id} for user {current_user.id}: {e}", exc_info=True)
         flash("An error occurred while trying to download the file.", "danger")
-        # Redirect to a sensible page, maybe where the link originated if possible,
-        # or to the main files page. For chat, redirecting to chat might be best.
         return redirect(url_for('group_chat'))
 
 @app.route('/files/delete/<int:file_id>', methods=['POST'])
