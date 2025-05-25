@@ -6755,10 +6755,6 @@ def add_coop_coep_headers(response):
 # EMULATORS #
 #GBA EMULATOR
 
-# Configuration for ROM uploads (optional, client-side handling is also common)
-GBA_ROM_UPLOAD_FOLDER = 'emulator/gba/roms'
-app.config['GBA_ROM_UPLOAD_FOLDER'] = GBA_ROM_UPLOAD_FOLDER # Correct assignment to a key
-os.makedirs(app.config['GBA_ROM_UPLOAD_FOLDER'], exist_ok=True)
 from functools import wraps
 
 @app.after_request
@@ -6779,33 +6775,6 @@ def emulator_gba():
     Serves the main HTML page that will host the GBA emulator.
     """
     return render_template('emulator_gba.html')
-
-# Optional: Server-side ROM upload handling
-@app.route('/emulator_gba/upload_rom', methods=['POST'])
-@login_required
-def upload_gba_rom():
-    if 'rom_file' not in request.files:
-        return jsonify({'error': 'No ROM file part in the request'}), 400
-
-    file = request.files['rom_file']
-
-    if file.filename == '':
-        return jsonify({'error': 'No ROM file selected'}), 400
-
-    if file and (file.filename.endswith('.gba') or file.filename.endswith('.zip')):
-        filename = file.filename # Sanitize in a real app
-        filepath = os.path.join(app.config['GBA_ROM_UPLOAD_FOLDER'], filename)
-        try:
-            file.save(filepath)
-            return jsonify({
-                'message': 'ROM uploaded successfully',
-                'rom_name': filename,
-                'rom_url': f'/roms/{filename}' # Client will fetch this
-            }), 200
-        except Exception as e:
-            return jsonify({'error': f'Failed to save ROM: {str(e)}'}), 500
-    else:
-        return jsonify({'error': 'Invalid file type. Please upload a.gba or.zip file'}), 400
 
 @app.route('/emulator_gba/roms/<filename>')
 @login_required
