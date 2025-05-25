@@ -37,6 +37,8 @@ PYTHON_DEPS=( # Python packages to install via pip
     "humanize"
     "gitpython"
     "yt-dlp"
+    "Flask-SocketIO"
+    "paramiko"
 )
 MAIN_EXECUTABLE_NAME="PyCloud" # Name of the script to link in TARGET_BIN_DIR
 LINK_NAMES=( "pycloud" ) # Additional names (symlinks)
