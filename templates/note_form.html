@@ -8,41 +8,54 @@
 {% endblock %}
 
 {% block content %}
-<div class="nf-page-container"> {# Main wrapper for the page content #}
-    <h2 class="nf-title">{{ legend }}</h2> {# Use legend passed from route (e.g., 'Create New Note' or 'Edit Note') #}
+<div class="nf-page-container"> {# Main wrapper for the note form page #}
+    <div class="nf-form-wrapper"> {# Wrapper to apply consistent section styling (gradient, shadow, rounded corners) #}
+        <h2 class="nf-title">{{ legend }}</h2> {# Form title (e.g., "Create New Note" or "Edit Note") #}
 
-    <form method="POST" action="" novalidate class="nf-form"> {# Action URL is determined by the route rendering it #}
-        {{ form.hidden_tag() }} {# CSRF protection #}
+        <form method="POST" action="" novalidate class="nf-form">
+            {{ form.hidden_tag() }} {# CSRF protection token #}
 
-        <div class="nf-form-group"> {# Prefixed form-group #}
-            {{ form.title.label(class="nf-label") }} {# Prefixed label #}
-            {{ form.title(class="form-control nf-input-title", size=50) }} {# Kept form-control, added specific #}
-            {% if form.title.errors %}
-                <ul class="nf-errors"> {# Prefixed errors #}
-                    {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
-                </ul>
-            {% endif %}
-        </div>
+            <div class="nf-form-group"> {# Form group for the note title input #}
+                {{ form.title.label(class="nf-label") }} {# Label for the title field #}
+                {{ form.title(class="form-control nf-input-title", size=50, placeholder="Enter note title...") }} {# Title input field #}
+                {% if form.title.errors %}
+                    <ul class="nf-errors"> {# Display validation errors for the title #}
+                        {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
 
-        <div class="nf-form-group"> {# Prefixed form-group #}
-            {{ form.content.label(class="nf-label") }} {# Prefixed label #}
-            {{ form.content(class="form-control nf-textarea-content", rows=10) }} {# Kept form-control, added specific #}
-            {% if form.content.errors %}
-                <ul class="nf-errors"> {# Prefixed errors #}
-                    {% for error in form.content.errors %}<li>{{ error }}</li>{% endfor %}
-                </ul>
-            {% endif %}
-        </div>
+            <div class="nf-form-group"> {# Form group for the note content textarea #}
+                {{ form.content.label(class="nf-label") }} {# Label for the content field #}
+                {{ form.content(class="form-control nf-textarea-content", rows=10, placeholder="Write your note content here...") }} {# Content textarea #}
+                {% if form.content.errors %}
+                    <ul class="nf-errors"> {# Display validation errors for the content #}
+                        {% for error in form.content.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
 
-        <div class="nf-form-group nf-submit-group" style="margin-top: 20px;"> {# Prefixed form-group and added submit-group #}
-            {{ form.submit(class="btn btn-primary nf-submit-button") }} {# Kept btn, btn-primary, added specific #}
-            {# Add a cancel button linking back to notes list or specific note #}
-            {% if note_id %}
-                 <a href="{{ url_for('view_note', note_id=note_id) }}" class="btn btn-secondary nf-cancel-button">Cancel</a> {# Kept btn, btn-secondary, added specific #}
-            {% else %}
-                 <a href="{{ url_for('list_notes') }}" class="btn btn-secondary nf-cancel-button">Cancel</a> {# Kept btn, btn-secondary, added specific #}
-            {% endif %}
-        </div>
-    </form>
+            <div class="nf-submit-group"> {# Button group for form submission and cancellation #}
+                <button type="submit" class="nl-btn nl-btn-primary nf-submit-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Save Changes
+                </button>
+                {# Conditional cancel button based on whether editing an existing note or creating a new one #}
+                {% if note_id %}
+                     <a href="{{ url_for('view_note', note_id=note_id) }}" class="nl-btn nl-btn-secondary nf-cancel-button">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                         Cancel
+                     </a>
+                {% else %}
+                     <a href="{{ url_for('list_notes') }}" class="nl-btn nl-btn-secondary nf-cancel-button">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                         Cancel
+                     </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

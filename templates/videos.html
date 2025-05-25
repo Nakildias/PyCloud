@@ -1,4 +1,3 @@
-{# templates/videos.html #}
 {% extends "base.html" %}
 
 {% block head_extensions %}
@@ -9,15 +8,23 @@
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
 {% block content %}
-<div class="vd-page-container">
-    <div class="vd-header-bar">
-        <h2 class="vd-page-title">{{ title }}</h2>
-    </div>
+<div class="vd-page-container"> {# Main wrapper for the videos gallery page content #}
+
+    <header class="vd-header"> {# Section for the page title and primary action button #}
+        <h1 class="vd-page-title">{{ title }}</h1> {# Main title for the videos page #}
+        <div class="vd-header-actions"> {# Container for action buttons in the header #}
+            {# Assuming 'list_files' is the route to upload files #}
+            <a href="{{ url_for('list_files') }}" class="nl-btn nl-btn-primary vd-btn-upload-videos">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                Upload Videos
+            </a>
+        </div>
+    </header>
 
     {% if video_files %}
-        <div class="vd-gallery-grid">
+        <div class="vd-gallery-grid"> {# CSS Grid container for individual video cards #}
             {% for video in video_files %}
-                <div class="vd-video-card" id="vd-card-{{ video.id }}">
+                <div class="vd-video-card" id="vd-card-{{ video.id }}"> {# Individual video card element #}
                     <div class="vd-video-thumbnail-container"
                          role="button"
                          tabindex="0"
@@ -26,16 +33,17 @@
                          data-video-type="{{ video.mime_type }}"
                          data-filename="{{ video.original_filename }}"
                          data-file-id="{{ video.id }}">
-                        {# Basic video icon as placeholder if no poster #}
                         {% if video.poster_url %}
                             <img src="{{ video.poster_url }}" alt="Poster for {{ video.original_filename }}" class="vd-video-poster">
                         {% else %}
+                            {# Placeholder for videos without a poster image #}
                             <div class="vd-video-poster-placeholder">
-                                <img src="{{ url_for('static', filename='icons/video_camera.svg') }}" alt="Video icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-film"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h18"/><path d="M3 12h18"/><path d="M3 16.5h18"/></svg>
                             </div>
                         {% endif %}
                         <div class="vd-video-play-icon-overlay">
-                            <img src="{{ url_for('static', filename='icons/play-button.svg') }}" alt="Play video">
+                            {# Lucide Play icon #}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play-circle"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
                         </div>
                     </div>
                     <div class="vd-video-info">
@@ -46,9 +54,11 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="vd-empty-message">
-            <p>You haven't uploaded any videos yet.</p>
-            <p><a href="{{ url_for('list_files') }}" class="btn btn-primary">Upload Videos</a></p>
+        <div class="vd-empty-state"> {# Styled container for when no videos are available #}
+            <p class="vd-empty-message">You haven't uploaded any videos yet. Start by uploading your first video!</p>
+            <a href="{{ url_for('list_files') }}" class="nl-btn nl-btn-primary vd-btn-upload-first">
+                Upload Your First Video
+            </a>
         </div>
     {% endif %}
 </div>
@@ -59,7 +69,9 @@
     <div class="vd-modal-content">
         <div class="vd-modal-header">
             <h5 id="vd-modal-filename-display" class="vd-modal-title-text">Video Preview</h5>
-            <button type="button" id="vd-btn-close-modal" class="vd-modal-close-button" aria-label="Close preview">&times;</button>
+            <button type="button" id="vd-btn-close-modal" class="vd-modal-close-button" aria-label="Close preview">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
         </div>
         <div class="vd-modal-body">
             <video id="vd-modal-video-preview" class="vd-modal-video" controls width="100%">
@@ -67,9 +79,18 @@
             </video>
         </div>
         <div class="vd-modal-footer">
-            <button type="button" id="vd-btn-modal-delete" class="btn btn-danger btn-sm">Delete</button>
-            <button type="button" id="vd-btn-modal-rename" class="btn btn-secondary btn-sm">Rename</button>
-            <a href="#" id="vd-modal-download-link" class="btn btn-primary btn-sm" download>Download</a>
+            <button type="button" id="vd-btn-modal-delete" class="nl-btn nl-btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                Delete
+            </button>
+            <button type="button" id="vd-btn-modal-rename" class="nl-btn nl-btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
+                Rename
+            </button>
+            <a href="#" id="vd-modal-download-link" class="nl-btn nl-btn-primary" download>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Download
+            </a>
         </div>
     </div>
 </div>
@@ -78,9 +99,10 @@
 {% block scripts %}
     {{ super() }}
     <script>
-        /* URLs for JS, matching the photos page pattern */
+        // URLs for JS, matching the photos page pattern
         const DELETE_VIDEO_URL_BASE = "{{ url_for('delete_file', file_id=0) }}".slice(0, -1);
         const RENAME_VIDEO_URL_BASE = "{{ url_for('rename_file', file_id=0) }}".slice(0, -1);
+        const DOWNLOAD_VIDEO_URL_BASE = "{{ url_for('download_file', file_id=0) }}".slice(0, -1);
     </script>
     <script src="{{ url_for('static', filename='js/videos.js') }}"></script>
 {% endblock %}

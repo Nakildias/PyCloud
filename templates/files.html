@@ -13,18 +13,18 @@
     {# --- Page Header & Breadcrumbs --- #}
     <div class="fl-header-bar">
         <h2 class="fl-page-title">
-             <nav aria-label="breadcrumb" class="fl-breadcrumb-nav">
+            <nav aria-label="breadcrumb" class="fl-breadcrumb-nav">
                 <ol class="fl-breadcrumb">
                     <li class="fl-breadcrumb-item">
                         <a href="{{ url_for('list_files') }}">My Files</a>
                     </li>
                     {% for crumb in breadcrumbs %}
                         <li class="fl-breadcrumb-item" aria-current="page">
-                           <a href="{{ url_for('list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+                            <a href="{{ url_for('list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
                         </li>
                     {% endfor %}
                 </ol>
-             </nav>
+            </nav>
         </h2>
         <p class="fl-storage-usage-display">
             {{ usage_mb }} MB / {{ limit_display }} {{ limit_type_indicator }}
@@ -40,18 +40,22 @@
             <button id="fl-btn-delete-selected" class="btn btn-danger btn-sm fl-btn-delete-selected">Delete Selected</button>
             <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">Cut Selected</button>
             <button id="fl-btn-copy-selected" class="btn btn-secondary btn-sm fl-btn-copy-selected">Copy Selected</button>
+            <button id="fl-btn-archive-selected" class="btn btn-secondary btn-sm fl-btn-archive-selected" style="display: none;">Archive Selected</button>
+            <button id="fl-btn-unarchive-selected" class="btn btn-secondary btn-sm fl-btn-unarchive-selected" style="display: none;">Unarchive Selected</button>
+            <button id="fl-btn-edit-selected" class="btn btn-secondary btn-sm fl-btn-edit-selected" style="display: none;">Edit Selected</button>
+            <button id="fl-btn-download-selected" class="btn btn-primary btn-sm fl-btn-download-selected" style="display: none;">Download Selected</button>
         </div>
 
         <form id="fl-form-create-folder" method="POST" action="{{ url_for('create_folder') }}" class="fl-form-create-folder" style="display: none;" novalidate>
-             {{ create_folder_form.hidden_tag() }}
-             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
-             <div class="fl-create-folder-form-inner">
-                 <div class="form-group fl-form-group-foldername" style="flex-grow: 1; margin-bottom: 0;">
-                     {{ create_folder_form.name(class="form-control form-control-sm fl-input-foldername", placeholder="New folder name...", required=True, autocomplete="off") }}
-                 </div>
-                 {{ create_folder_form.submit(class="btn btn-primary btn-sm fl-btn-submit-foldername") }}
-                 <button type="button" id="fl-btn-cancel-create-folder" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
-             </div>
+            {{ create_folder_form.hidden_tag() }}
+            <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
+            <div class="fl-create-folder-form-inner">
+                <div class="form-group fl-form-group-foldername" style="flex-grow: 1; margin-bottom: 0;">
+                    {{ create_folder_form.name(class="form-control form-control-sm fl-input-foldername", placeholder="New folder name...", required=True, autocomplete="off") }}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm fl-btn-submit-foldername">{{ create_folder_form.submit.label }}</button>
+                <button type="button" id="fl-btn-cancel-create-folder" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
+            </div>
         </form>
     </div>
 
@@ -60,20 +64,20 @@
         <h3 class="fl-upload-title">Upload New File {{ "to '" + current_folder.name + "'" if current_folder else "to Root" }}</h3>
         <p class="fl-upload-guidance">Drag files here or use the button below</p>
         <form id="fl-upload-form" method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" novalidate class="fl-upload-form-element">
-             {{ upload_form.hidden_tag() }}
-             <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}" id="fl-upload-parent-folder-id">
-             <div class="fl-upload-input-wrapper">
+            {{ upload_form.hidden_tag() }}
+            <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}" id="fl-upload-parent-folder-id">
+            <div class="fl-upload-input-wrapper">
                 {{ upload_form.file(id="fl-file-upload-input", class="visually-hidden fl-input-file-actual") }}
                 <label for="fl-file-upload-input" class="btn btn-secondary btn-sm fl-btn-browse-files">
                     Browse Files...
                 </label>
-             </div>
-             <div class="fl-upload-info-group">
-                 {% if upload_form.file.errors %}
+            </div>
+            <div class="fl-upload-info-group">
+                {% if upload_form.file.errors %}
                     <ul class="errors fl-upload-errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                 {% endif %}
-                 <small class="fl-upload-size-limit">Max size per file: {{ max_upload_mb }} MB</small>
-             </div>
+                {% endif %}
+                <small class="fl-upload-size-limit">Max size per file: {{ max_upload_mb }} MB</small>
+            </div>
         </form>
     </div>
 
@@ -82,49 +86,35 @@
         <table id="fl-file-list-table" class="fl-file-list-table-element">
             <thead>
                 <tr class="fl-table-header-row">
-                    <th class="fl-th fl-th-checkbox">
+                    <th class="fl-th fl-th-checkbox"> {# This checkbox remains for "Select All" #}
                         <input type="checkbox" id="fl-select-all-checkbox" aria-label="Select all items" class="fl-select-all-checkbox-input">
                     </th>
                     <th class="fl-th fl-th-name">Name</th>
                     <th class="fl-th fl-th-size">Size</th>
                     <th class="fl-th fl-th-modified">Modified</th>
-                    <th class="fl-th fl-th-actions"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for folder in subfolders %}
                 <tr class="fl-item-row fl-folder-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}">
-                    <td class="fl-td fl-td-checkbox">
-                        <input type="checkbox" class="fl-item-checkbox" data-item-id="{{ folder.id }}" data-item-type="folder" aria-label="Select folder {{ folder.name }}">
+                    <td class="fl-td fl-td-name" colspan="4"> {# Removed checkbox TD, consolidated to Name TD #}
+                        {# BEGIN: fl-item-info-wrapper content #}
+                        <div class="fl-item-info-wrapper">
+                            <div class="fl-item-header">
+                                <span class="fl-item-icon fl-item-icon-folder">📁</span>
+                                <span class="fl-itemname-display" id="fl-foldername-display-{{ folder.id }}">
+                                    <a href="{{ url_for('list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
+                                </span>
+                                <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
+                            </div>
+                            <div class="fl-item-details">
+                                <span class="fl-td-size">--</span>
+                                <span class="fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
+                            </div>
+                        </div>
+                        {# END: fl-item-info-wrapper content #}
                     </td>
-                    <td class="fl-td fl-td-name">
-                        <span class="fl-item-icon fl-item-icon-folder">📁</span>
-                        <span class="fl-itemname-display" id="fl-foldername-display-{{ folder.id }}">
-                            <a href="{{ url_for('list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
-                        </span>
-                        <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
-                    </td>
-                    <td class="fl-td fl-td-size">--</td>
-                    <td class="fl-td fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></td>
-<td class="fl-td fl-td-actions fl-actions-cell">
-    <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
-        <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ folder.name }}" onclick="toggleItemMenu(this)">
-            {# Make sure toggleItemMenu(this) is implemented in files.js #}
-            <img src="{{ url_for('static', filename='icons/hamburger-menu.svg') }}" alt="Menu">
-        </button>
-        <div class="pm-post-menu-dropdown" style="display:none;"> {# Class from base.css, handles dropdown styling #}
-            {# Action items now use 'unified-action-button' for styling from base.css #}
-            {# Original 'fl-menu-item-*' classes are kept for JavaScript event handling #}
-            <button class="unified-action-button small pm-menu-item fl-menu-item-copy">Copy</button>
-            <button class="unified-action-button small pm-menu-item fl-menu-item-cut">Cut</button>
-            <div class="pm-menu-separator"></div> {# You may need to define .pm-menu-separator in base.css if not already present #}
-            <button class="unified-action-button small pm-menu-item fl-menu-item-rename-folder">Rename</button>
-            <button class="unified-action-button small pm-menu-item fl-menu-item-archive-folder">Archive</button>
-            <div class="pm-menu-separator"></div>
-            <button class="unified-action-button small danger pm-menu-item fl-menu-item-delete-folder">Delete</button>
-        </div>
-    </div>
-</td>
+                    {# Removed fl-td-size-hidden, fl-td-modified-hidden as colspan handles it #}
                 </tr>
                 {% endfor %}
 
@@ -132,97 +122,83 @@
                 {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
                 {% set file_ext = file.original_filename.split('.')[-1]|lower %}
                 {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
-                <tr class="fl-item-row fl-file-row" data-item-id="{{ file.id }}" data-item-type="file" data-item-name="{{ file.original_filename|escape }}" data-is-public="{{ 'true' if file.is_public else 'false' }}" data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}" data-public-id="{{ file.public_id }}" data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}" data-is-editable="{{ 'true' if file.is_editable else 'false' }}">
-                    <td class="fl-td fl-td-checkbox">
-                        <input type="checkbox" class="fl-item-checkbox" data-item-id="{{ file.id }}" data-item-type="file" aria-label="Select file {{ file.original_filename }}">
+                <tr class="fl-item-row fl-file-row"
+                    data-item-id="{{ file.id }}"
+                    data-item-type="file"
+                    data-item-name="{{ file.original_filename|escape }}"
+                    data-is-public="{{ 'true' if file.is_public else 'false' }}"
+                    data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}"
+                    data-public-id="{{ file.public_id }}"
+                    data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}"
+                    data-is-editable="{{ 'true' if file.is_editable else 'false' }}"
+                    data-file-ext="{{ file_ext }}"> {# ADDED: data-file-ext attribute #}
+                    <td class="fl-td fl-td-name" colspan="4"> {# Removed checkbox TD, consolidated to Name TD #}
+                        {# BEGIN: fl-item-info-wrapper content #}
+                        <div class="fl-item-info-wrapper">
+                            <div class="fl-item-header">
+                                <span class="fl-item-icon fl-item-icon-file">
+                                    {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %}
+                                    {% set audio_extensions = ['mp3', 'ogg', 'wav'] %}
+                                    {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %}
+                                    {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %}
+                                    {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %}
+                                    {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %}
+                                    {% if file_ext in video_extensions %}<span title="Video">🎬</span>
+                                    {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
+                                    {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
+                                    {% elif file_ext in package_extensions %}<span title="Package">📦</span>
+                                    {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
+                                    {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
+                                    {% elif file_ext in script_extensions %}<span title="Script">📜</span>
+                                    {% elif file.is_editable %}<span title="Editable">📝</span>
+                                    {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
+                                    {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
+                                    {% elif is_viewable %}<span title="Viewable">📺</span>
+                                    {% elif is_extractable %}<span title="Extractable">📚</span>
+                                    {% else %}[&nbsp;]
+                                    {% endif %}
+                                </span>
+                                <span class="fl-itemname-display" id="fl-filename-display-{{ file.id }}">
+                                    {% if is_viewable %}
+                                        <a href="{{ url_for('view_file', file_id=file.id) }}" class="fl-viewable-file-link" data-filename="{{ file.original_filename|escape }}" title="View File">{{ file.original_filename }}</a>
+                                    {% else %}
+                                        {{ file.original_filename }}
+                                    {% endif %}
+                                </span>
+                                <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-{{ file.id }}" value="{{ file.original_filename }}">
+                            </div>
+                            <div class="fl-item-details">
+                                <span class="fl-td-size">
+                                    {% if file.filesize == 0 %} 0 B
+                                    {% elif file.filesize < 1024 %} {{ file.filesize }} B
+                                    {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
+                                    {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
+                                    {% endif %}
+                                </span>
+                                <span class="fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
+                            </div>
+                        </div>
+                        {# END: fl-item-info-wrapper content #}
                     </td>
-                    <td class="fl-td fl-td-name">
-                        <span class="fl-item-icon fl-item-icon-file">
-                             {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %}
-                             {% set audio_extensions = ['mp3', 'ogg', 'wav'] %}
-                             {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %}
-                             {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %}
-                             {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %}
-                             {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %}
-                             {% if file_ext in video_extensions %}<span title="Video">🎬</span>
-                             {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
-                             {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
-                             {% elif file_ext in package_extensions %}<span title="Package">📦</span>
-                             {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
-                             {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
-                             {% elif file_ext in script_extensions %}<span title="Script">📜</span>
-                             {% elif file.is_editable %}<span title="Editable">📝</span>
-                             {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
-                             {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
-                             {% elif is_viewable %}<span title="Viewable">📺</span>
-                             {% elif is_extractable %}<span title="Extractable">📚</span>
-                             {% else %}[&nbsp;]
-                             {% endif %}
-                        </span>
-                        <span class="fl-itemname-display" id="fl-filename-display-{{ file.id }}">
-                            {% if is_viewable %}
-                                <a href="{{ url_for('view_file', file_id=file.id) }}" class="fl-viewable-file-link" data-filename="{{ file.original_filename|escape }}" title="View File">{{ file.original_filename }}</a>
-                            {% else %}
-                                {{ file.original_filename }}
-                            {% endif %}
-                        </span>
-                        <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-{{ file.id }}" value="{{ file.original_filename }}">
-                    </td>
-                    <td class="fl-td fl-td-size">
-                        {% if file.filesize == 0 %} 0 B
-                        {% elif file.filesize < 1024 %} {{ file.filesize }} B
-                        {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
-                        {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
-                        {% endif %}
-                    </td>
-                    <td class="fl-td fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></td>
-<td class="fl-td fl-td-actions fl-actions-cell">
-    <div class="pm-post-actions-menu"> {# Use class from base.css, provides position: relative #}
-        <button class="unified-icon-button small pm-item-menu-toggle-button" aria-label="Actions for {{ file.original_filename }}" onclick="toggleItemMenu(this)">
-            {# Make sure toggleItemMenu(this) is implemented in files.js as described before #}
-            <img src="{{ url_for('static', filename='icons/hamburger-menu.svg') }}" alt="Menu">
-        </button>
-        <div class="pm-post-menu-dropdown" style="display:none;"> {# Class from base.css, handles dropdown styling #}
-            {# Action items now use 'unified-action-button' for styling from base.css #}
-            {# Original 'fl-menu-item-*' classes are kept for JavaScript event handling #}
-
-            {% if file.is_editable %}
-            <button class="unified-action-button small pm-menu-item fl-menu-item-edit">Edit</button>
-            {% endif %}
-            <a href="{{ url_for('download_file', file_id=file.id) }}" class="unified-action-button small pm-menu-item fl-menu-item-download" download="{{ file.original_filename }}">Download</a>
-            <button class="unified-action-button small pm-menu-item fl-menu-item-copy">Copy</button>
-            <button class="unified-action-button small pm-menu-item fl-menu-item-cut">Cut</button>
-            <div class="pm-menu-separator"></div> {# Assumes .pm-menu-separator is styled in base.css or files.css #}
-            <button class="unified-action-button small pm-menu-item fl-menu-item-rename">Rename</button>
-            {% if is_extractable %}
-                <button class="unified-action-button small pm-menu-item fl-menu-item-extract">Extract</button>
-            {% endif %}
-            <button class="unified-action-button small pm-menu-item fl-menu-item-share-toggle">
-                {% if file.is_public %} Unshare {% if file.public_password_hash %}🔒{% endif %} {% else %} Share {% endif %}
-            </button>
-            <div class="pm-menu-separator"></div>
-            <button class="unified-action-button small danger pm-menu-item fl-menu-item-delete">Delete</button> {# Retain 'danger' for styling delete buttons #}
-        </div>
-    </div>
-</td>
-                 </tr>
-                 <tr class="fl-share-link-row" id="fl-share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %}">
-                     <td colspan="5" class="fl-share-link-cell">
+                    {# Removed fl-td-size-hidden, fl-td-modified-hidden as colspan handles it #}
+                </tr>
+                <tr class="fl-share-link-row" id="fl-share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %}">
+                    <td colspan="4" class="fl-share-link-cell"> {# colspan adjusted #}
                          <div class="fl-share-link-display-area" id="fl-share-link-display-{{ file.id }}">
-                             {% if file.is_public and file.public_id %}
-                             <label for="fl-share-url-{{ file.id }}" class="fl-share-link-label">
-                                 Link {% if file.public_password_hash %}🔒{% endif %}:
-                             </label>
-                             <input type="text" id="fl-share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm fl-share-link-input" title="Public share link">
-                             <button class="btn btn-sm fl-btn-copy-share-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}">Copy</button>
-                             {% endif %}
+                            {% if file.is_public and file.public_id %}
+                            <label for="fl-share-url-{{ file.id }}" class="fl-share-link-label">
+                                Link {% if file.public_password_hash %}🔒{% endif %}:
+                            </label>
+                            <input type="text" id="fl-share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm fl-share-link-input" title="Public share link">
+                            <button class="btn btn-sm fl-btn-copy-share-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}">Copy</button>
+                            {% endif %}
                          </div>
-                     </td>
-                 </tr>
+                    </td>
+                </tr>
                 {% endfor %}
 
                 {% if not subfolders and not files %}
-                <tr class="fl-empty-folder-row"><td colspan="5" class="fl-empty-folder-message">This folder is empty.</td></tr>
+                <tr class="fl-empty-folder-row"><td colspan="4" class="fl-empty-folder-message">This folder is empty.</td></tr> {# colspan adjusted #}
                 {% endif %}
             </tbody>
         </table>
@@ -261,6 +237,8 @@
     window.PyCloud_Config = {
         VIEWABLE_MIMES_IFRAME: {{ config.get('VIEWABLE_MIMES_IFRAME', []) | tojson | safe }}
     };
+    // Correct way to pass the base URL for download
+    window.PyCloud_DownloadFileEndpoint = "{{ url_for('download_file', file_id=0).replace('0', '') }}";
 </script>
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files.js') }}"></script>

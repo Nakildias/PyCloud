@@ -7,46 +7,14 @@
 
 {% block content %}
 <div class="git-card git-rb-container">
-    {% block breadcrumbs_override %}
-    <div class="git-breadcrumb-container">
-        <nav class="git-breadcrumb-nav" aria-label="Breadcrumb">
-            <ol role="list" class="git-breadcrumb-list">
-                <li class="git-breadcrumb-item">
-                    <div class="git-breadcrumb-item-content">
-                        <a href="{{ url_for('mygit') }}" class="git-breadcrumb-link git-breadcrumb-link-home">
-                            <svg class="git-breadcrumb-icon git-breadcrumb-icon-home" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                            </svg>
-                            <span class="git-sr-only">Dashboard</span>
-                        </a>
-                    </div>
-                </li>
-                {% for crumb in breadcrumbs %}
-                <li class="git-breadcrumb-item">
-                    <div class="git-breadcrumb-item-content">
-                        <svg class="git-breadcrumb-icon git-breadcrumb-separator-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                            <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
-                        </svg>
-                        {% if crumb.url %}
-                            <a href="{{ crumb.url }}" class="git-breadcrumb-link">{{ crumb.name }}</a>
-                        {% else %}
-                            <span class="git-breadcrumb-current">{{ crumb.name }}</span>
-                        {% endif %}
-                    </div>
-                </li>
-                {% endfor %}
-            </ol>
-        </nav>
-    </div>
-    {% endblock breadcrumbs_override %}
 
     {% block repo_heading_override %}
     <div class="git-repo-header">
         <div class="git-repo-header-main">
             <h1 class="git-repo-header-title">
-                <a href="{{ url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-repo-header-name-link">{{ owner_username }}/{{ repo_short_name }}</a>
+                <a href="{{ url_for('view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-repo-header-name-link">{{ owner_username }} / {{ repo_short_name }}</a>
                 {% if ref_name %}
-                <span class="git-repo-header-ref">@ {{ ref_name }}</span>
+                <span class="git-repo-header-ref">{{ ref_name }}</span>
                 {% endif %}
                 {% if g.repo %}
                 <span class="git-repo-header-visibility-badge {% if g.repo.is_private %}git-repo-header-visibility-badge-private{% else %}git-repo-header-visibility-badge-public{% endif %}">
@@ -58,15 +26,11 @@
             <p class="git-repo-header-description">{{ g.repo.description }}</p>
             {% endif %}
         </div>
-        {% if g.repo and g.repo.owner == session.get('username') %}
+        {% if current_user.username == owner_username %}
         <div class="git-repo-header-actions">
             <a href="{{ url_for('repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) }}"
                class="git-btn git-btn-secondary git-btn-sm git-repo-settings-link">
-                <svg xmlns="http://www.w3.org/2000/svg" class="git-btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Settings
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
             </a>
         </div>
         {% endif %}

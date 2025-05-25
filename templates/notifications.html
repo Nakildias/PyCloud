@@ -23,8 +23,8 @@
                     {% if notification.sender_profile_pic %}
                         <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ notification.sender_profile_pic) }}" alt="{{ notification.sender_username }}" class="notif-sender-pfp"> {# Was notification-sender-pfp #}
                     {% else %}
-                        {# Added placeholder class for consistency #}
-                        <div class="notif-sender-pfp notif-sender-pfp-placeholder"></div>
+                        {# Display default-pfp.svg if no sender profile picture is available #}
+                        <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="" class="notif-sender-pfp">
                     {% endif %}
                     <span class="notif-sender-name"> {# Was notification-sender #}
                         {% if notification.sender_id %}
@@ -50,27 +50,27 @@
             {% endfor %}
         </ul>
 
-        {# Pagination - classes kept as they are likely styled by base.css #}
+        {# Pagination - classes now match post_feed.html's pattern #}
         {% if notifications_pagination_obj.pages > 1 %}
-        <nav aria-label="Page navigation" class="pagination-nav notif-pagination-nav"> {# Added specific class for potential overrides #}
-            <ul class="pagination">
-                <li class="page-item {% if not notifications_pagination_obj.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.prev_num if notifications_pagination_obj.has_prev else '#') }}" aria-label="Previous">
-                        <span aria-hidden="true">&laquo;</span>
+        <nav aria-label="Page navigation" class="pagination-nav notif-pagination-nav">
+            <ul class="pagination notif-pagination-list">
+                <li class="page-item notif-page-item {% if not notifications_pagination_obj.has_prev %}disabled{% endif %}">
+                    <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.prev_num) if notifications_pagination_obj.has_prev else '#_notifications' }}" aria-label="Previous">
+                        &laquo; Previous
                     </a>
                 </li>
                 {% for page_num in notifications_pagination_obj.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        <li class="page-item {% if notifications_pagination_obj.page == page_num %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('notifications_page', page=page_num) }}">{{ page_num }}</a>
+                        <li class="page-item notif-page-item {% if notifications_pagination_obj.page == page_num %}active{% endif %}">
+                            <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=page_num) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                        <li class="page-item notif-page-item disabled"><span class="page-link notif-page-link">...</span></li>
                     {% endif %}
                 {% endfor %}
-                <li class="page-item {% if not notifications_pagination_obj.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.next_num if notifications_pagination_obj.has_next else '#') }}" aria-label="Next">
-                        <span aria-hidden="true">&raquo;</span>
+                <li class="page-item notif-page-item {% if not notifications_pagination_obj.has_next %}disabled{% endif %}">
+                    <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.next_num) if notifications_pagination_obj.has_next else '#_notifications' }}" aria-label="Next">
+                        Next &raquo;
                     </a>
                 </li>
             </ul>

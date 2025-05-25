@@ -12,8 +12,17 @@
 
 {% block content %}
 <div class="vsp-page-container"> {# Main wrapper for the page content #}
-    {# The .single-post-container class from the original inline style is now vsp-post-wrapper #}
-    <div class="vsp-post-wrapper">
+
+    {# This is the page header, consistent with other pages #}
+    <div class="vsp-header">
+        <h1 class="vsp-page-title">{{ title }}</h1> {# Specific class for page title #}
+        <div class="vsp-header-actions">
+            {# Any specific actions for a single post view could go here, e.g., a "back to feed" button #}
+        </div>
+    </div>
+
+    {# This is the new card that contains the actual post content #}
+    <div class="vsp-content-card">
         {% if post %}
             {# The display_post macro uses pm- prefixed classes internally #}
             {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}

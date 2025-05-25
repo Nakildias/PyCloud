@@ -17,7 +17,7 @@
             <svg class="git-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V4a1 1 0 011-1z" clip-rule="evenodd" />
             </svg>
-            Create New Repository
+            New Repo
         </a>
     </header>
 
@@ -46,8 +46,8 @@
                         <div class="git-mygit-repo-card-header">
                             <h3 class="git-mygit-repo-name">
                                 <a href="{{ url_for('view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-mygit-repo-link">
-                                    <svg class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.586 3.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.707-.707a.5.5 0 01.707-.707l.707.707a1 1 0 001.414 0l3-3a.5.5 0 01.707.707l-3 3a2 2 0 01-2.828 0l-.707-.707V10H9a1 1 0 110-2h2.586z" clip-rule="evenodd" /></svg>
-                                    {{ repo.owner.username }}/<strong class="git-mygit-repo-name-strong">{{ repo.name }}</strong>
+<svg  class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                    {{ repo.owner.username }} / {{ repo.name }}
                                 </a>
                             </h3>
                             <span class="git-repo-header-visibility-badge {% if repo.is_private %}git-repo-header-visibility-badge-private{% else %}git-repo-header-visibility-badge-public{% endif %}">
@@ -64,10 +64,25 @@
                         </div>
                          <div class="git-mygit-repo-metadata">
                             {% if git_details and not git_details.error %}
-                                <div class="git-mygit-repo-commit-count"><i class="fas fa-history"></i> {{ git_details.commit_count }} Commits</div>
-                                <div class="git-mygit-repo-last-update">Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}</div>
+                                <div class="git-mygit-repo-commit-count">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-git-commit" style="transform: translateY(5px);">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M12 3l0 6" />
+    <path d="M12 15l0 6" />
+</svg>
+                                {{ git_details.commit_count }} Commits
+                                </div>
+                                <div class="git-mygit-repo-last-update"></div>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M12 12l3 2" />
+    <path d="M12 7v5" />
+</svg>
+                                Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}
                             {% elif git_details.error %}
-                                <div class="git-mygit-repo-error-text">Error: {{ git_details.error }}</div>
+                                <div class="git-mygit-repo-error-text">{{ git_details.error }}</div>
                             {% else %}
                                 <div class="git-mygit-repo-no-info">Commit info N/A</div>
                             {% endif %}
@@ -80,15 +95,15 @@
                                 <span class="git-mygit-repo-clone-label">Clone:</span>
                                 <input type="text" readonly value="{{ request.host_url.rstrip('/') }}{{ url_for('git_info_refs', username=repo.owner.username, repo_name_with_git=repo.name + '.git').split('/info/refs')[0] }}" class="git-mygit-repo-clone-input">
                                 <button class="git-btn git-btn-sm git-mygit-repo-copy-clone-url-btn" title="Copy clone URL">
-                                    <svg class="git-btn-icon git-btn-icon-no-text" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM6 11a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" /></svg>
+<svg class="git-btn-icon git-btn-icon-no-text" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-copy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>
                                 </button>
                             </div>
-                            <div class="git-mygit-repo-card-actions">
-                                <span class="git-mygit-star-count" id="star-count-{{ repo.id }}"><i class="fas fa-star"></i> {{ repo.star_count }}</span>
-                                <a href="{{ url_for('repo_settings', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-btn git-btn-sm git-btn-secondary">Settings</a>
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                </form>
-                            </div>
+<div class="git-mygit-repo-card-actions">
+    <span class="git-mygit-star-count" id="star-count-{{ repo.id }}"><i class="fas fa-star"></i> {{ repo.star_count }}</span>
+    <a href="{{ url_for('repo_settings', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-btn git-btn-sm git-btn-secondary" title="Repository Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
+    </a>
+</div>
                         </div>
                     </article>
                 {% endfor %}
@@ -96,7 +111,7 @@
         {% else %}
             <div class="git-mygit-no-repos-message" style="margin-bottom: var(--git-space-8);">
                  <div class="git-mygit-no-repos-icon-container">
-                     <svg class="git-mygit-no-repos-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
+<svg class="git-mygit-no-repos-icon" class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
                  </div>
                 <h3 class="git-mygit-no-repos-title">You don't own any repositories yet.</h3>
                 <p class="git-mygit-no-repos-text">Create a repository to get started!</p>
@@ -118,8 +133,8 @@
                         <div class="git-mygit-repo-card-header">
                             <h3 class="git-mygit-repo-name">
                                 <a href="{{ url_for('view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-mygit-repo-link">
-                                    <svg class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.586 3.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.707-.707a.5.5 0 01.707-.707l.707.707a1 1 0 001.414 0l3-3a.5.5 0 01.707.707l-3 3a2 2 0 01-2.828 0l-.707-.707V10H9a1 1 0 110-2h2.586z" clip-rule="evenodd" /></svg>
-                                    {{ repo.owner.username }}/<strong class="git-mygit-repo-name-strong">{{ repo.name }}</strong>
+<svg  class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                    {{ repo.owner.username }} / {{ repo.name }}
                                 </a>
                             </h3>
                              <span class="git-repo-header-visibility-badge {% if repo.is_private %}git-repo-header-visibility-badge-private{% else %}git-repo-header-visibility-badge-public{% endif %}">
@@ -136,10 +151,25 @@
                         </div>
                         <div class="git-mygit-repo-metadata">
                             {% if git_details and not git_details.error %}
-                                <div class="git-mygit-repo-commit-count"><i class="fas fa-history"></i> {{ git_details.commit_count }} Commits</div>
-                                <div class="git-mygit-repo-last-update">Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}</div>
+                                <div class="git-mygit-repo-commit-count">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-git-commit" style="transform: translateY(5px);">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M12 3l0 6" />
+    <path d="M12 15l0 6" />
+</svg>
+                                {{ git_details.commit_count }} Commits
+                                </div>
+                                <div class="git-mygit-repo-last-update"></div>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M12 12l3 2" />
+    <path d="M12 7v5" />
+</svg>
+                                Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}
                             {% elif git_details.error %}
-                                <div class="git-mygit-repo-error-text">Error: {{ git_details.error }}</div>
+                                <div class="git-mygit-repo-error-text">{{ git_details.error }}</div>
                             {% else %}
                                 <div class="git-mygit-repo-no-info">Commit info N/A</div>
                             {% endif %}
@@ -152,13 +182,15 @@
                                 <span class="git-mygit-repo-clone-label">Clone:</span>
                                 <input type="text" readonly value="{{ request.host_url.rstrip('/') }}{{ url_for('git_info_refs', username=repo.owner.username, repo_name_with_git=repo.name + '.git').split('/info/refs')[0] }}" class="git-mygit-repo-clone-input">
                                 <button class="git-btn git-btn-sm git-mygit-repo-copy-clone-url-btn" title="Copy clone URL">
-                                    <svg class="git-btn-icon git-btn-icon-no-text" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM6 11a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" /></svg>
+<svg class="git-btn-icon git-btn-icon-no-text" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-copy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>
                                 </button>
                             </div>
-                            <div class="git-mygit-repo-card-actions">
-                                <span class="git-mygit-star-count" id="star-count-{{ repo.id }}"><i class="fas fa-star"></i> {{ repo.star_count }}</span>
-                                <a href="{{ url_for('repo_settings', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-btn git-btn-sm git-btn-secondary">Settings</a>
-                            </div>
+<div class="git-mygit-repo-card-actions">
+    <span class="git-mygit-star-count" id="star-count-{{ repo.id }}"><i class="fas fa-star"></i> {{ repo.star_count }}</span>
+    <a href="{{ url_for('repo_settings', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-btn git-btn-sm git-btn-secondary" title="Repository Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
+    </a>
+</div>
                         </div>
                     </article>
                 {% endfor %}
@@ -166,7 +198,7 @@
         {% else %}
             <div class="git-mygit-no-repos-message">
                 <div class="git-mygit-no-repos-icon-container">
-                     <svg class="git-mygit-no-repos-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.94-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.06 3.198m10.12 0a5.971 5.971 0 0 1-.94 3.197M12 12.75a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" /></svg>
+<svg class="git-mygit-no-repos-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-users"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></svg>
                 </div>
                 <h3 class="git-mygit-no-repos-title">No Collaborations Yet</h3>
                 <p class="git-mygit-no-repos-text">You are not currently collaborating on any repositories.</p>

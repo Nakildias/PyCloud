@@ -16,6 +16,7 @@
         <div class="pf-header-actions"> {# Was feed-header-actions #}
             <a href="{{ url_for('create_post') }}" class="btn btn-primary btn-sm pf-btn-new-post"> {# Was feed-new-post-btn #}
                 <img src="{{ url_for('static', filename='icons/plus.svg') }}" alt="New Post" class="pf-new-post-icon"> {# Was btn-icon #}
+                Create New Post
             </a>
             <div class="pf-sort-options"> {# Was feed-sort-options #}
                 {# <span class="pf-sort-label">Sort by:</span> #} {# Was sort-label #}
@@ -42,47 +43,49 @@
         </div>
     </div>
 
-    {% if posts and posts.items %}
-        <div class="pf-posts-list-container"> {# Was posts-list #}
+    {# Move pf-feed-card inside the loop to wrap each individual post #}
+    <div class="pf-posts-list-container"> {# This will now hold multiple pf-feed-cards #}
+        {% if posts and posts.items %}
             {% for post in posts.items %}
-                {# The display_post macro uses pm- prefixed classes internally #}
-                {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+                <div class="pf-feed-card"> {# Each post gets its own pf-feed-card #}
+                    {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+                </div>
             {% endfor %}
-        </div>
-
-        {# Pagination Links - General classes kept, specific pf- classes added #}
-        {% if posts.has_prev or posts.has_next %}
-        <nav aria-label="Feed navigation" class="pagination-nav pf-pagination-nav">
-            <ul class="pagination pf-pagination-list">
-                <li class="page-item pf-page-item {% if not posts.has_prev %}disabled{% endif %}">
-                    <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=posts.prev_num, sort=current_sort) if posts.has_prev else '#_posts' }}" aria-label="Previous">
-                        &laquo; Previous
-                    </a>
-                </li>
-                {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                        <li class="page-item pf-page-item {% if posts.page == page_num %}active{% endif %}">
-                            <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=page_num, sort=current_sort) }}">{{ page_num }}</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item pf-page-item disabled"><span class="page-link pf-page-link">...</span></li>
-                    {% endif %}
-                {% endfor %}
-                <li class="page-item pf-page-item {% if not posts.has_next %}disabled{% endif %}">
-                    <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=posts.next_num, sort=current_sort) if posts.has_next else '#_posts' }}" aria-label="Next">
-                        Next &raquo;
-                    </a>
-                </li>
-            </ul>
-        </nav>
+        {% else %}
+            <div class="pf-empty-feed-message"> {# This will be outside any pf-feed-card since no posts #}
+                <p>Your feed is empty.</p>
+                <p>Follow some users to see their posts here, or <a href="{{ url_for('create_post') }}" class="pf-empty-feed-create-link">create your own post</a>!</p>
+            </div>
         {% endif %}
+    </div>
 
-    {% else %}
-        <div class="pf-empty-feed-message"> {# Was empty-feed-message #}
-            <p>Your feed is empty.</p>
-            <p>Follow some users to see their posts here, or <a href="{{ url_for('create_post') }}" class="pf-empty-feed-create-link">create your own post</a>!</p>
-        </div>
+    {# Pagination Links - general classes kept, specific pf- classes added #}
+    {% if posts.has_prev or posts.has_next %}
+    <nav aria-label="Feed navigation" class="pagination-nav pf-pagination-nav">
+        <ul class="pagination pf-pagination-list">
+            <li class="page-item pf-page-item {% if not posts.has_prev %}disabled{% endif %}">
+                <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=posts.prev_num, sort=current_sort) if posts.has_prev else '#_posts' }}" aria-label="Previous">
+                    &laquo; Previous
+                </a>
+            </li>
+            {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item pf-page-item {% if posts.page == page_num %}active{% endif %}">
+                        <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item pf-page-item disabled"><span class="page-link pf-page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item pf-page-item {% if not posts.has_next %}disabled{% endif %}">
+                <a class="page-link pf-page-link" href="{{ url_for('post_feed', page=posts.next_num, sort=current_sort) if posts.has_next else '#_posts' }}" aria-label="Next">
+                    Next &raquo;
+                </a>
+            </li>
+        </ul>
+    </nav>
     {% endif %}
+
 </div>
 {% endblock %}
 

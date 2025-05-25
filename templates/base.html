@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}PyCloud{% endblock %}</title>
-    <link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' class='icon icon-tabler icons-tabler-outline icon-tabler-cloud-computing'><path stroke='none' d='M0 0h24v24H0z' fill='none'/><path d='M6.657 16c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878' /><path d='M12 16v5' /><path d='M16 16v4a1 1 0 0 0 1 1h4' /><path d='M8 16v4a1 1 0 0 1 -1 1h-4' /></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base_emb_chat.css') }}">
     {# Add this block to link the theme CSS #}
@@ -20,14 +20,14 @@
         {% if current_user.is_authenticated %}
             <li class="base-nav-item {% if request.endpoint == 'notifications_page' %}active{% endif %}">
                 <a href="{{ url_for('notifications_page') }}" class="base-nav-link">
-                    <img src="{{ url_for('static', filename='icons/empty-notification.svg') }}" alt="" class="base-nav-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-bell"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>
                     <span id="base-notification-unread-count" class="notification-badge" style="display: none;"></span>
                 </a>
             </li>
             {% set cloud_active = request.endpoint in ['list_files', 'list_notes', 'ollama_chat'] %}
             <li class="base-nav-item base-nav-dropdown {% if cloud_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
-                    <img src="{{ url_for('static', filename='icons/cloud.svg') }}" alt="" class="base-nav-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-computing"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6.657 16c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878" /><path d="M12 16v5" /><path d="M16 16v4a1 1 0 0 0 1 1h4" /><path d="M8 16v4a1 1 0 0 1 -1 1h-4" /></svg>
                     Cloud <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
@@ -43,7 +43,7 @@
             {% set social_active = request.endpoint in ['post_feed', 'group_chat', 'direct_chat_interface'] %}
             <li class="base-nav-item base-nav-dropdown {% if social_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
-                    <img src="{{ url_for('static', filename='icons/group.svg') }}" alt="" class="base-nav-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-social"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M19 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M12 14m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M12 7l0 4" /><path d="M6.7 17.8l2.8 -2" /><path d="M17.3 17.8l-2.8 -2" /></svg>
                     Social <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
@@ -56,8 +56,8 @@
             {% set misc_active = request.endpoint in ['emulator_gba', 'image_upscaler', 'ytdlp_downloader'] %}
             <li class="base-nav-item base-nav-dropdown {% if misc_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
-                    <img src="{{ url_for('static', filename='icons/controller.svg') }}" alt="" class="base-nav-icon">
-                    Misc <span class="base-nav-arrow-down">▼</span>
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21h4l13 -13a1.5 1.5 0 0 0 -4 -4l-13 13v4" /><path d="M14.5 5.5l4 4" /><path d="M12 8l-5 -5l-4 4l5 5" /><path d="M7 8l-1.5 1.5" /><path d="M16 12l5 5l-4 4l-5 -5" /><path d="M16 17l-1.5 1.5" /></svg>
+                    Tools <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
                     <li {% if request.endpoint == 'emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
@@ -68,7 +68,7 @@
             {% set git_active = request.endpoint in ['git_homepage', 'mygit', 'starred_repositories_page'] %}
             <li class="base-nav-item base-nav-dropdown {% if git_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
-                    <img src="{{ url_for('static', filename='icons/git.svg') }}" alt="" class="base-nav-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-git"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 15v-6" /><path d="M15 11l-2 -2" /><path d="M11 7l-1.9 -1.9" /><path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0z" /></svg>
                     Git <span class="base-nav-arrow-down">▼</span>
                 </a>
                 <ul class="base-nav-dropdown-menu">
@@ -78,8 +78,8 @@
                 </ul>
             </li>
             {% set user_dropdown_active = (request.endpoint == 'user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
-                                          (request.endpoint == 'admin_settings' and current_user.is_admin) or
-                                          (request.endpoint == 'user_settings_page') %}
+                                            (request.endpoint == 'admin_settings' and current_user.is_admin) or
+                                            (request.endpoint == 'user_settings_page') %}
             <li class="base-nav-item base-nav-dropdown {% if user_dropdown_active %}active{% endif %}">
                 <a class="base-nav-link base-nav-dropdown-toggle">
                     {% if current_user.profile_picture_filename %}

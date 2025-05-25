@@ -16,17 +16,15 @@
         <p class="git-hp-subtitle">Discover public projects hosted on PyCloud.</p>
         {% if current_user.is_authenticated %}
             <div class="git-hp-user-actions"> {# Wrapper for user actions #}
-                <a href="{{ url_for('mygit') }}" class="git-btn git-btn-secondary git-hp-my-repos-link">
-                    <svg class="git-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M3.5 2.75a.25.25 0 00-.25.25v13.5c0 .138.112.25.25.25h13a.25.25 0 00.25-.25V6.53a.75.75 0 00-.22-.53l-2.75-2.75a.75.75 0 00-.53-.22H3.5zM10 5.75a.75.75 0 01.75.75v1.5h1.5a.75.75 0 010 1.5h-1.5v1.5a.75.75 0 01-1.5 0v-1.5h-1.5a.75.75 0 010-1.5h1.5v-1.5A.75.75 0 0110 5.75zM9.5 2A1.5 1.5 0 0111 3.5V5h2.25a.75.75 0 010 1.5H11v2.25a.75.75 0 01-1.5 0V6.5H7.25a.75.75 0 010-1.5H9.5V3.5A1.5 1.5 0 019.5 2z"/>
-                    </svg>
-                    My Repositories
-                </a>
                 <a href="{{ url_for('create_repo_route') }}" class="git-btn git-btn-primary git-hp-new-repo-link">
-                     <svg class="git-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V4a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
-                    New Repository
+<svg  class="git-btn-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.5"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                    New Repo
+                </a>
+                <br>
+                <br>
+                <a href="{{ url_for('mygit') }}" class="git-btn git-btn-secondary git-hp-my-repos-link">
+<svg  class="git-btn-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                    My Repos
                 </a>
             </div>
         {% else %}
@@ -63,8 +61,8 @@
                         <div class="git-mygit-repo-card-header">
                             <h3 class="git-mygit-repo-name">
                                 <a href="{{ url_for('view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-mygit-repo-link">
-                                    <svg class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.586 3.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.707-.707a.5.5 0 01.707-.707l.707.707a1 1 0 001.414 0l3-3a.5.5 0 01.707.707l-3 3a2 2 0 01-2.828 0l-.707-.707V10H9a1 1 0 110-2h2.586z" clip-rule="evenodd" /></svg>
-                                    {{ repo.owner.username }}/<strong class="git-mygit-repo-name-strong">{{ repo.name }}</strong>
+<svg  class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                    {{ repo.owner.username }} / {{ repo.name }}
                                 </a>
                             </h3>
                             {# Public repos on homepage are always public, badge is less critical here but can be kept for consistency #}
@@ -81,20 +79,36 @@
                             {{ render_language_stats(language_stats, repo_id=repo.id) }}
                         </div>
                           <div class="git-mygit-repo-metadata">
-                              {% if git_details and not git_details.error and git_details.last_commit_date %}
-                                <div class="git-mygit-repo-commit-count"> {# Changed span to div #}
-                                    <i class="fas fa-history"></i> {{ git_details.commit_count }} Commits
-                                </div>
-                                  <div class="git-mygit-repo-last-update"> {# Changed span to div #}
-                                      <i class="fas fa-history"></i>
-                                      Last Commit: {{ naturaltime(git_details.last_commit_date) }}
-                                  </div>
-                              {% elif repo.updated_at %} {# Fallback to repo DB update time #}
-                                   <div class="git-mygit-repo-last-update"> {# Changed span to div #}
-                                      <i class="fas fa-history"></i>
-                                      Updated {{ naturaltime(repo.updated_at) }}
-                                  </div>
-                              {% endif %}
+{% if git_details and not git_details.error and git_details.last_commit_date %}
+    <div class="git-mygit-repo-commit-count">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-git-commit" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+            <path d="M12 3l0 6" />
+            <path d="M12 15l0 6" />
+        </svg>
+        {{ git_details.commit_count }} Commits
+    </div>
+    <div class="git-mygit-repo-last-update">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+            <path d="M12 12l3 2" />
+            <path d="M12 7v5" />
+        </svg>
+        Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}
+    </div>
+{% elif repo.updated_at %} {# Fallback to repo DB update time #}
+    <div class="git-mygit-repo-last-update">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+            <path d="M12 12l3 2" />
+            <path d="M12 7v5" />
+        </svg>
+        Updated {{ naturaltime(repo.updated_at) }}
+    </div>
+{% endif %}
 
                               {% if repo.source_repo %}
                               <div class="git-mygit-forked-from"> {# Changed span to div #}
@@ -116,7 +130,7 @@
                                             data-is-authenticated="true"
                                             title="{{ 'Unstar' if starred_by_current_user else 'Star' }} this repository">
                                         <i class="{% if starred_by_current_user %}fas fa-star{% else %}far fa-star{% endif %}"></i>
-                                        <span class="star-button-text">{% if starred_by_current_user %}Unstar{% else %}Star{% endif %}</span>
+                                        <span class="star-count-display">{{ repo.star_count }}</span>
                                     </button>
                                 {% else %}
                                     <a href="{{ url_for('login', next=request.url) }}"
@@ -124,12 +138,9 @@
                                        data-is-authenticated="false"
                                        title="Log in to star this repository">
                                         <i class="far fa-star"></i>
-                                        <span class="star-button-text">Star</span>
+                                        <span class="star-count-display">{{ repo.star_count }}</span>
                                     </a>
                                 {% endif %}
-                                <span class="git-star-count-badge ms-1" id="star-count-{{ repo.id }}">
-                                    <i class="fas fa-star" style="color: var(--warning-color); margin-right: 2px;"></i> {{ repo.star_count }}
-                                </span>
                             </div>
                         </div>
                     </article>
@@ -137,9 +148,6 @@
             </div>
         {% else %}
             <div class="git-hp-no-public-repos-message"> {# Or use general .git-no-results class #}
-                <div class="git-mygit-no-repos-icon-container">
-                     <svg class="git-mygit-no-repos-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 00-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0h9.75" /></svg>
-                </div>
                 <h3 class="git-mygit-no-repos-title">No Public Repositories</h3>
                 <p class="git-mygit-no-repos-text">There are currently no public repositories to display. {% if current_user.is_authenticated %}Why not <a href="{{ url_for('create_repo_route') }}" class="git-link">create one</a>?{% endif %}</p>
             </div>
@@ -196,11 +204,11 @@
                 let isCurrentlyStarred = this.dataset.starred === 'true';
                 const url = isCurrentlyStarred ? `/git/repo/${repoId}/unstar` : `/git/repo/${repoId}/star`;
                 const starIcon = this.querySelector('i');
-                const starTextSpan = this.querySelector('.star-button-text');
-                const originalButtonText = starTextSpan ? starTextSpan.textContent : (isCurrentlyStarred ? 'Unstar' : 'Star');
+                const starCountDisplay = this.querySelector('.star-count-display');
+
 
                 this.disabled = true;
-                if(starTextSpan) starTextSpan.textContent = '...';
+
 
                 fetch(url, {
                     method: 'POST',
@@ -222,29 +230,28 @@
                         if (data.starred) {
                             this.classList.remove('unstarred'); this.classList.add('starred');
                             if (starIcon) { starIcon.classList.remove('far'); starIcon.classList.add('fas'); }
-                            if (starTextSpan) starTextSpan.textContent = 'Unstar';
+
                             this.title = 'Unstar this repository';
                         } else {
                             this.classList.remove('starred'); this.classList.add('unstarred');
                             if (starIcon) { starIcon.classList.remove('fas'); starIcon.classList.add('far'); }
-                            if (starTextSpan) starTextSpan.textContent = 'Star';
+
                             this.title = 'Star this repository';
                         }
-                        const starCountBadge = document.getElementById(`star-count-${repoId}`);
-                        if (starCountBadge) {
-                            starCountBadge.innerHTML = `<i class="fas fa-star" style="color: var(--warning-color); margin-right: 2px;"></i> ${data.star_count}`;
+                        if (starCountDisplay) {
+                            starCountDisplay.textContent = data.star_count;
                         }
                         if(typeof showToast === 'function') showToast(data.message, 'success');
 
                     } else {
-                        if(starTextSpan) starTextSpan.textContent = originalButtonText; // Revert text on error
+
                         if(typeof showToast === 'function') showToast('Error: ' + (data.message || 'Could not update star status.'), 'error');
                         else alert('Error: ' + (data.message || 'Could not update star status.'));
                     }
                 })
                 .catch(error => {
                     this.disabled = false; // Re-enable button
-                    if(starTextSpan) starTextSpan.textContent = originalButtonText; // Revert text on error
+
                     console.error('Star/Unstar Fetch Error:', error);
                     if(typeof showToast === 'function') showToast('Network error: ' + error.message, 'error');
                     else alert('An network error occurred: ' + error.message);
