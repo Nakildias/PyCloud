@@ -50,6 +50,11 @@ from wtforms.validators import DataRequired as WTDataRequired, Length as WTLengt
 import markdown # For Markdown to HTML conversion
 from markupsafe import Markup # To mark HTML as safe for Jinja
 from flask_migrate import Migrate # Import Migrate
+from flask_socketio import SocketIO, emit
+import paramiko
+import threading
+import time
+import select
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO) # Log informational messages and above
 
@@ -160,6 +165,8 @@ repo_collaborators = db.Table('repo_collaborators', db.metadata,
     # db.Column('permission', db.String(50), default='write', nullable=False),
     extend_existing=True
 )
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=True)
 
 AVAILABLE_THEMES = {
     "default": "Default (Dark)", # No extra CSS, uses base.css only
@@ -387,6 +394,268 @@ def ytdlp_downloader():
                            downloaded_file_info=downloaded_file_info_from_session)
 
 # END YOUTUBE DOWNLOADER
+
+# BEGIN SSH CLIENT
+
+class SSHClientSession:
+    def __init__(self, ip, port, username, socket_id):
+        self.ip = ip
+        self.port = port
+        self.username = username
+        self.socket_id = socket_id
+        self.client = None
+        self.channel = None
+        self.output_thread = None
+        self.active = False
+        self.lock = threading.Lock()
+
+    # Modify the connect method to accept a password parameter
+    def connect(self, password=None): # MODIFY THIS LINE
+        try:
+            self.client = paramiko.SSHClient()
+            self.client.load_system_host_keys()
+            self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Pass the password to the connect method if provided.
+            # If password is None, paramiko will try key-based auth, then password (if allowed by server config).
+            connect_params = {'hostname': self.ip, 'port': self.port, 'username': self.username, 'timeout': 10}
+            if password: # Only add password if it's not an empty string
+                connect_params['password'] = password
+
+            self.client.connect(**connect_params) # MODIFY THIS LINE
+
+            self.channel = self.client.invoke_shell()
+            self.channel.setblocking(0)
+            self.active = True
+            socketio.emit('ssh_connected', {}, room=self.socket_id)
+            self.output_thread = threading.Thread(target=self._read_output, daemon=True)
+            self.output_thread.start()
+            return True
+        except paramiko.AuthenticationException:
+            error_msg = 'Authentication failed. Please check your username, password, or SSH keys.'
+            app.logger.error(f"SSH Auth Error for {self.username}@{self.ip}: {error_msg}")
+            socketio.emit('ssh_error', {'message': error_msg}, room=self.socket_id)
+            self.disconnect()
+            return False
+        except paramiko.ssh_exception.NoValidConnectionsError as e:
+            error_msg = f"Could not establish SSH connection. Is the server running and reachable on port {self.port}? Error: {e}"
+            app.logger.error(f"SSH Connection Error for {self.username}@{self.ip}:{self.port}: {error_msg}")
+            socketio.emit('ssh_error', {'message': error_msg}, room=self.socket_id)
+            self.disconnect()
+            return False
+        except paramiko.SSHException as e:
+            error_msg = f'An SSH protocol error occurred: {e}. Ensure the server supports common SSH versions.'
+            app.logger.error(f"SSH Protocol Error for {self.username}@{self.ip}: {error_msg}")
+            socketio.emit('ssh_error', {'message': error_msg}, room=self.socket_id)
+            self.disconnect()
+            return False
+        except TimeoutError:
+            error_msg = f'Connection timed out after 10 seconds. The server might be unreachable or heavily loaded.'
+            app.logger.error(f"SSH Timeout Error for {self.username}@{self.ip}")
+            socketio.emit('ssh_error', {'message': error_msg}, room=self.socket_id)
+            self.disconnect()
+            return False
+        except Exception as e:
+            error_msg = f'An unexpected error occurred during connection: {e}.'
+            app.logger.error(f"Unexpected SSH Connection Error for {self.username}@{self.ip}: {error_msg}", exc_info=True)
+            socketio.emit('ssh_error', {'message': error_msg}, room=self.socket_id)
+            self.disconnect()
+            return False
+
+    def _read_output(self):
+        while self.active:
+            try:
+                rlist, _, _ = select.select([self.channel], [], [], 0.1)
+                if rlist:
+                    output = b''
+                    while self.channel.recv_ready():
+                        output += self.channel.recv(4096)
+                    while self.channel.recv_stderr_ready():
+                        output += self.channel.recv_stderr(4096)
+
+                    if output:
+                        try:
+                            # Use socketio.emit directly
+                            socketio.emit('ssh_output', {'output': output.decode('utf-8', errors='replace')}, room=self.socket_id)
+                        except Exception as e:
+                            app.logger.error(f"Error decoding SSH output: {e}")
+                            socketio.emit('ssh_output', {'output': f"[Decoding Error: {e}]\n"}, room=self.socket_id)
+                if self.channel and self.channel.exit_status_ready():
+                    app.logger.info(f"SSH channel exited with status {self.channel.exit_status}.")
+                    socketio.emit('ssh_output', {'output': f"\n--- SSH session ended (exit status: {self.channel.exit_status}) ---\n"}, room=self.socket_id)
+                    self.disconnect()
+                    break
+                elif self.channel and not self.channel.active:
+                    app.logger.info("SSH channel became inactive.")
+                    self.disconnect()
+                    break
+
+                time.sleep(0.01)
+            except Exception as e:
+                app.logger.error(f"Error in SSH output reading thread: {e}", exc_info=True)
+                if self.active:
+                    # Use socketio.emit directly
+                    socketio.emit('ssh_error', {'message': f'Terminal read error: {e}'}, room=self.socket_id)
+                self.disconnect()
+                break
+        app.logger.info(f"SSH output thread for {self.username}@{self.ip} finished.")
+
+    def execute_command(self, command):
+        if not self.active or not self.channel:
+            # Use socketio.emit directly
+            socketio.emit('ssh_error', {'message': 'Not connected to SSH server.'}, room=self.socket_id)
+            return
+
+        try:
+            with self.lock:
+                self.channel.send(command.encode('utf-8')) # Send the raw command as received from client
+        except Exception as e:
+            # Use socketio.emit directly
+            socketio.emit('ssh_error', {'message': f'Failed to send command: {e}'}, room=self.socket_id)
+            self.disconnect()
+
+    def disconnect(self):
+        if self.active:
+            self.active = False
+            if self.channel:
+                try:
+                    self.channel.close()
+                    app.logger.info(f"SSH channel closed for {self.username}@{self.ip}")
+                except Exception as e:
+                    app.logger.warning(f"Error closing SSH channel: {e}")
+            if self.client:
+                try:
+                    self.client.close()
+                    app.logger.info(f"SSH client closed for {self.username}@{self.ip}")
+                except Exception as e:
+                    app.logger.warning(f"Error closing SSH client: {e}")
+            # Use socketio.emit directly
+            socketio.emit('ssh_disconnected', {}, room=self.socket_id)
+            self._cleanup_session_data()
+
+    def _cleanup_session_data(self):
+        global active_ssh_sessions
+        if self.socket_id in active_ssh_sessions:
+            del active_ssh_sessions[self.socket_id]
+            app.logger.info(f"Cleaned up SSH session for socket {self.socket_id}")
+
+
+active_ssh_sessions = {} # Dictionary to store SSHClientSession instances {socket_id: SSHClientSession}
+
+# Add this route for the SSH Client page
+@app.route('/ssh_client')
+@login_required
+def ssh_client_page():
+    """
+    Serves the SSH client HTML page.
+    """
+    # Check if a session already exists for the current user's socket.
+    # This might need refinement for actual multi-tab/multi-device handling.
+    # For simplicity, we assume one SSH session per browser tab/Socket.IO connection.
+    return render_template('ssh_client.html', title='SSH Client')
+
+@app.route('/ssh_terminal_popup')
+@login_required # Apply login_required if you want this URL to be protected
+def ssh_terminal_popup():
+    """
+    Serves the HTML content for the SSH terminal pop-out window.
+    This page itself does not need a CSRF token directly as it receives
+    connection parameters via postMessage from the main window.
+    """
+    return render_template('ssh_terminal_popup.html')
+
+# Socket.IO Event Handlers for SSH Client
+@socketio.on('ssh_connect_request')
+@login_required
+def handle_ssh_connect_request(data):
+    socket_id = request.sid
+    app.logger.info(f"SSH connect request from user {current_user.id} (Socket ID: {socket_id})")
+
+    ip = data.get('ip')
+    port = int(data.get('port', 22))
+    username = data.get('username')
+    password = data.get('password') # ADD THIS LINE TO RECEIVE THE PASSWORD
+
+    if not ip or not username:
+        socketio.emit('ssh_error', {'message': 'IP address and username are required.'}, room=socket_id)
+        return
+
+    # Disconnect any existing session for this socket_id
+    if socket_id in active_ssh_sessions:
+        app.logger.warning(f"Existing SSH session found for {socket_id}, disconnecting it.")
+        active_ssh_sessions[socket_id].disconnect()
+        del active_ssh_sessions[socket_id]
+
+    # Pass the password to the SSHClientSession constructor
+    ssh_session = SSHClientSession(ip, port, username, socket_id)
+    active_ssh_sessions[socket_id] = ssh_session
+
+    app.logger.info(f"Attempting SSH connection for {username}@{ip}:{port} (Socket ID: {socket_id})")
+    # Connect in a separate thread. Pass the password to the connect method.
+    threading.Thread(target=ssh_session.connect, args=(password,), daemon=True).start() # MODIFY THIS LINE
+
+
+@socketio.on('ssh_command')
+@login_required
+def handle_ssh_command(data):
+    socket_id = request.sid
+    command = data.get('command')
+
+    ssh_session = active_ssh_sessions.get(socket_id)
+    if not ssh_session or not ssh_session.active:
+        emit('ssh_error', {'message': 'No active SSH connection.'}, room=socket_id)
+        return
+
+    app.logger.info(f"Executing command '{command}' for user {current_user.id} (Socket ID: {socket_id})")
+    ssh_session.execute_command(command)
+
+@socketio.on('ssh_disconnect_request')
+@login_required
+def handle_ssh_disconnect_request():
+    socket_id = request.sid
+    app.logger.info(f"SSH disconnect request from user {current_user.id} (Socket ID: {socket_id})")
+
+    ssh_session = active_ssh_sessions.get(socket_id)
+    if ssh_session:
+        ssh_session.disconnect()
+        # The disconnect method itself cleans up active_ssh_sessions
+    else:
+        app.logger.warning(f"Disconnect request for non-existent session {socket_id}.")
+        emit('ssh_disconnected', {}, room=socket_id) # Send confirmation anyway
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    # This event fires when a client disconnects from Socket.IO (e.g., closing tab)
+    socket_id = request.sid
+    app.logger.info(f"Socket.IO client disconnected: {socket_id}")
+
+    # Ensure any active SSH session associated with this socket is also cleaned up
+    ssh_session = active_ssh_sessions.get(socket_id)
+    if ssh_session:
+        app.logger.info(f"Cleaning up SSH session for disconnected Socket.IO client: {socket_id}")
+        ssh_session.disconnect() # This will remove it from active_ssh_sessions
+
+
+@socketio.on('ssh_resize')
+@login_required
+def handle_ssh_resize(data):
+    socket_id = request.sid
+    cols = data.get('cols')
+    rows = data.get('rows')
+
+    ssh_session = active_ssh_sessions.get(socket_id)
+    if ssh_session and ssh_session.active and ssh_session.channel:
+        try:
+            ssh_session.channel.resize_pty(width=cols, height=rows)
+            app.logger.info(f"Resized PTY for socket {socket_id} to {cols}x{rows}")
+        except Exception as e:
+            app.logger.error(f"Error resizing PTY for socket {socket_id}: {e}")
+    else:
+        app.logger.warning(f"Resize request for inactive SSH session {socket_id}.")
+
+
+# END SSH CLIENT
+
 
 # BEGIN UPSCALER
 
@@ -9126,4 +9395,4 @@ if __name__ == '__main__':
     print("INFO: Starting Flask development server...")
     configure_mail_from_db(app)
     mail.init_app(app)
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    socketio.run(app, debug=True, host='0.0.0.0', port=8080, allow_unsafe_werkzeug=True) # Use socketio.run
