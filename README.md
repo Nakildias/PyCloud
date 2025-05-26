@@ -22,6 +22,7 @@ PyCloud comes packed with a diverse set of features to enhance your productivity
 * 📝 **Notes:** A dedicated space to jot down your thoughts, ideas, and important information. Create, view, and **edit notes directly in the browser**.
 * ▶️ **YouTube Downloader:** Download videos and audio from YouTube directly to your cloud storage. Choose your preferred format and quality.
 * 🖼️ **Image Upscaler:** Upscale images using basic resizing techniques, supporting **multiple common image formats** like JPG, PNG, GIF, and WebP.
+* 🖥️ **SSH Client:** Connect to your SSH servers directly through the Web.
 
 ### Development & Technical
 * ⚙️ **Integrated Git Server:** Host and manage your **Git repositories** with web-based Browse of files, folders, and commit history. Supports both **private and public repositories**, **forks**, and **collaborator management**.
