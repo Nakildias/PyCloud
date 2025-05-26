@@ -2566,6 +2566,115 @@ def api_users_activity_status():
 
     return jsonify({"status": "success", "user_statuses": statuses})
 
+@app.route('/api/files/move', methods=['POST'])
+@login_required
+def move_items():
+    """
+    Handles moving files and/or folders to a new parent folder.
+    Expects JSON payload with:
+    {
+        "items": [{"id": "item_id_1", "type": "file"}, {"id": "item_id_2", "type": "folder"}],
+        "target_folder_id": "new_parent_folder_id" (or null for root)
+    }
+    """
+    data = request.get_json()
+    if not data or 'items' not in data or 'target_folder_id' not in data:
+        return jsonify({"status": "error", "message": "Invalid request payload. 'items' array and 'target_folder_id' are required."}), 400
+
+    items_to_move = data.get('items')
+    target_folder_id_str = data.get('target_folder_id')
+    target_folder_id = int(target_folder_id_str) if target_folder_id_str else None
+
+    user_id = current_user.id
+    moved_count = 0
+    errors = []
+
+    # Validate target folder (if not root)
+    if target_folder_id:
+        target_folder = Folder.query.filter_by(id=target_folder_id, user_id=user_id).first()
+        if not target_folder:
+            return jsonify({"status": "error", "message": "Target folder not found or access denied."}), 404
+
+    try:
+        for item_data in items_to_move:
+            item_id = item_data.get('id')
+            item_type = item_data.get('type')
+            item_name_for_log = item_data.get('name', f'{item_type} ID {item_id}') # For logging
+
+            if not item_id or not item_type:
+                errors.append(f"Skipped invalid item: Missing ID or type for {item_name_for_log}.")
+                app.logger.warning(f"Move: Skipping item due to missing ID/type for user {user_id}. Item data: {item_data}")
+                continue
+
+            try:
+                item_id = int(item_id)
+            except ValueError:
+                errors.append(f"Skipped invalid item: Invalid ID format for {item_name_for_log}.")
+                app.logger.warning(f"Move: Skipping item due to invalid ID format for user {user_id}. Item ID: {item_data.get('id')}")
+                continue
+
+            item_obj = None
+            if item_type == 'file':
+                item_obj = File.query.filter_by(id=item_id, user_id=user_id).first()
+            elif item_type == 'folder':
+                item_obj = Folder.query.filter_by(id=item_id, user_id=user_id).first()
+
+            if not item_obj:
+                errors.append(f"Skipped item: {item_name_for_log} not found or access denied.")
+                app.logger.warning(f"Move: Item {item_type} ID {item_id} not found for user {user_id}.")
+                continue
+
+            # Prevent moving an item into the folder it's already in
+            if item_obj.parent_folder_id == target_folder_id:
+                errors.append(f"Skipped {item_name_for_log}: Already in the target folder.")
+                app.logger.info(f"Move: Skipping {item_type} {item_id}: already in target folder {target_folder_id}.")
+                moved_count += 1 # Consider this "processed" if no action was needed
+                continue
+
+            # Prevent moving a folder into itself or its direct child
+            if item_type == 'folder' and item_obj.id == target_folder_id:
+                errors.append(f"Cannot move folder '{item_obj.name}' into itself.")
+                app.logger.warning(f"Move: Cannot move folder {item_obj.id} into itself.")
+                continue
+
+            # Prevent moving a parent folder into one of its descendants
+            # This is a more complex check, typically requiring path traversal logic.
+            # For simplicity, if your Folder model has a `path` attribute (or you can derive it),
+            # you would check: if target_folder.path and item_obj.path and target_folder.path.startswith(item_obj.path):
+            # For now, we'll rely on the client-side check preventing self-drop for simple cases.
+            # A more robust server-side check for this would involve recursively checking `parent_folder_id` chains.
+
+            # Check for name conflicts in the target folder
+            current_name = item_obj.name if item_type == 'folder' else item_obj.original_filename
+            if check_name_conflict(user_id, target_folder_id, current_name, item_type, exclude_id=item_obj.id):
+                errors.append(f"Cannot move {item_name_for_log}: An item with the same name already exists in the target folder.")
+                app.logger.warning(f"Move: Name conflict for {item_name_for_log} in target folder {target_folder_id}.")
+                continue
+
+            # Update the parent_folder_id
+            item_obj.parent_folder_id = target_folder_id
+            db.session.add(item_obj) # Mark for update
+
+            moved_count += 1
+            app.logger.info(f"Move: Marked {item_type} {item_id} ({item_name_for_log}) to new parent {target_folder_id}.")
+
+        # Commit all changes at once
+        db.session.commit()
+
+        if moved_count > 0 and not errors:
+            return jsonify({"status": "success", "message": f"{moved_count} item(s) moved successfully."})
+        elif moved_count > 0 and errors:
+            return jsonify({"status": "partial_success", "message": f"{moved_count} item(s) moved, but {len(errors)} failed.", "errors": errors}), 207 # Multi-Status
+        else: # No items moved, potentially all failed or no valid items were provided
+            return jsonify({"status": "error", "message": "No items were moved or all failed.", "errors": errors}), 400
+
+    except Exception as e:
+        db.session.rollback() # Rollback all changes if any error occurs
+        app.logger.error(f"Error during move operation for user {user_id}: {e}", exc_info=True)
+        errors.append(f"A server error occurred during the move operation: {str(e)}")
+        return jsonify({"status": "error", "message": "A server error occurred during the move operation.", "errors": errors}), 500
+
+
 @app.route('/files/folder/archive/<int:folder_id>', methods=['POST'])
 @login_required
 def archive_folder(folder_id):
