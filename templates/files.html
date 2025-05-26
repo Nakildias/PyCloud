@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 {% endblock %}
 
-{% block title %}{{ title }} - {{ super() }}{% endblock %} {# Dynamic Title based on current folder #}
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
 
 {% block content %}
 <div class="fl-page-container"> {# Main wrapper for the files page content #}
@@ -33,17 +33,34 @@
 
     {# --- Action Buttons Area --- #}
     <div class="fl-actions-toolbar-top">
-        <button id="fl-btn-show-create-folder" class="btn btn-secondary btn-sm fl-btn-show-create-folder">New Folder</button>
+        <button id="fl-btn-show-create-folder" class="btn btn-secondary btn-sm fl-btn-show-create-folder">
+        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-folder-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5" /><path d="M16 19h6" /><path d="M19 16v6" /></svg>
+        </button>
         <button id="fl-btn-paste" class="btn btn-primary btn-sm fl-btn-paste" style="display: none;">Paste</button>
 
         <div id="fl-multi-select-actions-toolbar" class="fl-multi-select-actions-toolbar" style="display: none;">
-            <button id="fl-btn-delete-selected" class="btn btn-danger btn-sm fl-btn-delete-selected">Delete Selected</button>
-            <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">Cut Selected</button>
-            <button id="fl-btn-copy-selected" class="btn btn-secondary btn-sm fl-btn-copy-selected">Copy Selected</button>
-            <button id="fl-btn-archive-selected" class="btn btn-secondary btn-sm fl-btn-archive-selected" style="display: none;">Archive Selected</button>
-            <button id="fl-btn-unarchive-selected" class="btn btn-secondary btn-sm fl-btn-unarchive-selected" style="display: none;">Unarchive Selected</button>
+            <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-scissors"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.6 8.6l10.4 10.4" /><path d="M8.6 15.4l10.4 -10.4" /></svg>
+            </button>
+            <button id="fl-btn-copy-selected" class="btn btn-secondary btn-sm fl-btn-copy-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-copy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>
+            </button>
+            <button id="fl-btn-archive-selected" class="btn btn-secondary btn-sm fl-btn-archive-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-archive"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" /><path d="M10 12l4 0" /></svg>
+            </button>
+            <button id="fl-btn-unarchive-selected" class="btn btn-secondary btn-sm fl-btn-unarchive-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-archive-off"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 4h11a2 2 0 1 1 0 4h-7m-4 0h-3a2 2 0 0 1 -.826 -3.822" /><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 1.824 -1.18m.176 -3.82v-7" /><path d="M10 12h2" /><path d="M3 3l18 18" /></svg>
+            </button>
             <button id="fl-btn-edit-selected" class="btn btn-secondary btn-sm fl-btn-edit-selected" style="display: none;">Edit Selected</button>
-            <button id="fl-btn-download-selected" class="btn btn-primary btn-sm fl-btn-download-selected" style="display: none;">Download Selected</button>
+            <button id="fl-btn-share-selected" class="btn btn-secondary btn-sm fl-btn-share-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-share"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.7 10.7l6.6 -3.4" /><path d="M8.7 13.3l6.6 3.4" /></svg>
+            </button>
+            <button id="fl-btn-download-selected" class="btn btn-primary btn-sm fl-btn-download-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-download"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
+            </button>
+            <button id="fl-btn-delete-selected" class="btn btn-danger btn-sm fl-btn-delete-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+            </button>
         </div>
 
         <form id="fl-form-create-folder" method="POST" action="{{ url_for('create_folder') }}" class="fl-form-create-folder" style="display: none;" novalidate>
@@ -82,11 +99,11 @@
     </div>
 
     {# --- Folder & File List Section --- #}
-    <div class="fl-file-list-container" id="fl-file-list-container-id"> {# Added ID for JS if needed #}
+    <div class="fl-file-list-container" id="fl-file-list-container-id">
         <table id="fl-file-list-table" class="fl-file-list-table-element">
             <thead>
                 <tr class="fl-table-header-row">
-                    <th class="fl-th fl-th-checkbox"> {# This checkbox remains for "Select All" #}
+                    <th class="fl-th fl-th-checkbox">
                         <input type="checkbox" id="fl-select-all-checkbox" aria-label="Select all items" class="fl-select-all-checkbox-input">
                     </th>
                     <th class="fl-th fl-th-name">Name</th>
@@ -95,10 +112,34 @@
                 </tr>
             </thead>
             <tbody>
+                {# NEW: Parent Folder (..) entry #}
+                {% if current_folder %}
+                    <tr class="fl-item-row fl-folder-row fl-parent-folder-row"
+                        data-item-id="{{ parent_folder.id if parent_folder else 'null' }}"
+                        data-item-type="folder"
+                        data-item-name=".."
+                        data-is-parent-folder="true" {# Add this attribute for JS #}
+                        draggable="false"> {# Explicitly make this non-draggable for now #}
+                        <td class="fl-td fl-td-name" colspan="4">
+                            <div class="fl-item-info-wrapper">
+                                <div class="fl-item-header">
+                                    <span class="fl-item-icon fl-item-icon-folder">⬆️</span> {# Up arrow emoji #}
+                                    <span class="fl-itemname-display">
+                                        <a href="{{ url_for('list_files', folder_id=parent_folder.id if parent_folder else None) }}">..</a>
+                                    </span>
+                                </div>
+                                <div class="fl-item-details">
+                                    <span class="fl-td-size">--</span>
+                                    <span class="fl-td-modified"></span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+
                 {% for folder in subfolders %}
                 <tr class="fl-item-row fl-folder-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}">
-                    <td class="fl-td fl-td-name" colspan="4"> {# Removed checkbox TD, consolidated to Name TD #}
-                        {# BEGIN: fl-item-info-wrapper content #}
+                    <td class="fl-td fl-td-name" colspan="4">
                         <div class="fl-item-info-wrapper">
                             <div class="fl-item-header">
                                 <span class="fl-item-icon fl-item-icon-folder">📁</span>
@@ -112,15 +153,13 @@
                                 <span class="fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
                             </div>
                         </div>
-                        {# END: fl-item-info-wrapper content #}
                     </td>
-                    {# Removed fl-td-size-hidden, fl-td-modified-hidden as colspan handles it #}
                 </tr>
                 {% endfor %}
 
                 {% for file in files %}
                 {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
-                {% set file_ext = file.original_filename.split('.')[-1]|lower %}
+                {% set file_ext = file.original_filename.split('.')[-1]|lower if '.' in file.original_filename else '' %}
                 {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
                 <tr class="fl-item-row fl-file-row"
                     data-item-id="{{ file.id }}"
@@ -131,18 +170,17 @@
                     data-public-id="{{ file.public_id }}"
                     data-share-url="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}"
                     data-is-editable="{{ 'true' if file.is_editable else 'false' }}"
-                    data-file-ext="{{ file_ext }}"> {# ADDED: data-file-ext attribute #}
-                    <td class="fl-td fl-td-name" colspan="4"> {# Removed checkbox TD, consolidated to Name TD #}
-                        {# BEGIN: fl-item-info-wrapper content #}
+                    data-file-ext="{{ file_ext }}">
+                    <td class="fl-td fl-td-name" colspan="4">
                         <div class="fl-item-info-wrapper">
                             <div class="fl-item-header">
                                 <span class="fl-item-icon fl-item-icon-file">
                                     {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %}
-                                    {% set audio_extensions = ['mp3', 'ogg', 'wav'] %}
+                                    {% set audio_extensions = ['mp3', 'ogg', 'wav', 'flac', 'm4a', 'aac'] %}
                                     {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %}
                                     {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %}
-                                    {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c'] %}
-                                    {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon'] %}
+                                    {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c', 'js', 'rb', 'pl'] %}
+                                    {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon', 'tiff'] %}
                                     {% if file_ext in video_extensions %}<span title="Video">🎬</span>
                                     {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
                                     {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
@@ -150,11 +188,11 @@
                                     {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
                                     {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
                                     {% elif file_ext in script_extensions %}<span title="Script">📜</span>
-                                    {% elif file.is_editable %}<span title="Editable">📝</span>
+                                    {% elif file.is_editable %}<span title="Editable Text">📝</span>
                                     {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
                                     {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
                                     {% elif is_viewable %}<span title="Viewable">📺</span>
-                                    {% elif is_extractable %}<span title="Extractable">📚</span>
+                                    {% elif is_extractable %}<span title="Extractable Archive">📚</span>
                                     {% else %}[&nbsp;]
                                     {% endif %}
                                 </span>
@@ -167,38 +205,26 @@
                                 </span>
                                 <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-{{ file.id }}" value="{{ file.original_filename }}">
                             </div>
-                            <div class="fl-item-details">
-                                <span class="fl-td-size">
-                                    {% if file.filesize == 0 %} 0 B
-                                    {% elif file.filesize < 1024 %} {{ file.filesize }} B
-                                    {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
-                                    {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
-                                    {% endif %}
-                                </span>
-                                <span class="fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
-                            </div>
+                            <span class="fl-share-icon-indicator" id="fl-share-icon-{{ file.id }}" style="display: none;" title="Copy share link">
+                                <span class="fl-password-indicator"></span>{# JS will insert 🔒 or 🔓 here #}&nbsp;🔗
+                            </span>
                         </div>
-                        {# END: fl-item-info-wrapper content #}
-                    </td>
-                    {# Removed fl-td-size-hidden, fl-td-modified-hidden as colspan handles it #}
-                </tr>
-                <tr class="fl-share-link-row" id="fl-share-link-row-{{ file.id }}" style=" {% if not file.is_public %}display: none;{% endif %}">
-                    <td colspan="4" class="fl-share-link-cell"> {# colspan adjusted #}
-                         <div class="fl-share-link-display-area" id="fl-share-link-display-{{ file.id }}">
-                            {% if file.is_public and file.public_id %}
-                            <label for="fl-share-url-{{ file.id }}" class="fl-share-link-label">
-                                Link {% if file.public_password_hash %}🔒{% endif %}:
-                            </label>
-                            <input type="text" id="fl-share-url-{{ file.id }}" readonly value="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}" class="form-control-sm fl-share-link-input" title="Public share link">
-                            <button class="btn btn-sm fl-btn-copy-share-link" data-link="{{ url_for('serve_shared_file', public_id=file.public_id, _external=True) }}">Copy</button>
-                            {% endif %}
-                         </div>
+                        <div class="fl-item-details">
+                            <span class="fl-td-size">
+                                {% if file.filesize == 0 %} 0 B
+                                {% elif file.filesize < 1024 %} {{ file.filesize }} B
+                                {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
+                                {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
+                                {% endif %}
+                            </span>
+                            <span class="fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
 
                 {% if not subfolders and not files %}
-                <tr class="fl-empty-folder-row"><td colspan="4" class="fl-empty-folder-message">This folder is empty.</td></tr> {# colspan adjusted #}
+                <tr class="fl-empty-folder-row"><td colspan="4" class="fl-empty-folder-message">This folder is empty.</td></tr>
                 {% endif %}
             </tbody>
         </table>
@@ -233,12 +259,10 @@
 <script>
     window.PyCloud_ClipboardData = {{ clipboard_json | default('null') | safe }};
     window.PyCloud_UploadFileURL = "{{ url_for('upload_file') }}";
-    // Pass any other necessary config for files.js, e.g., viewable mimes if checked in JS
     window.PyCloud_Config = {
         VIEWABLE_MIMES_IFRAME: {{ config.get('VIEWABLE_MIMES_IFRAME', []) | tojson | safe }}
     };
-    // Correct way to pass the base URL for download
-    window.PyCloud_DownloadFileEndpoint = "{{ url_for('download_file', file_id=0).replace('0', '') }}";
+    window.PyCloud_DownloadFileEndpoint = "{{ url_for('download_file', file_id=0).replace('0', '') }}"; // Base URL for downloads
 </script>
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files.js') }}"></script>
