@@ -375,15 +375,14 @@ display: none !important;
     align-items: center;
     width: 100%;
     margin-bottom: 5px; /* Further reduced margin */
+    position: relative; /* Crucial for absolute positioning of the share icon */
 }
 
 .fl-item-icon {
     margin-right: 8px; /* Reduced margin between icon and name */
-    font-size: 1.8em; /* Smaller icon size for better space use */
+    font-size: 1.2em; /* Smaller icon size for better space use */
     display: inline-block; /* Keep inline-block as it's a span/emoji */
     flex-shrink: 0; /* Prevent shrinking */
-    width: 30px; /* Adjust width for smaller icon */
-    line-height: 1; /* Ensure icon is vertically centered */
     text-align: center;
     vertical-align: middle;
     transition: transform 0.3s ease, color 0.3s ease; /* Icon animation */
@@ -413,12 +412,13 @@ display: none !important;
     font-weight: 700;
     color: var(--text-color); /* Uses base.css --text-color */
     transition: color 0.2s ease;
+    margin-right: 30px;
 }
 .fl-itemname-display a {
     color: var(--text-color); /* Uses base.css --text-color */
     text-decoration: none;
     display: block;
-    padding: 1px 0;
+    padding: 10px 0;
 }
 .fl-itemname-display a:hover {
     color: var(--primary-color); /* Uses base.css --primary-color */
@@ -436,8 +436,36 @@ display: none !important;
     border-radius: 6px;
     font-size: 0.95em; /* Adjusted font size */
     vertical-align: middle;
+    margin-right: 30px;
 }
 
+.fl-share-icon-indicator {
+    position: absolute;
+    top: -2px; /* Adjust for fine-tuning vertical position */
+    right: -2px; /* Adjust for fine-tuning horizontal position */
+    cursor: pointer;
+    font-size: 0.9em; /* Adjust base size of the link icon */
+    color: var(--primary-color); /* Use a theme color */
+    padding: 2px 4px; /* Small padding for easier clicks */
+    border-radius: 30px;
+    display: inline-flex; /* To keep lock and link icon on the same line */
+    align-items: center; /* Vertically align items if their sizes differ */
+    opacity: 0.65;
+    transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    z-index: 5; /* Ensure it's above other elements in the header */
+}
+
+.fl-share-icon-indicator:hover {
+    opacity: 1;
+    background-color: rgba(var(--primary-color-rgb), 0.1); /* Subtle hover background */
+}
+
+.fl-password-protected-indicator {
+    font-size: 0.85em; /* Make lock icon slightly smaller than link icon */
+    /* margin-right: 2px; /* Space between lock and main link icon - use &nbsp; in HTML for simplicity or adjust margin */
+    color: inherit; /* Inherits color from .fl-share-icon-indicator */
+    display: inline; /* Default, but ensure it's not block */
+}
 
 .fl-item-details { /* Wrapper for size and modified */
     display: flex;
@@ -841,4 +869,17 @@ display: none !important;
     .fl-item-details {
         font-size: 0.8em;
     }
+}
+
+/* For the item being dragged */
+.fl-item-row.is-dragging {
+    opacity: 0.5;
+    border: 2px dashed #007bff; /* Example styling */
+}
+
+/* For the target folder when an item is dragged over it */
+.fl-item-row[data-item-type="folder"].drag-over-folder {
+    background-color: #e6f7ff; /* Light blue background */
+    border: 2px solid #007bff; /* Blue border */
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.5); /* Blue glow */
 }
