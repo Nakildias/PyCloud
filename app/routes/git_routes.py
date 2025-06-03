@@ -810,7 +810,7 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
     current_breadcrumb_path_builder = ""
     for part in path_parts_for_breadcrumbs:
         current_breadcrumb_path_builder = str(Path(current_breadcrumb_path_builder) / part)
-        current_breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
+        current_breadcrumbs.append({"name": part, "url": url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
     current_breadcrumbs.append({"name": "Create New File/Folder", "url": ""}) # Current action
 
     # For GET, we just render the form. No WTForm instance is strictly needed if parsing JSON on POST.
@@ -937,7 +937,7 @@ def upload_repo_files(owner_username, repo_short_name, ref_name, dir_path):
     current_breadcrumb_path_builder = ""
     for part in path_parts_for_breadcrumbs:
         current_breadcrumb_path_builder = str(Path(current_breadcrumb_path_builder) / part)
-        current_breadcrumbs.append({"name": part, "url": url_for('view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
+        current_breadcrumbs.append({"name": part, "url": url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
     current_breadcrumbs.append({"name": "Upload files", "url": ""})
 
 
