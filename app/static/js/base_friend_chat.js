@@ -29,12 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
 let chatBubbles = {}; // Stores DOM elements for active bubbles only
 const MAX_OPEN_CHAT_BOXES = 3;
 
-const EMB_CHAT_FOCUSED_POLLING_INTERVAL = 3000;
-const EMB_CHAT_BLURRED_POLLING_INTERVAL = 7000;
+const EMB_CHAT_FOCUSED_POLLING_INTERVAL = 1000;
+const EMB_CHAT_BLURRED_POLLING_INTERVAL = 2500;
 let currentEmbChatPollingInterval = EMB_CHAT_FOCUSED_POLLING_INTERVAL;
 let embChatPollTimerId = null;
 
-const RECENT_MSG_POLLING_INTERVAL = 10000;
+const RECENT_MSG_POLLING_INTERVAL = 3000;
 let recentMsgPollTimerId = null;
 const notificationSoundUrl = (typeof NOTIFICATION_SOUND_URL !== 'undefined') ? NOTIFICATION_SOUND_URL : null;
 let notificationSound;
@@ -70,9 +70,8 @@ window.addEventListener('focus', () => {
 
 // Global function to open a chat
 window.openEmbeddedChat = function(friendId, friendUsername, friendPfp) {
-    const chatState = openChats[friendId];
+    let chatState = openChats[friendId];
 
-    // If chat is already open and maximized, focus it and bring to front
     if (chatState && chatState.element && !chatState.minimized) {
         bringChatToFront(friendId);
         if (chatState.inputElement) chatState.inputElement.focus();
@@ -80,21 +79,27 @@ window.openEmbeddedChat = function(friendId, friendUsername, friendPfp) {
         return;
     }
 
-    // If chat exists (either as bubble or was previously open)
     if (chatState) {
+
         chatState.minimized = false;
-        chatState.isExplicitlyClosed = false; // Explicitly opening it clears the closed state
-        // If it was a bubble, remove the bubble and create the chat box
+        chatState.isExplicitlyClosed = false;
+        // When opening, ensure its conceptual unread count is reset.
+        if (chatState.hasOwnProperty('currentUnreadCount')) {
+            chatState.currentUnreadCount = 0;
+        }
+
+
         if (chatBubbles[friendId] && chatBubbles[friendId].element) {
             chatBubbles[friendId].element.remove();
             delete chatBubbles[friendId];
         }
         createChatBox(friendId, chatState.username || friendUsername, chatState.pfp || friendPfp, false);
     } else {
-        // New chat
         createChatBox(friendId, friendUsername, friendPfp, true);
+        if (openChats[friendId]) {
+            openChats[friendId].currentUnreadCount = 0;
+        }
     }
-    saveChatStates(); // Save changes (like isExplicitlyClosed = false)
 };
 
 function saveChatStates() {
@@ -519,93 +524,157 @@ function createChatBubble(friendId, friendUsername, friendPfp) {
 
 function maximizeChatFromBubble(friendId) {
     const bubbleInfo = chatBubbles[friendId];
-    const usernameFromBubble = bubbleInfo ? bubbleInfo.username : (openChats[friendId] ? openChats[friendId].username : "Chat");
-    const pfpFromBubble = bubbleInfo ? bubbleInfo.pfp : (openChats[friendId] ? openChats[friendId].pfp : "");
+    const chatState = openChats[friendId]; // Get the central state
 
-    if (openChats[friendId]) {
-        openChats[friendId].minimized = false;
-        openChats[friendId].isExplicitlyClosed = false; // Maximizing clears this
+    const usernameFromBubble = bubbleInfo ? bubbleInfo.username : (chatState ? chatState.username : "Chat");
+    const pfpFromBubble = bubbleInfo ? bubbleInfo.pfp : (chatState ? chatState.pfp : "");
+
+    if (chatState) {
+
+        chatState.minimized = false;
+        chatState.isExplicitlyClosed = false; // Maximizing clears this
+        // It's good practice to still ensure currentUnreadCount is conceptually zeroed out
+        // when opening, as the user is now viewing it. The updateBubbleUnreadVisuals
+        // called via fetchAndRenderHistory should handle this as lastRead gets updated.
+        // Or explicitly:
+        if (chatState.hasOwnProperty('currentUnreadCount')) {
+            chatState.currentUnreadCount = 0;
+        }
+
     } else {
-        // Should ideally not happen if bubble exists, but as a fallback:
-        openChats[friendId] = { username: usernameFromBubble, pfp: pfpFromBubble, minimized: false, isExplicitlyClosed: false, element: null, lastMsgId: 0, lastRead: new Date(0).toISOString() };
+        openChats[friendId] = {
+            username: usernameFromBubble,
+            pfp: pfpFromBubble,
+            minimized: false,
+            isExplicitlyClosed: false,
+            element: null,
+            lastMsgId: 0,
+            lastRead: new Date(0).toISOString(),
+                          currentUnreadCount: 0 // Start as read since it's being newly created as open
+        };
     }
 
-    // Remove the bubble
     if (bubbleInfo && bubbleInfo.element) {
         bubbleInfo.element.remove();
         delete chatBubbles[friendId];
     }
 
-    createChatBox(friendId, usernameFromBubble, pfpFromBubble, false); // Not a "new" chat in terms of user intent
-    // saveChatStates() is called within createChatBox
+    createChatBox(friendId, usernameFromBubble, pfpFromBubble, false);
 }
 
 
-async function fetchAndRenderHistory(friendId, loadOlder = false) {
-    const chat = openChats[friendId];
-    if (!chat || !chat.messagesElement || !chat.username) return;
 
-    let apiUrl = `${EMB_DM_HISTORY_API_URL_BASE}${chat.username}`;
-    const currentLastMsgId = chat.lastMsgId || 0;
-    // Only add since_message_id if not loading older and we have a last message ID
-    if (!loadOlder && currentLastMsgId > 0) {
-        apiUrl += `?since_message_id=${currentLastMsgId}`;
-    } else if (loadOlder) {
-        // Logic for loading older messages would go here (e.g., before_message_id)
-        // For now, loadOlder isn't fully implemented beyond not using since_message_id
-        // This means if loadOlder is true, it fetches the entire history or latest page.
+async function fetchAndRenderHistory(friendId, loadOlder = false) {
+    let newMessagesRenderedInThisCall = false;
+    let atLeastOneNewlyReceivedInThisCall = false;
+
+    // Get the initial state of the chat
+    const chatStateBeforeAwait = openChats[friendId];
+
+    // Initial basic checks: if no chat state or username, or if it's already known to be minimized with no element
+    // (This check helps avoid even starting a fetch if pollActiveChats somehow let a bad state through)
+    if (!chatStateBeforeAwait || !chatStateBeforeAwait.username || (!chatStateBeforeAwait.element && chatStateBeforeAwait.minimized)) {
+        // console.warn(`fetchAndRenderHistory: Initial check failed or chat already minimized for ${friendId}. Aborting fetch.`);
+        return { newMessagesRendered: newMessagesRenderedInThisCall, atLeastOneNewlyReceivedMessage: atLeastOneNewlyReceivedInThisCall };
+    }
+    // If loadOlder is true, we might still proceed even if messagesElement is currently null,
+    // assuming createChatBox would set it up if we're opening it.
+    // But for regular polling of active chats (loadOlder = false), messagesElement must exist.
+    if (!loadOlder && !chatStateBeforeAwait.messagesElement) {
+        // console.warn(`fetchAndRenderHistory: messagesElement is initially null for active poll of ${friendId}. Aborting.`);
+        return { newMessagesRendered: newMessagesRenderedInThisCall, atLeastOneNewlyReceivedMessage: atLeastOneNewlyReceivedInThisCall };
     }
 
 
+    let apiUrl = `${EMB_DM_HISTORY_API_URL_BASE}${chatStateBeforeAwait.username}`;
+    const currentLastMsgId = chatStateBeforeAwait.lastMsgId || 0;
+    if (!loadOlder && currentLastMsgId > 0) {
+        apiUrl += `?since_message_id=${currentLastMsgId}`;
+    }
+
     try {
         const response = await fetch(apiUrl, { headers: { 'X-CSRFToken': CSRF_TOKEN } });
-        if (!response.ok) {
-            if (response.status === 404 && chat.element) {
-                if (typeof showToast === 'function') showToast(`Chat with ${escapeHtml(chat.username)} is no longer available.`, "warning");
-                closeChat(friendId); // This will also save state
-            } else {
-                console.error(`API error fetching history for ${escapeHtml(chat.username)}: ${response.status}`);
-            }
-            return;
+
+        // --- CRITICAL RE-CHECK AFTER AWAIT ---
+        // The chat state might have changed (e.g., user minimized the chat)
+        const currentChatState = openChats[friendId];
+        if (!currentChatState || !currentChatState.messagesElement || currentChatState.minimized) {
+            // console.warn(`fetchAndRenderHistory: Chat ${friendId} was closed or minimized during fetch. Aborting render.`);
+            return { newMessagesRendered: newMessagesRenderedInThisCall, atLeastOneNewlyReceivedMessage: atLeastOneNewlyReceivedInThisCall };
         }
+        // Now it's safer to use currentChatState or the original 'chatStateBeforeAwait'
+        // if we assume its relevant properties for rendering (like username) haven't changed.
+        // For messagesElement, we MUST use currentChatState.messagesElement if we re-fetched it.
+        // For simplicity, we'll continue using `chat` which is `chatStateBeforeAwait` but be mindful of properties that could change.
+        // The most important is that `messagesElement` from `currentChatState` is valid.
+
+        if (!response.ok) {
+            if (response.status === 404 && currentChatState.element) { // Check currentChatState here
+                if (typeof showToast === 'function') showToast(`Chat with ${escapeHtml(currentChatState.username)} is no longer available.`, "warning");
+                closeChat(friendId);
+            } else {
+                console.error(`API error fetching history for ${escapeHtml(currentChatState.username)}: ${response.status}`);
+            }
+            return { newMessagesRendered: newMessagesRenderedInThisCall, atLeastOneNewlyReceivedMessage: atLeastOneNewlyReceivedInThisCall };
+        }
+
         const data = await response.json();
 
-        if (data.status === 'success' && data.messages) {
-            let newMessagesRendered = false;
-            let latestTimestampInFetch = chat.lastRead || new Date(0).toISOString();
-            let newLastMsgId = chat.lastMsgId || 0;
+        // --- CRITICAL RE-CHECK AFTER AWAIT response.json() ---
+        const finalChatCheck = openChats[friendId];
+        if (!finalChatCheck || !finalChatCheck.messagesElement || finalChatCheck.minimized) {
+            // console.warn(`fetchAndRenderHistory: Chat ${friendId} was closed or minimized during JSON parse. Aborting render.`);
+            return { newMessagesRendered: false, atLeastOneNewlyReceivedMessage: false };
+        }
+        // Use `finalChatCheck` for DOM manipulations now
 
-            data.messages.sort((a, b) => a.id - b.id); // Ensure messages are in correct order
+        if (data.status === 'success' && data.messages) {
+            let latestTimestampInFetch = finalChatCheck.lastRead || new Date(0).toISOString();
+            let newLastMsgId = finalChatCheck.lastMsgId || 0;
+
+            data.messages.sort((a, b) => a.id - b.id);
 
             data.messages.forEach(msg => {
-                if (!chat.messagesElement.querySelector(`.dc-message-wrapper[data-message-id="${msg.id}"]`)) {
-                    renderMessage(friendId, msg);
-                    newMessagesRendered = true;
+                // Ensure messagesElement is still valid from the latest check
+                if (finalChatCheck.messagesElement && !finalChatCheck.messagesElement.querySelector(`.dc-message-wrapper[data-message-id="${msg.id}"]`)) {
+                    renderMessage(friendId, msg); // renderMessage itself should use openChats[friendId] or be passed finalChatCheck
+                    newMessagesRenderedInThisCall = true;
+                    if (String(msg.sender_id) !== String(CURRENT_USER_ID)) {
+                        atLeastOneNewlyReceivedInThisCall = true;
+                    }
                     if (msg.id > newLastMsgId) newLastMsgId = msg.id;
                     if (msg.timestamp > latestTimestampInFetch) latestTimestampInFetch = msg.timestamp;
                 }
             });
 
-            chat.lastMsgId = newLastMsgId; // Update lastMsgId with the latest from this fetch
+            finalChatCheck.lastMsgId = newLastMsgId; // Update state on the most current object
 
-            if (newMessagesRendered && !loadOlder) { // Only auto-scroll for new messages, not when loading older history
-                scrollToBottom(friendId);
+            if (newMessagesRenderedInThisCall && !loadOlder && finalChatCheck.messagesElement) {
+                scrollToBottom(friendId); // scrollToBottom should use openChats[friendId] or be passed finalChatCheck
             }
 
-            // Update lastRead time if the chat is open, focused, and new messages arrived
-            if (!chat.minimized && chat.element && (document.hasFocus() || chat.inputElement === document.activeElement) && newMessagesRendered) {
+            if (!finalChatCheck.minimized && finalChatCheck.element &&
+                (document.hasFocus() || finalChatCheck.inputElement === document.activeElement) &&
+                newMessagesRenderedInThisCall) {
                 const nowISO = new Date().toISOString();
-                // Use the timestamp of the latest message fetched or now, whichever is later (should be latest message)
-                chat.lastRead = latestTimestampInFetch > nowISO ? latestTimestampInFetch : nowISO;
-                updateBubbleUnreadVisuals(friendId, 0); // Clear unread count for this user IF a bubble existed
-            }
-            saveChatStates(); // Save updated lastMsgId and lastRead
+            finalChatCheck.lastRead = latestTimestampInFetch > nowISO ? latestTimestampInFetch : nowISO;
+            updateBubbleUnreadVisuals(friendId, 0);
+                }
+                saveChatStates();
         } else if (data.status !== 'success') {
-            console.error(`API error fetching history (data.status not success) for ${escapeHtml(chat.username)}: ${data.message}`);
+            console.error(`API error fetching history (data.status not success) for ${escapeHtml(finalChatCheck.username)}: ${data.message}`);
         }
     } catch (error) {
-        console.error(`Network or JSON error fetching history for ${escapeHtml(chat.username)}:`, error);
+        const latestChatStateOnError = openChats[friendId]; // Get latest state for error logging
+        if (latestChatStateOnError && !latestChatStateOnError.messagesElement && latestChatStateOnError.minimized) {
+            console.warn(`History fetch for ${escapeHtml(latestChatStateOnError.username)} encountered an issue because chat was minimized during fetch. Error: ${error.message}`);
+        } else if (latestChatStateOnError) {
+            console.error(`Network or JSON error fetching history for ${escapeHtml(latestChatStateOnError.username)}:`, error);
+        } else {
+            console.error(`Network or JSON error fetching history for friendId ${friendId} (chat state no longer found):`, error);
+        }
     }
+    return { newMessagesRendered: newMessagesRenderedInThisCall, atLeastOneNewlyReceivedMessage: atLeastOneNewlyReceivedInThisCall };
 }
 
 function renderMessage(friendId, msg) {
@@ -865,10 +934,23 @@ function stopActiveChatsPolling() {
 }
 
 function pollActiveChats() {
-    Object.keys(openChats).forEach(friendId => {
+    Object.keys(openChats).forEach(async friendId => { // Using async for the callback
         const chat = openChats[friendId];
         if (chat && chat.element && !chat.minimized && !chat.isExplicitlyClosed && chat.username) {
-            fetchAndRenderHistory(friendId, false); // false means fetch new messages
+            try {
+                const historyResult = await fetchAndRenderHistory(friendId, false); // false means fetch new messages
+
+                // Play sound if this poll cycle revealed new incoming messages for this active chat
+                if (historyResult && historyResult.newMessagesRendered && historyResult.atLeastOneNewlyReceivedMessage && notificationSound) {
+                    // Check if the chat window is currently "active" in the user's view (e.g., document has focus)
+                    // This check helps avoid sound if the message arrives while the tab is blurred but the chat is "open"
+                    if (document.hasFocus() || chat.inputElement === document.activeElement) {
+                        notificationSound.play().catch(error => console.warn(`Notification sound (active chat poll for ${escapeHtml(chat.username)}) failed to play.`, error));
+                    }
+                }
+            } catch (e) {
+                console.error(`Error processing active poll for friend ${friendId}:`, e);
+            }
             fetchAndUpdateEmbUserStatus(friendId); // Also refresh status for open chats
         }
     });
@@ -974,7 +1056,13 @@ async function pollForRecentMessages() {
 }
 
 function updateBubbleUnreadVisuals(friendId, count) {
-    const bubbleState = chatBubbles[friendId];
+    const chatState = openChats[friendId]; // Get the central state
+    if (chatState) {
+        chatState.currentUnreadCount = parseInt(count, 10) || 0; // Store/update the unread count here
+        // console.log(`Stored unread count for ${friendId}: ${chatState.currentUnreadCount}`);
+    }
+
+    const bubbleState = chatBubbles[friendId]; // This is for the DOM element of the bubble
     if (bubbleState && bubbleState.element) {
         const indicator = bubbleState.element.querySelector('.emb-unread-message-indicator');
         if (indicator) {
