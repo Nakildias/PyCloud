@@ -91,11 +91,20 @@
                                 <div class="progress-bar-container"><div class="progress-bar" id="disk-bar-{{ server.id }}" style="width: 0%;"></div></div>
                             </div>
                         </div>
+                         <div class="monitor-action-output" id="action-output-{{ server.id }}" style="display:none; margin-top: 10px; white-space: pre-wrap; background-color: #282c34; color: #abb2bf; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto;"></div>
                     </div>
                     <div class="monitor-server-card-footer">
-                        <form method="POST" action="{{ url_for('tool_routes.delete_monitored_server', server_id=server.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this server?');">
+                        <button type="button" class="monitor-btn monitor-btn-warning monitor-action-btn" data-action="reboot" data-server-id="{{ server.id }}">
+                            <i class="fas fa-power-off"></i> Reboot
+                        </button>
+                        <button type="button" class="monitor-btn monitor-btn-info monitor-action-btn" data-action="update" data-server-id="{{ server.id }}">
+                            <i class="fas fa-sync-alt"></i> Update
+                        </button>
+                        <form method="POST" action="{{ url_for('tool_routes.delete_monitored_server', server_id=server.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete server \'{{ server.name|e }}\'?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="monitor-btn monitor-btn-danger">Delete</button>
+                            <button type="submit" class="monitor-btn monitor-btn-danger">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
                         </form>
                     </div>
                 </li>
@@ -108,7 +117,7 @@
                 </div>
                 <h3 class="git-mygit-no-repos-title">No Servers Monitored Yet</h3>
                 <p class="git-mygit-no-repos-text">Add a server using the form above to start monitoring.</p>
-                <p class="git-mygit-no-repos-text"><a href="https://github.com/Nakildias/PyCloudMonitorDaemon">PyCloudMonitorDaemon</a> is required on the machine you want to monitor.</p>
+                <p class="git-mygit-no-repos-text">The <a href="https://github.com/Nakildias/PyCloudMonitorDaemon" target="_blank" rel="noopener noreferrer">PyCloudMonitorDaemon</a> script is required on the machine you want to monitor.</p>
             </div>
         {% endif %}
     </section>
@@ -117,11 +126,13 @@
 
 {% block scripts %}
 {{ super() }}
-{# Define URLs and CSRF token needed by monitor.js before including the script #}
-{# These are made available as global JavaScript variables #}
 <script>
-    const MONITOR_FETCH_URL_BASE = "{{ url_for('tool_routes.fetch_server_data_api', server_id=0) }}".slice(0, -1); // Remove trailing 0
+    const MONITOR_FETCH_URL_BASE = "{{ url_for('tool_routes.fetch_server_data_api', server_id=0) }}".slice(0, -1);
     const MONITOR_REORDER_URL = "{{ url_for('tool_routes.reorder_monitored_servers') }}";
+    const MONITOR_REBOOT_URL_BASE = "{{ url_for('tool_routes.reboot_monitored_server', server_id=0) }}".slice(0, -1);
+    const MONITOR_UPDATE_URL_BASE = "{{ url_for('tool_routes.update_monitored_server', server_id=0) }}".slice(0, -1);
+    // The CSRF_TOKEN will be picked up by the monitor.js if it's globally defined by your base template or another script.
+    // If not, you might need to pass it or handle it as monitor.js does with X-CSRFToken header.
 </script>
 <script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}
