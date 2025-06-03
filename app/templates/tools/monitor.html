@@ -19,19 +19,6 @@
         </button>
     </header>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages-container" style="padding: 0; margin-bottom: 1rem;">
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show git-flash-message" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close git-flash-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
     <div id="addServerModal" class="monitor-modal">
         <div class="monitor-modal-content">
             <span class="monitor-modal-close-btn" id="closeAddServerModalBtn">&times;</span>
