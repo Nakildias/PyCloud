@@ -287,7 +287,7 @@ Description=${APP_NAME} Flask Application
 After=network.target
 
 [Service]
-ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
+ExecStart=PyCloud
 WorkingDirectory=${APP_INSTALL_DIR}
 Environment="FLASK_APP=run.py"
 Restart=always
