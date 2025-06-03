@@ -208,10 +208,8 @@ mkdir -p "${APP_INSTALL_DIR}/static" || error "Failed to create static directory
 mkdir -p "${APP_INSTALL_DIR}/templates" || error "Failed to create templates directory in venv: ${APP_INSTALL_DIR}/templates"
 
 cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/run.py" "${APP_INSTALL_DIR}/run.py" || error "Failed to copy run.py"
-info "Copying contents of static directory..."
-cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/static/." "${APP_INSTALL_DIR}/static/" || error "Failed to copy contents of static directory"
-info "Copying contents of templates directory..."
-cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/templates/." "${APP_INSTALL_DIR}/templates/" || error "Failed to copy contents of templates directory"
+info "Copying contents of app directory..."
+cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/app/." "${APP_INSTALL_DIR}/app/" || error "Failed to copy contents of app directory"
 # Add copy for default manager_settings.json if needed
 # if [[ -f "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" ]]; then
 #     cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
