@@ -1,0 +1,277 @@
+/* static/css/find_people.css */
+
+/* Add necessary RGB values if not in base.css for rgba usage */
+:root {
+    --primary-color-rgb: 74, 144, 226; /* Ensure this matches your base.css */
+    --secondary-color-rgb: 42, 42, 42; /* Ensure this matches your base.css */
+    --border-color-rgb: 68, 68, 68; /* Ensure this matches your base.css */
+}
+
+/* Main container for the find people page */
+.fp-page-container {
+    max-width: 1000px; /* Wider for user grid */
+    margin: 35px auto; /* Consistent with other pages */
+    padding: 0 20px; /* Consistent with other pages */
+    color: var(--text-color);
+}
+
+.fp-header-section {
+    margin-bottom: 30px; /* Space between header and results card */
+}
+
+.fp-page-title {
+    font-size: 2.2em; /* Slightly larger, prominent title */
+    font-weight: 600;
+    color: var(--primary-color); /* Use primary color for main title */
+    margin-bottom: 25px; /* More space below title */
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color); /* Subtle border */
+    text-align: center;
+    letter-spacing: -0.5px;
+}
+
+/* Search form card container */
+.fp-search-card {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    padding: 25px; /* Generous padding */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); /* Consistent shadow */
+    border: 1px solid var(--border-color); /* Consistent border */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Hover animation */
+}
+
+.fp-search-card:hover {
+    transform: translateY(-3px); /* Subtle lift on hover */
+    box-shadow: 0 10px 22px rgba(0,0,0,0.45); /* More pronounced shadow */
+}
+
+.fp-search-section {
+    margin-bottom: 0; /* Remove default margin */
+    padding: 0; /* Remove default padding */
+}
+
+.fp-search-form {
+    display: flex;
+    gap: 15px; /* More space in form elements */
+    align-items: center;
+}
+
+.fp-search-input {
+    flex-grow: 1;
+    padding: 10px 15px; /* More padding */
+    font-size: 0.95em; /* Slightly smaller text */
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: var(--bg-color); /* Use base.css color */
+    border: 1px solid var(--border-color); /* Use base.css color */
+    border-radius: 6px; /* Slightly more rounded */
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+.fp-search-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring */
+    background-color: color-mix(in srgb, var(--bg-color) 90%, black); /* Slightly darker on focus */
+}
+
+/* General button styling - make them consistent with other pages */
+.fp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* Center content in button */
+    gap: 8px; /* Space between icon and text */
+    font-weight: 600; /* Bolder font weight */
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 9px 18px; /* Consistent padding */
+    font-size: 0.9em; /* Consistent font size */
+    border-radius: 6px; /* Consistent rounded corners */
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.15s ease;
+}
+
+.fp-btn-primary {
+    color: var(--text-color); /* Assume light text on dark primary */
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.fp-btn-primary:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    transform: translateY(-1px); /* Subtle lift */
+    box-shadow: 0 2px 6px rgba(var(--primary-color-rgb), 0.2); /* Subtle shadow */
+}
+
+.fp-btn-secondary {
+    color: var(--primary-color);
+    background-color: transparent;
+    border: 1px solid var(--primary-color); /* Clear border */
+}
+
+.fp-btn-secondary:hover {
+    color: var(--text-color); /* Light text on primary background */
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* Main container for all search results (the big card) */
+.fp-results-container-card {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); /* Consistent shadow */
+    padding: 25px 30px; /* Generous internal padding */
+    margin-top: 25px; /* Adjust margin if needed, but the section margin should handle this */
+}
+
+/* User results section */
+.fp-results-section {
+    margin-top: 0; /* Remove default margin as container handles it */
+}
+
+.fp-user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Slightly narrower min-width to fit more */
+    gap: 20px; /* Consistent gap between cards */
+}
+
+.fp-user-card {
+    background-color: var(--secondary-color-rgb);
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Softer border */
+    border-radius: 8px; /* Consistent rounded corners */
+    padding: 20px; /* Generous padding */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Subtle shadow */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease;
+}
+
+.fp-user-card:hover {
+    transform: translateY(-3px); /* Subtle lift on hover */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* More pronounced shadow */
+    background-color: rgba(var(--secondary-color-rgb), 0.8); /* Slightly more opaque on hover */
+}
+
+.fp-user-pfp-link {
+    margin-bottom: 15px; /* More space below PFP */
+}
+
+.fp-user-pfp {
+    width: 110px; /* Slightly larger PFP */
+    height: 110px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--primary-color); /* Primary color border */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25); /* Shadow for PFP */
+    transition: border-color 0.2s ease;
+}
+.fp-user-pfp-link:hover .fp-user-pfp {
+    border-color: color-mix(in srgb, var(--primary-color) 80%, white); /* Lighter primary on hover */
+}
+
+.fp-user-pfp-placeholder {
+    width: 110px; /* Consistent size */
+    height: 110px;
+    border-radius: 50%;
+    background-color: var(--border-color); /* Use base.css color */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid var(--primary-color); /* Consistent border */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.fp-user-pfp-placeholder-icon {
+    width: 65px; /* Slightly larger icon */
+    height: 65px;
+    color: var(--placeholder-color); /* Use base.css color */
+}
+
+.fp-user-info {
+    margin-bottom: 20px; /* More space below user info block */
+    flex-grow: 1; /* Allows it to take space for consistent button alignment */
+}
+
+.fp-user-username {
+    font-size: 1.4em; /* Slightly larger username */
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    margin-bottom: 5px; /* More space below username */
+    display: block;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.fp-user-username:hover {
+    text-decoration: underline;
+    color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+}
+
+.fp-user-fullname {
+    font-size: 0.9em; /* Consistent body text size */
+    color: var(--text-color); /* Use base.css color */
+    opacity: 0.8; /* Subtle */
+    margin-top: 0;
+}
+
+.fp-user-actions {
+    margin-top: auto; /* Pushes buttons to the bottom of the card */
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Consistent space between buttons */
+    width: 100%;
+}
+
+.fp-user-actions .fp-btn {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.fp-btn-unfollow {
+    color: var(--error-color); /* Using base.css color for unfollow */
+    background-color: transparent;
+    border: 1px solid var(--error-color);
+}
+
+.fp-btn-unfollow:hover {
+    color: var(--text-color); /* Light text on error background */
+    background-color: var(--error-color);
+    border-color: var(--error-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(var(--error-color-rgb, 231,76,60), 0.2); /* Using error-color-rgb for shadow */
+}
+
+.fp-btn-follow {
+    color: var(--text-color);
+    background-color: var(--primary-color); /* Using base.css color */
+    border-color: var(--primary-color);
+}
+
+.fp-btn-follow:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(var(--primary-color-rgb), 0.2);
+}
+
+
+.fp-no-results {
+    text-align: center;
+    font-size: 1em; /* Consistent body text size */
+    color: var(--placeholder-color); /* Using base.css color */
+    padding: 25px; /* More padding */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border-radius: 10px; /* Consistent rounding */
+    border: 1px solid var(--border-color); /* Consistent border */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Subtle shadow */
+}

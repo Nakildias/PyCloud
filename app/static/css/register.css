@@ -1,0 +1,194 @@
+/* static/css/register.css - Applied consistent dark theme style */
+
+/* Add necessary RGB values here if not in base.css for rgba usage */
+:root {
+    /* Assuming these are already defined in base.css or inherited */
+    /* --primary-color-rgb: (e.g., 74, 144, 226); */
+    /* --secondary-color-rgb: 42, 42, 42; */
+    /* --border-color-rgb: 68, 68, 68; */
+    /* --error-color-rgb: 231, 76, 60; */
+    /* --placeholder-color-rgb: 136, 136, 136; */
+}
+
+.reg-page-container {
+    max-width: 500px;
+    margin: 35px auto; /* Consistent with other page containers */
+    padding: 30px 35px; /* Consistent padding with ytdlp/us-sections */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); /* Consistent shadow */
+    color: var(--text-color); /* Consistent text color */
+    border: 1px solid var(--border-color); /* Consistent border */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Consistent hover animation */
+}
+
+.reg-page-container:hover {
+    transform: translateY(-5px); /* Consistent lift on hover */
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55); /* Consistent deeper shadow on hover */
+}
+
+.reg-title {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 30px; /* Consistent spacing with ytdlp-header */
+    font-size: 2.1em; /* Consistent with ytdlp-header h2 */
+    font-weight: 600;
+    letter-spacing: -0.5px; /* Consistent letter spacing */
+    text-shadow: 0 1px 4px rgba(var(--primary-color-rgb), 0.2); /* Consistent text shadow */
+}
+
+.reg-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px; /* Consistent spacing with other forms */
+    gap: 8px; /* Consistent gap for labels and inputs */
+}
+
+.reg-label {
+    font-weight: 500; /* Consistent with other form labels */
+    color: var(--text-color); /* Use main text color */
+    opacity: 0.8; /* Consistent subtle opacity */
+}
+
+.reg-input-username,
+.reg-input-email,
+.reg-input-password,
+.reg-input-confirm-password {
+    background-color: var(--bg-color); /* Consistent background */
+    color: var(--text-color); /* Consistent text color */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 6px; /* Consistent rounding */
+    padding: 10px 15px; /* Consistent padding */
+    font-size: 0.9em; /* Consistent font size */
+    line-height: 1.5; /* Consistent line height */
+    width: 100%; /* Ensure full width */
+    box-sizing: border-box; /* Include padding in width */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; /* Consistent transition */
+}
+
+.reg-input-username:focus,
+.reg-input-email:focus,
+.reg-input-password:focus,
+.reg-input-confirm-password:focus {
+    outline: none; /* Remove default outline */
+    border-color: var(--primary-color); /* Consistent primary color border on focus */
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring */
+    background-color: color-mix(in srgb, var(--bg-color) 90%, black); /* Slightly darker on focus */
+}
+
+.reg-input-username::placeholder,
+.reg-input-email::placeholder,
+.reg-input-password::placeholder,
+.reg-input-confirm-password::placeholder {
+    color: var(--placeholder-color); /* Consistent placeholder color */
+    opacity: 0.7;
+}
+
+.reg-errors {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 0 0; /* Consistent margin for errors */
+    color: var(--error-color);
+    font-size: 0.85em; /* Slightly smaller for errors */
+}
+.reg-errors li {
+    padding: 2px 0;
+}
+
+.reg-submit-group {
+    margin-top: 25px; /* Consistent space before submit button */
+}
+
+.reg-submit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Consistent gap for icons */
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    color: var(--text-color); /* Assuming light text on primary background */
+    padding: 9px 22px; /* Consistent button padding */
+    font-size: 0.9em; /* Consistent button font size */
+    font-weight: 600;
+    border-radius: 6px; /* Consistent rounding */
+    cursor: pointer;
+    text-decoration: none;
+    user-select: none;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.15s ease;
+    width: 100%;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+.reg-submit-button:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    transform: translateY(-2px); /* Consistent subtle lift */
+    box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.3); /* Consistent shadow */
+}
+.reg-submit-button:active {
+    background-color: color-mix(in srgb, var(--primary-color) 70%, black); /* Further darken on active */
+    border-color: color-mix(in srgb, var(--primary-color) 70%, black);
+    transform: translateY(1px); /* Consistent press effect */
+    box-shadow: 0 1px 3px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.reg-submit-button:disabled {
+    opacity: 0.65;
+    pointer-events: none;
+    background-color: var(--border-color); /* Faded background for disabled */
+    border-color: var(--border-color); /* Faded border for disabled */
+    color: var(--placeholder-color); /* Faded text for disabled */
+    transform: none; /* No lift when disabled */
+    box-shadow: none; /* No shadow when disabled */
+}
+
+.reg-login-link-text {
+    margin-top: 25px; /* Consistent space above link */
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--placeholder-color); /* Use placeholder color for subtle text */
+}
+
+.reg-login-link {
+    color: var(--primary-color); /* Use primary color for links */
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+.reg-login-link:hover {
+    color: color-mix(in srgb, var(--primary-color) 80%, white); /* Lighten primary on hover */
+    text-decoration: underline; /* Add underline on hover */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+    .reg-page-container {
+        margin: 15px auto;
+        padding: 15px;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
+    }
+    .reg-title {
+        font-size: 1.8em;
+        margin-bottom: 20px;
+    }
+    .reg-form-group {
+        margin-bottom: 15px;
+    }
+    .reg-input-username,
+    .reg-input-email,
+    .reg-input-password,
+    .reg-input-confirm-password {
+        padding: 10px 12px;
+        font-size: 0.85em;
+    }
+    .reg-submit-button {
+        padding: 12px 15px;
+        font-size: 1em;
+    }
+    .reg-login-link-text {
+        margin-top: 20px;
+        font-size: 0.85em;
+    }
+}

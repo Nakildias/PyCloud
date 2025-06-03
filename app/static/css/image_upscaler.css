@@ -1,0 +1,527 @@
+/* static/css/image_upscaler.css - FIXED MODAL STYLES (Attempt 3) */
+
+/* Add secondary-color-rgb here if not in base.css, for rgba usage */
+:root {
+    /* Assuming these are already defined in base.css or inherited */
+    /* --secondary-color-rgb: 42, 42, 42; */
+    /* --border-color-rgb: 68, 68, 68; */
+    /* --primary-color-rgb: (e.g., 0, 123, 255 for a blue primary) */
+}
+
+.upscaler-modern-wrapper {
+    max-width: 1100px;
+    margin: 35px auto;
+    padding: 0 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    color: var(--text-color);
+}
+
+.upscaler-modern-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.upscaler-modern-header h2 {
+    color: var(--primary-color);
+    font-size: 2.4em;
+    font-weight: 700;
+    margin-bottom: 10px;
+    letter-spacing: -0.7px;
+    text-shadow: 0 1px 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.upscaler-modern-header p {
+    color: var(--placeholder-color);
+    font-size: 0.95em;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0.85;
+    line-height: 1.6;
+}
+
+.upscaler-flash-messages {
+    margin-bottom: 25px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.upscaler-flash-messages .alert {
+    padding: 18px 22px;
+    border: 1px solid;
+    font-size: 0.95em;
+    line-height: 1.5;
+    margin-bottom: 0;
+}
+.upscaler-flash-messages .alert-danger { background-color: rgba(var(--error-color-rgb, 220, 53, 69), 0.7); color: var(--text-color); border-color: rgba(var(--error-color-rgb, 220, 53, 69), 0.6); }
+.upscaler-flash-messages .alert-success { background-color: rgba(var(--success-color-rgb, 25, 135, 84), 0.7); color: var(--text-color); border-color: rgba(var(--success-color-rgb, 25, 135, 84), 0.6); }
+.upscaler-flash-messages .alert-info { background-color: rgba(var(--info-color-rgb, 13, 110, 253), 0.7); color: var(--text-color); border-color: rgba(var(--info-color-rgb, 13, 110, 253), 0.6); }
+.upscaler-flash-messages .alert-warning { background-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.7); color: var(--bg-color); border-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.6); }
+
+
+.upscaler-modern-main-content {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border-radius: 10px;
+    padding: 35px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
+}
+
+.upscaler-modern-main-content:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+}
+
+.upscaler-modern-form-panel {
+    margin-bottom: 40px;
+}
+
+.upscaler-modern-file-upload-area {
+    border: 2px dashed rgba(var(--border-color-rgb), 0.8);
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    background-color: var(--secondary-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.upscaler-modern-file-upload-area:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.6);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.upscaler-modern-file-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+.upscaler-modern-file-upload-area:hover .upscaler-modern-file-label {
+    opacity: 1;
+}
+
+.upscaler-modern-file-label svg {
+    width: 55px;
+    height: 55px;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    transition: transform 0.3s ease;
+}
+.upscaler-modern-file-upload-area:hover .upscaler-modern-file-label svg {
+    transform: scale(1.08);
+}
+
+.upscaler-modern-file-label span {
+    font-size: 1.05em;
+    font-weight: 500;
+}
+
+.upscaler-modern-file-name {
+    font-size: 0.95em;
+    color: var(--placeholder-color);
+    margin-top: 10px;
+    font-style: italic;
+    word-break: break-all;
+}
+
+.upscaler-modern-file-input {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+}
+
+.upscaler-modern-preview-area {
+    margin-top: 25px;
+    text-align: center;
+    position: relative;
+    max-width: 350px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.upscaler-modern-preview-img {
+    max-width: 100%;
+    max-height: 280px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 10px;
+    object-fit: contain;
+}
+.upscaler-modern-remove-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.8em;
+    padding: 5px 10px;
+    background-color: var(--error-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.upscaler-modern-remove-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    opacity: 0.9;
+}
+
+.upscaler-modern-options {
+    margin-top: 40px;
+    padding-top: 25px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.upscaler-modern-option-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.upscaler-modern-option-label {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.upscaler-modern-select {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid rgba(var(--border-color-rgb), 0.6);
+    border-radius: 8px;
+    padding: 10px 15px;
+    width: 100%;
+    font-size: 0.95em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    transition: all 0.3s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 14px 14px;
+}
+.upscaler-modern-select:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.upscaler-modern-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.35);
+    background-color: rgba(var(--secondary-color-rgb), 0.8);
+    outline: none;
+}
+
+.upscaler-modern-submit-btn {
+    width: 100%;
+    padding: 12px 25px;
+    font-size: 1.05em;
+    font-weight: 600;
+    margin-top: 30px;
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    color: var(--text-color);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.upscaler-modern-submit-btn:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(var(--primary-color-rgb), 0.35);
+}
+.upscaler-modern-submit-btn:disabled {
+    background-color: var(--border-color);
+    border-color: var(--border-color);
+    color: var(--placeholder-color);
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.upscaler-modern-submit-btn .spinner-border-sm {
+    margin-right: 8px;
+}
+
+.upscaler-modern-results-panel {
+    margin-top: 40px;
+    padding-top: 25px;
+    border-top: 1px solid var(--border-color);
+}
+
+.upscaler-modern-results-title {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 30px;
+    font-size: 1.8em;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 3px rgba(var(--primary-color-rgb), 0.1);
+}
+
+.upscaler-modern-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+}
+
+.upscaler-modern-results-grid-single .upscaler-modern-image-card {
+    grid-column: span 1;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.upscaler-modern-image-card {
+    background-color: rgba(var(--secondary-color-rgb), 0.7);
+    border-radius: 8px;
+    padding: 22px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(var(--border-color-rgb), 0.6);
+    transition: all 0.3s ease;
+}
+.upscaler-modern-image-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    background-color: rgba(var(--secondary-color-rgb), 0.8);
+    transform: translateY(-2px);
+}
+
+.upscaler-modern-image-subtitle {
+    color: var(--text-color);
+    opacity: 0.9;
+    font-size: 1.05em;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.upscaler-modern-image-wrapper {
+    width: 100%;
+    max-height: 380px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-color);
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
+.upscaler-modern-image-display {
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 4px;
+    transition: transform 0.3s ease;
+}
+.upscaler-modern-image-display:hover {
+    transform: scale(1.02);
+}
+
+.upscaler-modern-card-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.upscaler-modern-view-btn,
+.upscaler-modern-download-btn {
+    padding: 10px 20px;
+    font-size: 0.9em;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.upscaler-modern-view-btn {
+    background-color: var(--info-color);
+    border: 1px solid var(--info-color);
+    color: var(--text-color);
+}
+.upscaler-modern-view-btn:hover {
+    background-color: color-mix(in srgb, var(--info-color) 80%, black);
+    border-color: color-mix(in srgb, var(--info-color) 80%, black);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--info-color-rgb, 13, 110, 253), 0.3);
+}
+
+.upscaler-modern-download-btn {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+.upscaler-modern-download-btn:hover {
+    background-color: color-mix(in srgb, var(--secondary-color) 80%, black);
+    border-color: color-mix(in srgb, var(--border-color) 80%, black);
+    color: var(--text-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Modal Styles using base.css variables - FIXED AGAIN */
+.upscaler-modern-modal {
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    /* Use transparent background by default, it will be added by JS */
+    background-color: transparent; /* Changed from rgba(0,0,0,0.8) */
+
+    /* Ensure it's flex for centering when shown */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* These transitions are for the modal itself (the container) */
+    opacity: 0; /* Start fully transparent */
+    visibility: hidden; /* Hide it completely from screen readers and interaction */
+    pointer-events: none; /* Disable interaction */
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* Transition for fade */
+}
+
+/* This class is explicitly added by your JS to show the modal */
+/* We don't need a '.show' class anymore for the overall modal visibility */
+/* because your JS is directly toggling display and now we'll match that. */
+
+.upscaler-modern-modal-content {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    margin: auto;
+    padding: 35px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 960px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    position: relative;
+    text-align: center;
+
+    /* Initial state for the content before it's shown */
+    transform: translateY(20px);
+    opacity: 0;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out; /* Smooth transition for content */
+}
+
+/* IMPORTANT: This JavaScript will now be the sole trigger for animations.
+ *  We need to add a small delay to the transform/opacity of the content
+ *  when 'display' changes, to allow the browser to register the 'display: flex'
+ *  before animating. Or, we can trigger the animation directly in JS.
+ *
+ *  Let's keep the CSS simpler and rely on JS for full control.
+ *  The CSS for the modal will be based on its 'display' state being manipulated by JS.
+ */
+
+/* Styles applied when modal.style.display is 'flex' by JS */
+/* This will effectively override the 'opacity: 0; visibility: hidden;' from the base class */
+.upscaler-modern-modal[style*="display: flex"] { /* Target when JS sets display:flex */
+    opacity: 1; /* Fully opaque */
+    visibility: visible; /* Make it visible */
+    pointer-events: auto; /* Enable interaction */
+    background-color: rgba(0,0,0,0.8); /* Apply the dark overlay here */
+}
+
+/* Style for the content when the modal is shown */
+.upscaler-modern-modal[style*="display: flex"] .upscaler-modern-modal-content {
+    transform: translateY(0); /* Move to final position */
+    opacity: 1; /* Fade in */
+}
+
+
+.upscaler-modern-modal-close-btn {
+    color: var(--placeholder-color);
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    font-size: 36px;
+    font-weight: bold;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.upscaler-modern-modal-close-btn:hover,
+.upscaler-modern-modal-close-btn:focus {
+    color: var(--primary-color);
+    text-decoration: none;
+    cursor: pointer;
+    transform: rotate(90deg);
+}
+
+.upscaler-modern-modal-title {
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    font-size: 2em;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+.upscaler-modern-modal-image {
+    max-width: 100%;
+    max-height: 80vh;
+    display: block;
+    margin: 0 auto 25px auto;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 768px) {
+    .upscaler-modern-main-content {
+        padding: 25px;
+    }
+    .upscaler-modern-results-grid {
+        grid-template-columns: 1fr;
+    }
+    .upscaler-modern-header h2 {
+        font-size: 2em;
+    }
+    .upscaler-modern-header p {
+        font-size: 0.9em;
+    }
+    .upscaler-modern-image-wrapper {
+        max-height: 250px;
+    }
+    .upscaler-modern-modal-content {
+        padding: 25px;
+        width: 95%;
+    }
+    .upscaler-modern-modal-title {
+        font-size: 1.8em;
+    }
+    .upscaler-modern-file-label svg {
+        width: 40px;
+        height: 40px;
+    }
+}

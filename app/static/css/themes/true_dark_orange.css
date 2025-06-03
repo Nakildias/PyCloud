@@ -1,0 +1,91 @@
+/* static/css/themes/pure_black_orange.css */
+:root {
+    /* Pure Black Base Palette */
+    --bg-color: #000000;                     /* Pure Black background */
+    --text-color: #E0E0E0;                   /* Light gray text */
+    --secondary-color: #1A1A1A;              /* Very dark gray for secondary surfaces */
+    --border-color: #333333;                 /* Dark gray border color */
+    --placeholder-color: #757575;            /* Muted text color for placeholders */
+
+    /* Orange Accent */
+    --primary-color: #FF9500;                /* Vibrant Orange */
+    --primary-color-rgb: 255, 149, 0;        /* RGB for Vibrant Orange */
+
+    /* Standard supporting colors - adjust if needed for contrast with orange */
+    --error-color: #FF3B30;                  /* Bright Red */
+    --success-color: #30D158;                /* Bright Green */
+    --info-color: #0A84FF;                   /* Bright Blue */
+    --warning-color: #FFB302;                /* Can be same or similar to primary if primary is orange */
+}
+
+/* Specific overrides from base.css, adapted for Pure Black & Orange Accent */
+
+.base-nav-dropdown-item-link:hover { /* */
+    background-color: var(--primary-color);
+    color: #ffffff; /* White text on orange */
+}
+
+.base-nav-dropdown-menu li.active .base-nav-dropdown-item-link { /* */
+    background-color: rgba(var(--primary-color-rgb), 0.30);
+    color: var(--primary-color);
+}
+
+h1, h2, h4, h5, h6 { /* */
+    color: var(--primary-color);
+}
+h3 { /* */
+    color: var(--text-color);
+}
+
+.btn-primary,
+.unified-action-button.primary { /* */
+    background-color: var(--primary-color);
+    color: #000000; /* Black text on orange for better contrast */
+    border-color: var(--primary-color);
+}
+.btn-primary:hover,
+.unified-action-button.primary:hover { /* */
+    background-color: #E68600; /* Slightly darker orange for hover */
+    border-color: #E68600;
+    color: #000000;
+}
+
+/* Input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input) { /* */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input):focus { /* */
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
+}
+
+/* Toast message text colors */
+.base-toast-message.toast-success { /* */
+    color: #000000;
+}
+.base-toast-message.toast-error { /* */
+    color: #ffffff;
+}
+.base-toast-message.toast-info { /* */
+    color: #ffffff;
+}
+.base-toast-message.toast-warning { /* */
+    color: #000000;
+}

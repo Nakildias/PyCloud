@@ -1,0 +1,324 @@
+/* static/css/user_settings.css - Refactored with new treatment and dropdowns from ytdlp.css */
+
+/* Add secondary-color-rgb and primary-color-rgb here if not in base.css, for rgba usage */
+:root {
+    /* Assuming these are already defined in base.css or inherited */
+    /* --secondary-color-rgb: 42, 42, 42; */
+    /* --border-color-rgb: 68, 68, 68; */
+    /* --primary-color-rgb: (e.g., 74, 144, 226 for a blue primary from ytdlp.css) */
+}
+
+/* Main container for the user settings page */
+.us-page-container {
+    max-width: 900px;
+    margin: 35px auto; /* Consistent with other page containers */
+    padding: 0 20px; /* Consistent with other page containers padding */
+    color: var(--text-color);
+}
+
+.us-page-title {
+    color: var(--primary-color); /* Consistent primary color for main titles */
+    font-size: 2.1em; /* Consistent with ytdlp-header h2 */
+    font-weight: 600;
+    margin-bottom: 30px; /* Consistent spacing with ytdlp-header */
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    letter-spacing: -0.5px; /* Consistent with ytdlp-header h2 */
+    text-shadow: 0 1px 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* Styling for each settings section */
+.us-section {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 10px; /* Consistent rounded corners */
+    padding: 30px 35px; /* Consistent padding with ytdlp-page-container */
+    margin-bottom: 40px; /* Consistent spacing */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); /* Consistent shadow */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Consistent hover animation */
+}
+
+.us-section:hover {
+    transform: translateY(-5px); /* Lifts the entire container on hover, consistent with ytdlp */
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55); /* Deeper shadow on hover, consistent with ytdlp */
+}
+
+.us-section-title {
+    font-size: 1.8em; /* Adjusted to fit the new heading hierarchy */
+    font-weight: 600;
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 25px; /* Consistent spacing */
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* General form styling within sections */
+.us-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Consistent spacing between form groups */
+}
+
+.us-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Consistent spacing */
+}
+
+.us-label {
+    font-weight: 500; /* Consistent with ytdlp-form .form-label */
+    font-size: 0.95em; /* Consistent with ytdlp-form .form-label */
+    color: var(--text-color);
+    opacity: 0.8; /* Consistent subtle opacity */
+    display: block; /* Ensure it takes full width */
+    margin-bottom: 0; /* Gap handles spacing */
+}
+
+/* Styling for select elements (Dropdowns) */
+.us-select {
+    width: 100%;
+    padding: 10px 15px; /* Consistent with ytdlp-form .form-select */
+    font-size: 0.9em; /* Consistent with ytdlp-form .form-select */
+    line-height: 1.5;
+    color: var(--text-color); /* Consistent text color */
+    background-color: var(--bg-color); /* Consistent background with ytdlp inputs */
+    border: 1px solid var(--border-color); /* Consistent border with ytdlp inputs */
+    border-radius: 6px; /* Consistent rounding with ytdlp inputs */
+    box-sizing: border-box; /* Include padding in width */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; /* Consistent transition */
+    appearance: none; /* Remove default arrow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    /* Neutral grey SVG arrow, consistent with ytdlp */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23888888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center; /* Consistent positioning */
+    background-size: 16px 12px; /* Consistent size */
+}
+
+.us-select:focus {
+    outline: none; /* Remove default outline */
+    border-color: var(--primary-color); /* Consistent primary color border on focus */
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring */
+    background-color: color-mix(in srgb, var(--bg-color) 90%, black); /* Slightly darker on focus, consistent with ytdlp */
+}
+
+/* Shared button base styles */
+.us-btn {
+    display: inline-flex; /* Changed to flex for icon alignment, consistent with ytdlp */
+    align-items: center; /* Center content vertically */
+    justify-content: center; /* Center content horizontally */
+    gap: 8px; /* Consistent gap for icons */
+    font-weight: 600; /* Consistent with other buttons */
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid var(--border-color); /* Use border-color for general border */
+    /* ADJUSTED BUTTON SIZE HERE: Back to user_profile.css style for smaller buttons */
+    padding: 10px 20px; /* Smaller padding consistent with up-actions-bar buttons */
+    font-size: 0.9em; /* Smaller font size consistent with up-actions-bar buttons */
+    border-radius: 5px; /* Consistent with up-actions-bar buttons */
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease; /* Full transition */
+    min-width: 100px; /* Slightly reduced min-width to allow for more flexibility */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Subtle initial shadow */
+}
+
+.us-btn:hover {
+    transform: translateY(-2px); /* Consistent hover lift */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Stronger shadow on hover */
+}
+.us-btn:active { /* Add active state for press effect */
+    transform: translateY(1px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.us-btn:focus {
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring with ytdlp */
+}
+
+.us-btn:disabled,
+.us-btn.us-btn-disabled {
+    opacity: 0.65;
+    pointer-events: none;
+    background-color: var(--border-color); /* Faded background for disabled */
+    border-color: var(--border-color); /* Faded border for disabled */
+    color: var(--placeholder-color); /* Faded text for disabled */
+    transform: none; /* No lift when disabled */
+    box-shadow: none; /* No shadow when disabled */
+}
+
+/* Primary button style (e.g., Save Theme) */
+.us-btn-primary {
+    color: var(--text-color); /* Assuming text turns light/white on primary background */
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.us-btn-primary:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+}
+.us-btn-primary:focus {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.5);
+}
+
+
+/* Secondary button style (e.g., Edit Profile link) */
+.us-btn-secondary {
+    color: var(--text-color);
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.us-btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--secondary-color) 80%, black); /* Darken secondary on hover */
+    border-color: color-mix(in srgb, var(--secondary-color) 80%, black);
+}
+
+.us-btn-secondary:focus {
+    background-color: color-mix(in srgb, var(--secondary-color) 80%, black);
+    border-color: color-mix(in srgb, var(--secondary-color) 80%, black);
+    box-shadow: 0 0 0 3px rgba(var(--secondary-color-rgb), 0.5);
+}
+
+
+/* List of links (e.g., for Account Management) */
+.us-links-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Consistent gap with other lists/sections */
+}
+
+.us-links-item .us-btn {
+    width: 1%; /* Make list buttons full width within their container */
+    max-width: none; /* Remove max-width constraint */
+    /* Remove justify-content from here, use it on parent if desired for alignment */
+    text-align: center; /* Center text for full-width buttons */
+    padding-left: 20px; /* Re-apply consistent padding */
+}
+/* Revert text-align for buttons that look like links if necessary, or make them look like buttons */
+.us-links-item .us-btn-link { /* If you want certain buttons to *look* like links, define a new style */
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--primary-color);
+    box-shadow: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+    text-align: left; /* Align text left for link-like items */
+    padding-left: 0; /* Remove padding if it's a true link */
+    justify-content: flex-start; /* Align content to start */
+    min-width: unset; /* Allow link buttons to shrink */
+}
+.us-links-item .us-btn-link:hover {
+    color: color-mix(in srgb, var(--primary-color) 80%, white);
+    transform: translateX(5px); /* Subtle slide for link-like items */
+    box-shadow: none;
+}
+
+
+/* Checkbox styling */
+.us-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Consistent spacing */
+    padding: 8px 0; /* Consistent padding */
+}
+
+.us-checkbox-input {
+    width: 1.3em; /* Slightly larger checkbox */
+    height: 1.3em; /* Slightly larger checkbox */
+    margin-top: 0; /* Center vertically */
+    vertical-align: middle;
+    background-color: var(--secondary-color); /* Use secondary color for checkbox background */
+    border: 1px solid var(--border-color);
+    border-radius: 4px; /* Consistent with smaller radius elements */
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; /* Add box-shadow transition */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle initial shadow */
+}
+
+.us-checkbox-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 5px rgba(var(--primary-color-rgb), 0.2); /* Shadow for checked state */
+}
+
+.us-checkbox-input:focus {
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring with ytdlp */
+}
+
+.us-checkbox-input:checked::before {
+    content: '';
+    display: block;
+    width: 0.4em; /* Adjust checkmark size */
+    height: 0.75em; /* Adjust checkmark size */
+    border: solid var(--text-color); /* Checkmark color, ensure it's text-color for dark theme contrast */
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-50%, -50%);
+    position: absolute;
+    left: 50%;
+    top: 50%; /* Center checkmark precisely */
+}
+
+.us-checkbox-label {
+    font-size: 0.95em; /* Consistent font size */
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* Responsive adjustments for smaller screens, consistent with ytdlp.css */
+@media (max-width: 600px) {
+    .us-page-container {
+        margin: 15px auto;
+        padding: 15px;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
+    }
+    .us-page-title {
+        font-size: 1.6em;
+        margin-bottom: 20px;
+    }
+    .us-section {
+        padding: 20px;
+        margin-bottom: 30px;
+        border-radius: 0; /* Remove radius on mobile for full-bleed effect */
+        box-shadow: none;
+        border-left: none; /* Remove left/right borders for full-bleed */
+        border-right: none;
+    }
+    .us-section:hover {
+        transform: none; /* No lift on mobile */
+        box-shadow: none;
+    }
+    .us-section-title {
+        font-size: 1.4em;
+        margin-bottom: 20px;
+    }
+    .us-form {
+        gap: 15px;
+    }
+    .us-select { /* Adjusted for mobile view of selects */
+        padding: 10px 15px;
+        font-size: 0.9em;
+    }
+    .us-btn { /* Adjusted for mobile view of buttons */
+        padding: 10px 15px; /* Slightly reduced padding */
+        font-size: 0.9em; /* Keep original font size */
+        min-width: unset; /* Allow smaller width on mobile */
+    }
+    .us-links-item .us-btn {
+        padding-left: 15px; /* Adjust padding for mobile */
+    }
+}

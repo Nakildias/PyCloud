@@ -1,0 +1,167 @@
+/* static/css/ssh_client.css */
+
+/* --- General Page Container (remains for context, though modal will float above it) --- */
+.ssh-page-container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: var(--background-color-card);
+    border-radius: 8px;
+    box-shadow: var(--shadow-small);
+    color: var(--text-color);
+}
+
+.ssh-header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.ssh-page-title {
+    color: var(--heading-color);
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+/* --- Connect Form Section --- */
+.ssh-connect-form-section {
+    margin-bottom: 30px;
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    padding: 30px; /* Increased padding */
+    border-radius: 15px; /* More rounded */
+    border: 1px solid rgba(var(--border-color-rgb), 0.7);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.ssh-section-title {
+    color: var(--heading-color);
+    font-size: 1.4em;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(var(--border-color-rgb), 0.3);
+    padding-bottom: 10px;
+    font-weight: 600; /* Bolder title */
+}
+
+.ssh-form .form-group {
+    margin-bottom: 20px; /* More space between form groups */
+}
+
+.ssh-form label {
+    display: block;
+    margin-bottom: 8px; /* More space below label */
+    font-weight: 600; /* Bolder */
+    color: var(--text-color);
+    font-size: 1.05em; /* Slightly larger font */
+}
+
+.ssh-form .form-control {
+    width: calc(100% - 24px); /* Adjust for padding and border */
+    padding: 12px; /* More generous padding */
+    border: 1px solid rgba(var(--border-color-rgb), 0.5);
+    border-radius: 8px; /* More rounded */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 1em;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Inner shadow */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.ssh-form .form-control:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.4), inset 0 1px 3px rgba(0,0,0,0.2);
+}
+.ssh-form .form-control::placeholder {
+    color: rgba(var(--placeholder-color-rgb), 0.7);
+}
+
+
+/* --- Buttons (apply to both form and modal for consistency) --- */
+.ssh-client-btn-connect,
+.ssh-client-btn-disconnect,
+.ssh-client-modal-disconnect-button { /* Keep for pop-up button if you reuse this CSS */
+    padding: 12px 25px; /* More generous padding */
+    border: none;
+    border-radius: 8px; /* More rounded */
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    margin-right: 15px; /* Increased right margin */
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    white-space: nowrap; /* Prevent button text from wrapping */
+}
+
+.ssh-client-btn-connect {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.ssh-client-btn-connect:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 85%, black);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+}
+
+.ssh-client-btn-disconnect,
+.ssh-client-modal-disconnect-button {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.ssh-client-btn-disconnect:hover,
+.ssh-client-modal-disconnect-button:hover {
+    background-color: color-mix(in srgb, var(--danger-color) 85%, black);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+}
+
+/* --- No more modal specific styles in this CSS file --- */
+
+
+/* Information/Status messages from the server (can be used if you display them on the main page) */
+.ssh-output-info { color: var(--info-color); }
+.ssh-output-success { color: var(--success-color); }
+.ssh-output-error { color: var(--danger-color); }
+.ssh-output-warning { color: var(--warning-color); }
+
+
+/* Media Queries for Responsiveness */
+@media (max-width: 768px) {
+    .ssh-page-container {
+        margin: 20px 10px;
+        padding: 15px;
+    }
+
+    .ssh-page-title {
+        font-size: 1.8em;
+    }
+
+    .ssh-section-title {
+        font-size: 1.2em;
+    }
+
+    .ssh-client-btn-connect,
+    .ssh-client-btn-disconnect {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ssh-page-container {
+        padding: 0 10px;
+    }
+    .ssh-connect-form-section {
+        padding: 20px;
+    }
+    .ssh-form .form-control {
+        padding: 10px;
+        font-size: 0.95em;
+    }
+    .ssh-client-btn-connect,
+    .ssh-client-btn-disconnect {
+        padding: 10px 15px;
+        font-size: 0.95em;
+    }
+}

@@ -1,0 +1,788 @@
+/* static/css/notes.css - Modernized Layout and Styling */
+
+/*
+ * NOTE: Color variables (e.g., --primary-color-rgb, --bg-color) are strictly sourced from base.css.
+ * This file relies solely on base.css for all color definitions.
+ */
+
+/* Ensure this file is loaded AFTER base.css. */
+body.fl-body-notes-page {
+    background-color: var(--bg-color); /* Use global background color */
+}
+
+/* --- General Page Container (Applies to nl-, vn-, nf- pages) --- */
+.nl-page-container,
+.vn-page-container,
+.nf-page-container {
+    max-width: 1200px; /* Consistent maximum width for content */
+    margin: 40px auto; /* Centered with generous vertical margin */
+    padding: 0 25px; /* Horizontal padding for inner content spacing */
+    overflow: hidden; /* Prevents content overflow issues */
+    color: var(--text-color); /* Default text color for the page */
+}
+
+/* --- Header Bar (Notes List Page) --- */
+.nl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    margin-bottom: 30px; /* Space below the header */
+    flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+    gap: 15px; /* Space between header elements */
+    border-bottom: 1px solid rgba(var(--border-color-rgb), 0.3); /* Subtle separator line */
+    padding-bottom: 15px; /* Padding above the separator */
+}
+
+.nl-page-title {
+    margin: 0;
+    flex-grow: 1; /* Allows the title to take available space */
+    min-width: 0; /* Prevents overflow with long titles in flex container */
+    font-size: 2.8em; /* Large and prominent title */
+    color: var(--primary-color); /* Primary brand color for titles */
+    font-weight: 700; /* Extra bold */
+    letter-spacing: -1.2px; /* Tighter letter spacing for modern look */
+    text-shadow: 0 0 12px rgba(var(--primary-color-rgb), 0.3); /* Soft glow effect */
+}
+
+.nl-header-actions {
+    flex-shrink: 0; /* Prevents action buttons from shrinking */
+}
+
+/* --- Toolbar (Notes List Page) --- */
+.nl-toolbar {
+    margin-bottom: 35px; /* Space below the toolbar */
+    display: flex;
+    justify-content: flex-end; /* Aligns search input to the right */
+    gap: 15px; /* Space between toolbar items */
+}
+
+.nl-search-input {
+    padding: 12px 20px; /* Generous padding for a comfortable input area */
+    background-color: rgba(var(--bg-color-rgb), 0.7); /* Semi-transparent background */
+    border: 1px solid rgba(var(--border-color-rgb), 0.5); /* Subtle border */
+    color: var(--text-color); /* Input text color */
+    border-radius: 8px; /* Rounded corners for the input field */
+    font-size: 1em; /* Standard font size */
+    width: 380px; /* Wider search input */
+    max-width: 100%; /* Ensures responsiveness on smaller screens */
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.2); /* Inner shadow for depth */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth transition for focus/hover */
+}
+
+.nl-search-input:focus {
+    outline: none; /* Removes default outline */
+    border-color: var(--primary-color); /* Primary color border on focus */
+    box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.4), inset 0 1px 4px rgba(0,0,0,0.2); /* Glow effect on focus */
+    background-color: color-mix(in srgb, var(--bg-color) 80%, black); /* Slightly darker background on focus */
+}
+.nl-search-input::placeholder {
+    color: rgba(var(--placeholder-color-rgb), 0.7); /* Styled placeholder text */
+}
+
+/* --- Notes Grid (Notes List Page) --- */
+.nl-notes-grid {
+    display: grid;
+    /* Responsive grid: auto-fill columns, min 280px, max 1fr (fills available space) */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 28px; /* Generous space between grid items */
+    padding-top: 10px; /* Space from the header/toolbar above */
+    padding-bottom: 20px; /* Space from the header/toolbar under */
+}
+
+/* --- Individual Note Card (Notes List Page) --- */
+.nl-note-card {
+    /* Updated: Darker, always-active gradient using color-mix */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Subtle border */
+    border-radius: 15px; /* More rounded corners for cards */
+    padding: 28px; /* Generous internal padding */
+    /* Multi-layered shadow for depth and lift */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, background-color 0.3s ease; /* Smooth transitions */
+    display: flex;
+    flex-direction: column; /* Stacks content vertically */
+    justify-content: space-between; /* Pushes action buttons to the bottom */
+    min-height: 220px; /* Ensures a consistent minimum height for cards */
+    position: relative; /* For pseudo-elements like animated borders */
+    overflow: hidden; /* Ensures content and shadows respect border-radius */
+
+    /* Animated subtle border glow on hover (inspired by files.css) */
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        background: radial-gradient(circle at top left, rgba(var(--primary-color-rgb), 0.2), transparent 50%),
+        radial-gradient(circle at bottom right, rgba(var(--primary-color-rgb), 0.2), transparent 50%);
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        z-index: 0; /* Ensure it's behind interactive elements */
+        pointer-events: none; /* Crucial: ensures it doesn't block clicks */
+    }
+}
+
+.nl-note-card:hover {
+    transform: translateY(-8px); /* More pronounced lift on hover */
+    /* Stronger shadow and a subtle inner glow on hover */
+    box-shadow: 0 18px 45px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+    /* Updated: Slightly darker background on hover for a subtle change */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+}
+.nl-note-card:hover::before {
+    opacity: 0; /* Fuck the glow visible on hover */
+}
+
+
+.nl-card-title {
+    margin-top: 0;
+    margin-bottom: 12px; /* Space below title */
+    font-size: 2em; /* Large and impactful title within the card */
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.7px;
+}
+
+.nl-card-title-link {
+    color: var(--primary-color); /* Primary brand color for note titles */
+    text-decoration: none;
+    transition: color 0.2s ease; /* Smooth color transition */
+    display: block; /* Makes the entire title area clickable */
+    overflow: hidden; /* Hides overflowing text */
+    text-overflow: ellipsis; /* Adds "..." for truncated text */
+    white-space: nowrap; /* Keeps title on a single line */
+}
+
+.nl-card-title-link:hover {
+    color: color-mix(in srgb, var(--primary-color) 85%, white); /* Lighten primary color on hover */
+    text-decoration: underline; /* Underline on hover */
+}
+
+.nl-card-snippet {
+    font-size: 0.95em; /* Slightly smaller font for snippet */
+    color: rgba(var(--text-color-rgb), 0.8); /* Slightly faded text color */
+    line-height: 1.6; /* Comfortable line spacing */
+    margin-bottom: 20px; /* Space below snippet */
+    flex-grow: 1; /* Allows snippet to take available vertical space */
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4; /* Limits snippet to 4 lines */
+    -webkit-box-orient: vertical; /* Required for line-clamp to work */
+}
+
+.nl-card-meta {
+    font-size: 0.85em; /* Smaller font for meta information */
+    color: rgba(var(--placeholder-color-rgb), 0.7); /* Faded placeholder color */
+    display: block;
+    margin-top: auto; /* Pushes meta and actions to the bottom of the card */
+    margin-bottom: 15px; /* Space above action buttons */
+}
+
+.nl-card-actions {
+    display: flex;
+    justify-content: flex-end; /* Aligns buttons to the right */
+    gap: 12px; /* Space between action buttons */
+    margin-top: 10px; /* Additional space if meta info is present */
+}
+
+/* --- Button Styling (Unified across all notes pages) --- */
+.nl-btn {
+    /* display: inline-flex; /* Looks Like Shit if enabled */
+    align-items: center; /* Vertically centers content */
+    justify-content: center; /* Horizontally centers content */
+    gap: 8px; /* Space between icon and text */
+    font-weight: 600; /* Semi-bold text */
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none; /* Prevents text selection on click */
+    border: 1px solid var(--border-color); /* Default border */
+    padding: 10px 20px; /* Standard padding for buttons */
+    font-size: 0.95em; /* Consistent button font size */
+    border-radius: 8px; /* Rounded corners for buttons */
+    /* Comprehensive transition for smooth interactive feedback */
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    min-width: 20px; /* Minimum width for consistency */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18); /* Subtle initial shadow */
+}
+
+.nl-btn:hover {
+    transform: translateY(-3px); /* Lifts button on hover */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3); /* Deeper shadow on hover */
+}
+.nl-btn:active {
+    transform: translateY(1px); /* Pushes button down on click */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Flatter shadow on click */
+}
+.nl-btn:focus {
+    outline: 0; /* Removes default focus outline */
+    box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.4); /* Glow effect on focus */
+}
+
+/* Primary Button Style */
+.nl-btn-primary {
+    color: var(--text-color); /* Text color, assuming light on primary background */
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.nl-btn-primary:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+}
+
+/* Secondary Button Style */
+.nl-btn-secondary {
+    color: var(--text-color);
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+.nl-btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--secondary-color) 80%, black); /* Darken secondary on hover */
+    border-color: color-mix(in srgb, var(--secondary-color) 80%, black);
+}
+
+/* Danger Button Style */
+.nl-btn-danger {
+    color: white; /* Ensure text is visible on danger background */
+    background-color: var(--error-color);
+    border-color: var(--error-color);
+}
+.nl-btn-danger:hover {
+    background-color: color-mix(in srgb, var(--error-color) 80%, black); /* Darken error color on hover */
+    border-color: color-mix(in srgb, var(--error-color) 80%, black);
+}
+
+/* Disabled Button State */
+.nl-btn:disabled,
+.nl-btn.nl-btn-disabled {
+    opacity: 0.6; /* Faded appearance */
+    pointer-events: none; /* Prevents interaction */
+    background-color: var(--border-color); /* Muted background */
+    border-color: var(--border-color); /* Muted border */
+    color: var(--placeholder-color); /* Muted text */
+    transform: none; /* No lift when disabled */
+    box-shadow: none; /* No shadow when disabled */
+}
+
+
+/* --- Empty State (Notes List Page) --- */
+.nl-empty-state {
+    text-align: center;
+    padding: 70px 40px; /* Generous padding */
+    /* Subtle gradient background */
+    background: var(--secondary-color-rgb);
+    border: 2px dashed rgba(var(--border-color-rgb), 0.5); /* Dashed border for empty state */
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25); /* Soft shadow */
+    max-width: 650px; /* Max width for the empty state box */
+    margin: 60px auto; /* Centered with more vertical margin */
+}
+
+.nl-empty-message {
+    color: var(--placeholder-color); /* Placeholder color for informative text */
+    font-size: 1.3em; /* Larger font size */
+    margin-bottom: 30px; /* Space below message */
+    line-height: 1.6;
+    font-style: italic; /* Italicized for emphasis */
+}
+
+.nl-btn-create-first {
+    padding: 14px 30px; /* Larger padding for a more prominent "create first" button */
+    font-size: 1.1em; /* Larger font size */
+}
+
+
+/* ==========================================================================
+ * View Single Note Page Styles (view_note.html) - Prefixed with vn-
+ * ========================================================================== */
+
+.vn-page-container {
+    max-width: 900px; /* Slightly narrower for focused reading */
+    margin: 40px auto;
+    padding: 0 25px;
+    color: var(--text-color);
+}
+
+.vn-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px; /* Space below header */
+    padding-bottom: 20px; /* Padding above separator */
+    border-bottom: 1px solid rgba(var(--border-color-rgb), 0.4); /* Clearer separator */
+    flex-wrap: wrap; /* Allows wrapping */
+    gap: 15px; /* Space between title and actions */
+}
+
+.vn-header .vn-title {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 3em; /* Very prominent title */
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    text-shadow: 0 1px 6px rgba(var(--primary-color-rgb), 0.3);
+    flex-grow: 1;
+    min-width: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.vn-header .vn-actions {
+    display: flex;
+    gap: 15px; /* More space between buttons */
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.vn-meta-info {
+    color: rgba(var(--placeholder-color-rgb), 0.8); /* Faded meta info */
+    margin-bottom: 35px; /* More space below meta info */
+    font-size: 0.95em;
+    font-style: italic;
+    text-align: center; /* Center align meta info */
+    width: 100%; /* Ensure it takes full width */
+}
+
+.vn-content-display {
+    /* white-space: pre-line collapses multiple spaces but preserves newlines */
+    white-space: pre-line;
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border: 1px solid rgba(var(--border-color-rgb), 0.7); /* Clearer border */
+    padding-right: 30px; /* Generous internal padding */
+    padding-left: 30px;
+    padding-top: 5px;
+    padding-bottom: 30px;
+    border-radius: 12px; /* Rounded corners */
+    margin-top: 25px; /* Space above content box */
+    font-family: 'Inter', sans-serif; /* Use Inter for content for better readability */
+    line-height: 1.8; /* Increased line height for readability */
+    color: var(--text-color);
+    font-size: 1.05em; /* Slightly larger font for content */
+    overflow-x: auto; /* Horizontal scroll for very long lines */
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35); /* Clearer shadow */
+    transition: box-shadow 0.3s ease; /* Smooth shadow transition */
+}
+
+.vn-content-display:hover {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Deeper shadow on hover */
+}
+
+.vn-back-link-container {
+    margin-top: 45px; /* More space above the back link */
+    display: block;
+    text-align: center; /* Center the back link */
+}
+.vn-back-link-container a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease, transform 0.2s ease;
+    display: inline-flex; /* Allows icon and text to sit side-by-side */
+    align-items: center;
+    gap: 8px; /* Space between icon and text */
+    font-size: 1.1em; /* Slightly larger back link */
+}
+.vn-back-link-container a:hover {
+    color: color-mix(in srgb, var(--primary-color) 85%, white);
+    transform: translateX(-5px); /* More pronounced slide effect on hover */
+}
+
+
+/* ==========================================================================
+ * Note Form Styles (note_form.html) - Prefixed with nf-
+ * ========================================================================== */
+.nf-page-container {
+    max-width: 850px; /* Optimal width for forms */
+    margin: 40px auto;
+    padding: 0 25px;
+    padding-top: 20px;
+}
+
+.nf-form-wrapper {
+    /* Consistent card-like styling for the form container */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border: 1px solid var(--border-color);
+    border-radius: 15px; /* Rounded corners */
+    padding: 40px; /* Generous padding inside the form wrapper */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); /* Deeper shadow */
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out; /* Smooth transitions */
+}
+
+.nf-form-wrapper:hover {
+    transform: translateY(-8px); /* Lifts the form on hover */
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6); /* Stronger shadow on hover */
+}
+
+.nf-title {
+    color: var(--primary-color);
+    text-align: center;
+    font-size: 2.5em; /* Prominent form title */
+    font-weight: 700;
+    margin-bottom: 35px; /* More space below title */
+    padding-bottom: 18px; /* Padding above separator */
+    border-bottom: 1px solid rgba(var(--border-color-rgb), 0.4); /* Separator line */
+    letter-spacing: -1px;
+    text-shadow: 0 1px 6px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.nf-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px; /* More space between form groups */
+}
+
+.nf-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between label and input */
+}
+
+.nf-label {
+    margin-bottom: 0;
+    font-weight: 600; /* Bolder label text */
+    color: var(--text-color);
+    opacity: 0.9; /* Slightly less opaque for better readability */
+    font-size: 1em; /* Standard font size for labels */
+}
+
+.nf-input-title,
+.nf-textarea-content {
+    width: 100%;
+    padding: 14px 20px; /* More generous padding for inputs */
+    background-color: rgba(var(--bg-color-rgb), 0.75); /* Slightly more opaque background */
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Clearer border */
+    color: var(--text-color);
+    border-radius: 10px; /* More rounded inputs */
+    font-size: 1.05em; /* Slightly larger font size */
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.25); /* Deeper inner shadow */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth transitions */
+    box-sizing: border-box; /* Ensures padding is included in width */
+}
+
+.nf-input-title:focus,
+.nf-textarea-content:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 5px rgba(var(--primary-color-rgb), 0.5), inset 0 1px 4px rgba(0,0,0,0.25); /* More prominent glow on focus */
+    background-color: color-mix(in srgb, var(--bg-color) 85%, black); /* Darker background on focus */
+}
+.nf-input-title::placeholder,
+.nf-textarea-content::placeholder {
+    color: rgba(var(--placeholder-color-rgb), 0.6); /* Styled placeholder text */
+}
+
+.nf-textarea-content {
+    min-height: 300px; /* Increased min height for content area */
+    font-family: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace; /* Monospace font for code/notes */
+    line-height: 1.7; /* Comfortable line height */
+}
+
+.nf-errors {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0; /* Space above errors */
+    color: var(--error-color);
+    font-size: 0.9em;
+    font-weight: 600; /* Bolder error text */
+}
+
+.nf-submit-group {
+    display: flex;
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 18px; /* More space between buttons */
+    margin-top: 40px; /* More space above button group */
+    padding-top: 25px; /* Padding above separator */
+    border-top: 1px solid rgba(var(--border-color-rgb), 0.4); /* Separator line */
+}
+
+
+/* --- Responsive Adjustments --- */
+
+/* For screens smaller than 1200px (e.g., large tablets) */
+@media (max-width: 1200px) {
+    .nl-page-container,
+    .vn-page-container,
+    .nf-page-container {
+        padding: 0 20px; /* Slightly reduced horizontal padding */
+    }
+    .nl-notes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Adjust grid columns */
+        gap: 20px;
+    }
+    .nl-note-card {
+        padding: 25px;
+        min-height: 200px;
+    }
+    .nl-card-title {
+        font-size: 1.8em;
+    }
+}
+
+/* For screens smaller than 992px (e.g., tablets) */
+@media (max-width: 992px) {
+    .nl-page-title {
+        font-size: 2.4em;
+        letter-spacing: -1px;
+    }
+    .nl-toolbar {
+        justify-content: center; /* Center search on tablets */
+    }
+    .nl-search-input {
+        width: 100%; /* Full width search input */
+    }
+    .nl-notes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* Further adjust grid */
+        gap: 18px;
+    }
+    .nl-note-card {
+        padding: 20px;
+        min-height: 180px;
+    }
+    .nl-card-title {
+        font-size: 1.6em;
+    }
+    .nl-card-snippet {
+        -webkit-line-clamp: 5; /* Allow more lines for snippet */
+    }
+
+    .vn-header .vn-title {
+        font-size: 2.5em;
+        letter-spacing: -1.2px;
+    }
+    .vn-content-display {
+        padding: 25px 20px;
+        font-size: 1em;
+    }
+
+    .nf-form-wrapper {
+        padding: 30px;
+    }
+    .nf-title {
+        font-size: 2.2em;
+    }
+    .nf-input-title,
+    .nf-textarea-content {
+        padding: 12px 18px;
+        font-size: 1em;
+    }
+}
+
+/* For screens smaller than 768px (e.g., large phones) */
+@media (max-width: 768px) {
+    .nl-page-container,
+    .vn-page-container,
+    .nf-page-container {
+        margin: 30px auto;
+        padding: 0 15px; /* Even less horizontal padding */
+    }
+    .nl-header {
+        flex-direction: column; /* Stack header items vertically */
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 25px;
+    }
+    .nl-page-title {
+        font-size: 2em;
+        text-align: left; /* Align title left when stacked */
+        letter-spacing: -0.8px;
+    }
+    .nl-header-actions {
+        width: 100%; /* Make create button full width */
+    }
+    .nl-btn-create-new {
+        width: 100%;
+        justify-content: center; /* Center text in full-width button */
+    }
+
+    .nl-toolbar {
+        margin-bottom: 25px;
+    }
+
+    .nl-notes-grid {
+        grid-template-columns: 1fr; /* Single column layout on mobile */
+        gap: 15px;
+    }
+    .nl-note-card {
+        padding: 20px;
+        min-height: unset; /* Allow height to be dynamic */
+        border-radius: 12px; /* Slightly less rounded on mobile */
+    }
+    .nl-note-card:hover {
+        transform: none; /* No lift on mobile */
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3); /* Lighter shadow on hover */
+    }
+    .nl-note-card::before {
+        opacity: 0 !important; /* Disable glow on mobile */
+    }
+    .nl-card-title {
+        font-size: 1.5em;
+        letter-spacing: -0.5px;
+    }
+    .nl-card-snippet {
+        font-size: 0.9em;
+        -webkit-line-clamp: 6; /* Allow more lines for snippet */
+    }
+    .nl-card-actions {
+        /* flex-direction: column; /* Looks like shit if enabled */
+        gap: 8px;
+    }
+    .nl-card-actions .nl-btn {
+        /*width: 100%; TOO BIG IF ENABLED */
+        font-size: 0.9em;
+        padding: 10px 15px;
+    }
+    .nl-empty-state {
+        padding: 50px 25px;
+        margin: 40px auto;
+        border-radius: 12px;
+    }
+    .nl-empty-message {
+        font-size: 1.1em;
+    }
+    .nl-btn-create-first {
+        padding: 12px 25px;
+        font-size: 1em;
+    }
+
+    .vn-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .vn-header .vn-title {
+        font-size: 2.2em;
+        white-space: normal; /* Allow title to wrap */
+        text-overflow: clip; /* No ellipsis if wrapping */
+        flex-basis: 100%;
+        min-width: unset;
+    }
+    .vn-header .vn-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    .vn-header .vn-actions .nl-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .vn-meta-info {
+        font-size: 0.9em;
+        margin-bottom: 25px;
+    }
+    .vn-content-display {
+        padding: 20px;
+        font-size: 0.95em;
+        line-height: 1.7;
+        border-radius: 10px;
+    }
+    .vn-back-link-container {
+        margin-top: 35px;
+    }
+    .vn-back-link-container a {
+        font-size: 1em;
+        transform: none; /* No slide on mobile */
+    }
+
+    .nf-form-wrapper {
+        padding: 25px;
+        border-radius: 12px;
+    }
+    .nf-title {
+        font-size: 2em;
+        margin-bottom: 25px;
+    }
+    .nf-form {
+        gap: 20px;
+    }
+    .nf-input-title,
+    .nf-textarea-content {
+        padding: 10px 15px;
+        font-size: 0.95em;
+        border-radius: 8px;
+    }
+    .nf-textarea-content {
+        min-height: 200px;
+    }
+    .nf-submit-group {
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 30px;
+        padding-top: 20px;
+    }
+    .nf-submit-group .nl-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.9em;
+        padding: 10px 15px;
+    }
+}
+
+/* For screens smaller than 480px (e.g., very small phones) */
+@media (max-width: 480px) {
+    .nl-page-container,
+    .vn-page-container,
+    .nf-page-container {
+        padding: 0 10px; /* Minimal horizontal padding */
+    }
+    .nl-page-title {
+        font-size: 1.8em;
+        letter-spacing: -0.5px;
+    }
+    .nl-search-input {
+        padding: 10px 15px;
+        font-size: 0.9em;
+    }
+    .nl-notes-grid {
+        gap: 10px;
+    }
+    .nl-note-card {
+        padding: 15px;
+    }
+    .nl-card-title {
+        font-size: 1.3em;
+    }
+    .nl-card-snippet {
+        font-size: 0.85em;
+        -webkit-line-clamp: 7; /* Allow more lines */
+    }
+    .nl-card-actions .nl-btn {
+        font-size: 0.8em;
+        padding: 8px 12px;
+    }
+    .nl-empty-state {
+        padding: 30px 15px;
+        margin: 25px auto;
+    }
+    .nl-empty-message {
+        font-size: 1em;
+    }
+    .nl-btn-create-first {
+        padding: 10px 20px;
+        font-size: 0.9em;
+    }
+
+    .vn-header .vn-title,
+    .nf-title {
+        font-size: 1.8em;
+    }
+    .vn-content-display {
+        padding: 15px;
+        font-size: 0.9em;
+    }
+    .nf-form-wrapper {
+        padding: 20px;
+    }
+    .nf-input-title,
+    .nf-textarea-content {
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    .nf-textarea-content {
+        min-height: 150px;
+    }
+}

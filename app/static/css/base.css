@@ -1,0 +1,727 @@
+/* static/css/base.css - Refactored for base.html and global styles */
+
+/* ==========================================================================
+ * 1 . Global Variables & Basic Styles                          *
+ * ========================================================================== */
+
+:root {
+    /* Color Palette */
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --primary-color: #4a90e2;
+    --primary-color-rgb: 74, 144, 226; /* For use with rgba */
+    --secondary-color: #2a2a2a;
+    --border-color: #444;
+    --error-color: #e74c3c;
+    --success-color: #2ecc71;
+    --info-color: #3498db;
+    --warning-color: #f39c12; /* Added for warning toasts */
+    --placeholder-color: #888;
+
+    /* Define input bar height for padding calculations on chat pages */
+    --input-bar-height: 90px;
+}
+
+body.base-body { /* Applied to all pages via base.html */
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* Apply Flex layout ONLY to chat pages */
+body.base-body-chat-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Main content container (non-chat pages) */
+.base-container {
+    max-width: 90%;
+    width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1; /* Base stacking context for page content */
+}
+
+/* Override container styles ONLY on chat pages for full-width layout */
+body.base-body-chat-page .base-container,
+.base-container.base-container-no-padding { /* Added for direct_chat_interface */
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0; /* Removed for chat pages */
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+    overflow: hidden;
+}
+
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 { /* Applied h4,h5,h6 for completeness */
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+h3 { font-size: 1.2em; color: var(--text-color); }
+
+/* Links */
+a { color: var(--primary-color); text-decoration: none; }
+
+
+/* ==========================================================================
+ * 2 . Navigation Bar                                           *
+ * ========================================================================== */
+
+.base-nav {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    padding: 3px 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    width: 100%;
+    z-index: 101; /* Nav bar z-index */
+    box-sizing: border-box;
+    transition: background-color 0.3s ease;
+}
+
+body:not(.base-body-chat-page) .base-nav { /* Only add margin if not a chat page */
+    margin-bottom: 20px;
+}
+
+.base-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 5px;
+}
+
+.base-nav-item {
+    position: relative;
+}
+
+.base-nav-link,
+.base-nav-dropdown-toggle { /* Combined as styles are very similar */
+    color: var(--text-color);
+    font-weight: 500;
+    text-decoration: none;
+    padding: 3px 5px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.base-nav-link:hover,
+.base-nav-dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--primary-color);
+}
+
+.base-nav-item.active > .base-nav-link,
+.base-nav-item.base-nav-dropdown.active > .base-nav-dropdown-toggle {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.base-nav-icon {
+    width: 32px;
+    height: 32px;
+    vertical-align: middle;
+    fill: currentColor;
+}
+
+.base-nav-dropdown .base-nav-dropdown-toggle .base-nav-arrow-down {
+    font-size: 0.7em;
+    margin-left: 4px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.base-nav-dropdown:hover .base-nav-dropdown-toggle .base-nav-arrow-down {
+    transform: rotate(180deg);
+}
+
+.base-nav-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    padding: 5px 0;
+    margin: 0;
+    min-width: 150px;
+    z-index: 102; /* Nav dropdown z-index */
+    list-style: none;
+}
+
+.base-nav-dropdown:hover .base-nav-dropdown-menu {
+    display: block;
+}
+
+.base-nav-dropdown-menu li {
+    width: 100%;
+}
+
+.base-nav-dropdown-item-link {
+    padding: 10px 18px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 0;
+    font-weight: 400;
+    display: block;
+    color: var(--text-color);
+    gap: 10px;
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    align-items: center;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.base-nav-dropdown-item-link:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.base-nav-dropdown-menu li.active .base-nav-dropdown-item-link {
+    background-color: rgba(var(--primary-color-rgb), 0.2);
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.base-nav-user-pfp {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.base-nav-user-pfp-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background-color: var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    font-weight: bold;
+    color: var(--text-color);
+    border: 1px solid var(--primary-color);
+}
+
+.base-nav-link .notification-badge,
+.base-nav-dropdown-toggle .notification-badge {
+    background-color: var(--error-color);
+    color: white;
+    border-radius: 50%;
+    padding: 1px 6px;
+    font-size: 0.75em;
+    position: relative;
+    top: -10px;
+    left: -5px;
+    font-weight: bold;
+    display: inline-block;
+    line-height: 1.2;
+    text-align: center;
+    min-width: 10px;
+}
+
+
+/* ==========================================================================
+ * 3 . Forms & Buttons (General - Non-Chat Input)               *
+ * ========================================================================== */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+label {
+    margin-bottom: 0px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input) {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input):focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
+}
+
+.form-control-sm {
+    padding: 6px 8px;
+    font-size: 0.9em;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.form-check-input {
+    width: auto;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+.form-check-label {
+    font-weight: normal;
+    margin-bottom: 0;
+}
+
+
+input[type="file"].visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+input[type="file"].form-control-file {
+    display: block;
+    padding: 8px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+}
+input[type="file"].form-control-file::-webkit-file-upload-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.2s ease;
+}
+input[type="file"].form-control-file:hover::-webkit-file-upload-button {
+    background-color: #3a7ac0;
+}
+
+
+.errors, ul.errors {
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0;
+    color: var(--error-color);
+    font-size: 0.9em;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 18px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    text-align: center;
+    transition: background-color 0.2s ease;
+    line-height: 1.4;
+    text-decoration: none;
+}
+
+.btn-primary { background-color: var(--primary-color); color: #ffffff; }
+.btn-primary:hover { background-color: #3a7ac0; }
+
+.btn-secondary { background-color: var(--border-color); color: var(--text-color); }
+.btn-secondary:hover { background-color: #555; }
+
+.btn-danger { background-color: var(--error-color); color: #ffffff; }
+.btn-danger:hover { background-color: #c0392b; }
+
+.btn-sm {
+    padding: 7px 7px;
+    font-size: 0.9em;
+}
+
+
+/* ==========================================================================
+ * 4 . Flash Messages & Toast Notifications (Bottom-Left)      *
+ * ========================================================================== */
+.base-toast-container-wrapper {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1050; /* Toasts z-index */
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.base-toast-message {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 12px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    max-width: 350px;
+    word-wrap: break-word;
+    font-size: 0.95em;
+}
+
+.base-toast-message.toast-show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.base-toast-message.toast-success { background-color: var(--success-color); border-color: var(--success-color); color: #ffffff; }
+.base-toast-message.toast-error   { background-color: var(--error-color); border-color: var(--error-color); color: #ffffff; }
+.base-toast-message.toast-info    { background-color: var(--info-color); border-color: var(--info-color); color: #ffffff; }
+.base-toast-message.toast-warning { background-color: var(--warning-color); border-color: var(--warning-color); color: #333; }
+
+
+/* ==========================================================================
+ * 12. Unified Action Button Styles (General Utility)
+ * ========================================================================== */
+
+.unified-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-align: center;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    line-height: 1.4;
+    color: var(--text-color);
+    background-color: var(--secondary-color);
+    text-decoration: none;
+}
+.unified-action-button:hover {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+.unified-action-button img,
+.unified-action-button svg {
+    width: 18px;
+    height: 18px;
+}
+.unified-action-button.primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+}
+.unified-action-button.primary:hover {
+    background-color: #3a7ac0;
+    border-color: #3a7ac0;
+    color: #ffffff;
+}
+.unified-action-button.danger {
+    background-color: var(--error-color);
+    color: #ffffff;
+    border-color: var(--error-color);
+}
+.unified-action-button.danger:hover {
+    background-color: #c0392b;
+    border-color: #c0392b;
+    color: #ffffff;
+}
+.unified-action-button.small {
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    gap: 4px;
+}
+.unified-action-button.small img,
+.unified-action-button.small svg {
+    width: 14px;
+    height: 14px;
+}
+
+.unified-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    background-color: transparent;
+    color: var(--text-color);
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.unified-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
+}
+.unified-icon-button img,
+.unified-icon-button svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+.unified-icon-button.square { border-radius: 6px; }
+.unified-icon-button.primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+}
+.unified-icon-button.primary:hover {
+    background-color: #3a7ac0;
+    border-color: #3a7ac0;
+}
+.unified-icon-button.small {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+}
+.unified-icon-button.small img,
+.unified-icon-button.small svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ==========================================================================
+ * 13. Post/Item Action Menus (Used in _post_macros.html and files.html)
+ * ========================================================================== */
+
+.pm-post-actions-menu { /* Container for menu button and dropdown */
+    position: relative; /* Crucial for z-index of child dropdown */
+    /* No z-index here, let the dropdown handle it */
+}
+
+.pm-post-menu-dropdown { /* The actual dropdown menu */
+    display: none; /* Managed by JS */
+    position: absolute;
+    top: 100%; /* Position below the button */
+    right: 0; /* Align to the right of the container */
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.45); /* Slightly stronger shadow for better pop */
+    padding: 6px 0;
+    margin: 0;
+    min-width: 180px;
+    z-index: 500;  /* High z-index to appear above other row items.
+    Adjust if needed relative to modals/nav.
+    Nav is ~102, Modals/Toasts are 1000+.
+    500 should be sufficient for in-page elements. */
+    list-style: none;
+}
+
+/* Styling for items within the dropdown */
+.pm-post-menu-dropdown .unified-action-button.pm-menu-item,
+.pm-post-menu-dropdown > a.unified-action-button.pm-menu-item { /* Target <a> tags too */
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 15px;
+    border-radius: 0;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    box-sizing: border-box; /* Ensure padding doesn't expand width */
+    line-height: 1.5; /* Ensure text is vertically centered nicely */
+}
+
+.pm-post-menu-dropdown .unified-action-button.pm-menu-item:hover,
+.pm-post-menu-dropdown > a.unified-action-button.pm-menu-item:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.pm-post-menu-dropdown .pm-menu-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 6px 0;
+}
+
+
+/* Responsive adjustments for input bar height on chat pages */
+@media (max-width: 768px) {
+    :root {
+        /* --input-bar-height: 70px; */
+    }
+}
+
+/* Styles for embedded chat container from direct_chat.css, moved here and prefixed */
+.base-embedded-chat-container-wrapper {
+    position: fixed;
+    bottom: 0;
+    right: 20px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 1040; /* Embedded chat z-index */
+    pointer-events: none;
+}
+
+/*
+ = *=============================================
+ PAGINATION STYLES (Targeting "Good" Screenshot Style)
+ Utilizes pf-prefixed classes from post_feed.html
+ ==============================================
+ */
+
+/* Main pagination container (ul element) */
+.pf-pagination-list { /* Targets <ul class="pagination pf-pagination-list"> */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 0;
+    list-style: none;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 0.6rem; /* Spacing between pagination buttons */
+}
+
+/* Individual pagination item wrapper (li element) */
+.pf-page-item { /* Targets <li class="page-item pf-page-item"> */
+    margin: 0; /* Spacing is handled by 'gap' in the parent ul */
+}
+
+/* Styling for pagination links (a or span elements) */
+.pf-page-link { /* Targets <a class="page-link pf-page-link"> or <span class="page-link pf-page-link"> */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;   /* Minimum width for a good button size */
+    height: 38px;      /* Fixed height for consistency */
+    padding: 0.25rem 0.75rem; /* Padding inside the button */
+    font-size: 0.9rem;
+    font-weight: 600;  /* Bolder text */
+    line-height: 1;    /* Adjusted for flex alignment */
+    color: var(--text-color, #e0e0e0); /* Light text (theme-aware with fallback) */
+    background-color: var(--card-bg-color, #3a3a3a); /* Dark grey background (theme-aware with fallback) */
+    border: none;      /* === CRUCIAL: No border === */
+    border-radius: 50px; /* === CRUCIAL: Pill shape === */
+    text-decoration: none;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    box-shadow: none;  /* Flat design */
+    white-space: nowrap; /* Prevent "Previous", "Next" from wrapping */
+    cursor: pointer;
+}
+
+/* Hover state for default (non-active, non-disabled) pagination links */
+.pf-page-item:not(.active):not(.disabled) .pf-page-link:hover {
+    color: var(--primary-color, #ff9900); /* Orange text on hover (theme-aware) */
+    background-color: var(--hover-bg-color, #4a4a4a); /* Slightly lighter dark grey (theme-aware) */
+}
+
+/* Focus state for default (non-active, non-disabled) pagination links for accessibility */
+.pf-page-item:not(.active):not(.disabled) .pf-page-link:focus {
+    z-index: 3; /* Ensure focus ring is visible */
+    outline: 0;
+    color: var(--primary-color, #ff9900); /* Consistent with hover */
+    background-color: var(--hover-bg-color, #4a4a4a); /* Consistent with hover */
+    /* Focus ring using the primary/accent color (theme-aware) */
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 255,153,0), 0.45);
+}
+
+/* Styling for the ACTIVE (current) pagination item */
+.pf-page-item.active .pf-page-link {
+    z-index: 1; /* Behind focus state but above normal items */
+    color: var(--button-text-color, #ffffff); /* White text on active (theme-aware) */
+    background-color: var(--primary-color, #ff9900); /* Orange background (theme-aware) */
+    box-shadow: none; /* Keep active state flat */
+    cursor: default; /* Usually, the active page link isn't interactive */
+}
+
+/* Ensure active state maintains its style even on hover/focus if it's an <a> tag.
+ *  This is important if you want the focus ring on the active item. */
+.pf-page-item.active .pf-page-link:hover,
+.pf-page-item.active .pf-page-link:focus {
+    color: var(--button-text-color, #ffffff);
+    background-color: var(--primary-color, #ff9900);
+    /* Optional: show focus ring on active item. Remove if not desired. */
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 255,153,0), 0.45);
+}
+
+
+/* Styling for DISABLED pagination items (e.g., Previous on first page, Next on last page, '...') */
+.pf-page-item.disabled .pf-page-link {
+    color: #757575; /* Muted text color for disabled items */
+    pointer-events: none; /* Make it not clickable */
+    /* Use a slightly different background or rely on opacity */
+    background-color: var(--card-bg-color, #303030); /* Can be same as default or a bit duller */
+    opacity: 0.5;     /* Visually indicate disabled state */
+    box-shadow: none;
+    cursor: default;
+}
+
+/* Specific styling for "Previous" and "Next" links if they need more horizontal space */
+/* These use aria-label as per your HTML for Previous/Next */
+.pf-page-link[aria-label="Previous"],
+.pf-page-link[aria-label="Next"] {
+    padding-left: 1rem;  /* More horizontal padding */
+    padding-right: 1rem;
+    min-width: auto;     /* Allow them to be wider than numeric buttons if text is long */
+}
+
+/* If you add icons like '>' for Next (e.g. Next <span class="pf-page-link-icon">&raquo;</span>) */
+.pf-page-link .pf-page-link-icon {
+    margin-left: 0.4em; /* Space between text and icon */
+    font-size: 1em;     /* Adjust icon size if needed */
+}

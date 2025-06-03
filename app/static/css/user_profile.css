@@ -1,0 +1,426 @@
+/* static/css/user_profile.css */
+
+/* Add secondary-color-rgb here if not in base.css, for rgba usage */
+:root {
+    --secondary-color-rgb: 42, 42, 42; /* Should ideally be defined in base.css if used extensively with rgba */
+    --border-color-rgb: 68, 68, 68; /* Should ideally be defined in base.css for rgba */
+}
+
+.up-page-container {
+    max-width: 960px;
+    margin: 35px auto;
+    padding: 0 20px;
+}
+
+/* Main Header Layout (Picture + Main Info Area) */
+.up-profile-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 40px;
+    padding: 35px;
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Using base.css colors for gradient */
+    border-radius: 10px;
+    border: 1px solid var(--border-color); /* Using base.css color */
+    gap: 25px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.up-profile-header:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+}
+
+/* Profile Picture Area */
+.up-picture-area {
+    flex-shrink: 0;
+    text-align: center;
+}
+.up-picture, .up-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--primary-color); /* Using base.css color */
+    background-color: var(--secondary-color); /* Using base.css color */
+    display: inline-block;
+    vertical-align: middle;
+    box-shadow: 0 5px 12px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.up-picture:hover, .up-picture-placeholder:hover {
+    transform: scale(1.05) rotate(1.5deg);
+    border-color: color-mix(in srgb, var(--primary-color) 80%, white); /* Lighten primary on hover */
+    box-shadow: 0 7px 18px rgba(0,0,0,0.4);
+}
+.up-picture-placeholder {
+    font-size: 4.5em;
+    color: var(--placeholder-color); /* Using base.css color */
+    font-weight: 600;
+}
+
+/* Container for Left/Right Columns (Username/Stats | Bio/Links) */
+.up-info-main {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 20px;
+    text-align: center;
+    width: 100%;
+}
+
+/* Left Column (Username, Stats, Actions) */
+.up-username {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 2.4em;
+    color: var(--primary-color); /* Using base.css color */
+    word-break: break-all;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+    text-shadow: 0 1px 4px rgba(var(--primary-color-rgb), 0.2); /* Using base.css color */
+}
+.up-stats {
+    margin-bottom: 15px;
+    color: var(--placeholder-color); /* Using base.css color */
+    font-size: 0.95em;
+}
+.up-stats .up-stat-value {
+    color: var(--text-color); /* Using base.css color */
+    font-weight: 700;
+    font-size: 1.05em;
+}
+.up-stats .up-stat-separator {
+    margin: 0 10px;
+    opacity: 0.7;
+}
+
+.up-member-since {
+    color: var(--placeholder-color); /* Using base.css color */
+    font-size: 0.85em;
+    margin-bottom: 25px;
+    opacity: 0.8;
+}
+.up-actions-bar {
+    margin-top: 15px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.up-actions-bar .up-btn-edit-profile,
+.up-actions-bar .up-btn-new-post,
+.up-actions-bar .up-btn-follow-toggle {
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.9em;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    border: 1px solid var(--border-color); /* Using base.css color */
+    background-color: var(--secondary-color); /* Using base.css color */
+    color: var(--text-color); /* Using base.css color */
+}
+.up-actions-bar .up-btn-edit-profile:hover,
+.up-actions-bar .up-btn-new-post:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    background-color: color-mix(in srgb, var(--secondary-color) 80%, black); /* Darken secondary on hover */
+}
+.up-actions-bar .up-btn-follow-toggle {
+    background-color: var(--primary-color); /* Using base.css color */
+    color: var(--text-color); /* Assuming button text is light */
+    border-color: var(--primary-color); /* Using base.css color */
+}
+.up-actions-bar .up-btn-follow-toggle:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.3); /* Using base.css color */
+}
+.up-actions-bar .up-btn-follow-toggle.followed {
+    background-color: var(--border-color); /* Using a border color for "unfollow" state */
+    border-color: var(--border-color); /* Using base.css color */
+    color: var(--text-color); /* Using base.css color */
+}
+.up-actions-bar .up-btn-follow-toggle.followed:hover {
+    background-color: color-mix(in srgb, var(--border-color) 80%, black); /* Darken border color on hover */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.up-follow-form {
+    display: inline;
+}
+
+/* Right Column (Bio Box, Links Box) */
+.up-info-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.up-bio-box {
+    min-height: 80px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 18px 22px;
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Using derived RGB */
+    border-radius: 8px;
+    background-color: rgba(var(--secondary-color-rgb), 0.7); /* Using derived RGB */
+    color: var(--text-color); /* Using base.css color */
+    font-size: 0.95em;
+    line-height: 1.6;
+    overflow-wrap: break-word;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    transition: all 0.3s ease;
+}
+.up-bio-box:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    background-color: rgba(var(--secondary-color-rgb), 0.8); /* Slightly more opaque on hover */
+}
+.up-bio-box:empty::before {
+    content: "No bio yet. Share a bit about yourself to connect with others!";
+    font-style: italic;
+    color: var(--placeholder-color); /* Using base.css color */
+    text-align: center;
+    display: block;
+}
+
+.up-links-box {
+    padding: 18px 22px;
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Using derived RGB */
+    border-radius: 8px;
+    background-color: rgba(var(--secondary-color-rgb), 0.7); /* Using derived RGB */
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    transition: all 0.3s ease;
+}
+.up-links-box:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    background-color: rgba(var(--secondary-color-rgb), 0.8); /* Slightly more opaque on hover */
+}
+.up-links-box:empty::before {
+    content: "No links shared. Add your favorite social media, portfolio, or music links!";
+    font-style: italic;
+    color: var(--placeholder-color); /* Using base.css color */
+    display: block;
+    text-align: center;
+}
+
+.up-links-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+.up-links-list a {
+    display: inline-block;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.up-links-list a:hover {
+    transform: scale(1.2) translateY(-1px);
+    opacity: 0.9;
+}
+
+/* Specific icon styles - consistent size and individual colors */
+.up-link-icon-spotify,
+.up-link-icon-discord,
+.up-link-icon-youtube,
+.up-link-icon-reddit,
+.up-link-icon-twitch,
+.up-link-icon-steam,
+.up-link-icon-twitter,
+.up-link-icon-github {
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+    transition: filter 0.2s ease;
+}
+.up-links-list a:hover .up-link-icon-spotify,
+.up-links-list a:hover .up-link-icon-discord,
+.up-links-list a:hover .up-link-icon-youtube,
+.up-links-list a:hover .up-link-icon-reddit,
+.up-links-list a:hover .up-link-icon-twitch,
+.up-links-list a:hover .up-link-icon-steam,
+.up-links-list a:hover .up-link-icon-twitter,
+.up-links-list a:hover .up-link-icon-github {
+    filter: brightness(1.15) drop-shadow(0 0 4px rgba(255,255,255,0.15)); /* Brightness/shadow effect */
+}
+
+/* Individual icon colors (using official brand colors - these are usually fixed) */
+.up-link-icon-spotify { color: #1DB954; }
+.up-link-icon-discord { color: #5865F2; }
+.up-link-icon-youtube { color: #FF0000; }
+.up-link-icon-reddit { color: #FF4500; }
+.up-link-icon-twitch { color: #9146FF; }
+.up-link-icon-steam { color: #C7D5E0; }
+.up-link-icon-twitter { color: #1DA1F2; }
+.up-link-icon-github { color: #F0F6FC; }
+
+
+/* Media Query for Larger Screens (Side-by-Side Layout) */
+@media (min-width: 768px) {
+    .up-profile-header {
+        flex-direction: row;
+        align-items: flex-start;
+        text-align: left;
+        gap: 40px;
+        padding: 40px;
+    }
+    .up-picture-area {
+        text-align: left;
+    }
+    .up-info-main {
+        flex-direction: row;
+        gap: 40px;
+        text-align: left;
+        align-items: flex-start;
+    }
+    .up-info-left {
+        flex-basis: 35%;
+        flex-shrink: 0;
+    }
+    .up-actions-bar {
+        justify-content: flex-start;
+    }
+    .up-info-right {
+        flex-basis: 65%;
+        flex-grow: 1;
+    }
+    .up-links-list {
+        justify-content: flex-start;
+    }
+}
+
+/* Container for content below the header (e.g., posts section) */
+.up-profile-details-content {
+    margin-top: 40px;
+}
+
+.up-posts-section {
+    /* Styles for the entire posts section on the profile page */
+}
+.up-posts-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color); /* Using base.css color */
+}
+.up-posts-section-title {
+    margin: 0;
+    color: var(--text-color); /* Using base.css color */
+    font-size: 1.6em;
+    font-weight: 600;
+}
+
+/* Sort options styling for profile page - using up- prefixes */
+.up-sort-options {
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.up-sort-dropdown {
+    position: relative;
+    display: inline-block;
+}
+.up-sort-dropdown-toggle {
+    background-color: var(--secondary-color); /* Using base.css color */
+    color: var(--text-color); /* Using base.css color */
+    padding: 8px 14px;
+    font-size: 0.85em;
+    border: 1px solid var(--border-color); /* Using base.css color */
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 150px;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+.up-sort-dropdown-toggle:hover {
+    background-color: var(--bg-color); /* Using base.css color */
+    border-color: var(--primary-color); /* Using base.css color */
+    box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+}
+.up-sort-arrow-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+    transition: transform 0.2s ease-in-out;
+}
+.up-sort-dropdown:hover .up-sort-arrow-icon {
+    transform: rotate(180deg);
+}
+.up-sort-dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: var(--secondary-color); /* Using base.css color */
+    min-width: 100%;
+    box-shadow: 0px 10px 20px 0px rgba(0,0,0,0.4);
+    z-index: 10;
+    border: 1px solid var(--border-color); /* Using base.css color */
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.up-sort-dropdown:hover .up-sort-dropdown-menu {
+    display: block;
+}
+.up-sort-dropdown-item {
+    color: var(--text-color); /* Using base.css color */
+    padding: 9px 14px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.85em;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.up-sort-dropdown-item:hover {
+    background-color: var(--primary-color); /* Using base.css color */
+    color: var(--text-color); /* Assuming text turns white/light on primary background */
+    text-decoration: none;
+}
+.up-sort-dropdown-item.active {
+    background-color: var(--primary-color); /* Using base.css color */
+    color: var(--text-color); /* Assuming text turns white/light on primary background */
+    font-weight: 700;
+}
+
+.up-posts-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+.up-no-posts-message {
+    text-align: center;
+    margin-top: 30px;
+    color: var(--placeholder-color); /* Using base.css color */
+    font-style: italic;
+    padding: 20px;
+    background-color: rgba(var(--secondary-color-rgb), 0.05); /* Using derived RGB */
+    border-radius: 4px;
+}
+
+/* Pagination for User Profile Posts */
+.up-pagination-nav {
+    margin-top: 30px;
+}
+.up-pagination-list {
+}
+.up-page-item {
+}
+.up-page-link {
+}

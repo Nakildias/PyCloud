@@ -1,0 +1,96 @@
+/* static/css/themes/retro_wave_dark.css */
+:root {
+    /* Retro Wave Dark Palette */
+    --bg-color: #0D0221;                     /* Very dark desaturated blue/purple (like a night sky) */
+    --text-color: #E0E0E0;                   /* Light gray/off-white for general text */
+    --primary-color: #F6019D;                /* Neon Pink/Magenta for primary actions */
+    --primary-color-rgb: 246, 1, 157;        /* RGB for Neon Pink */
+    --secondary-color: #240E4F;              /* Deep indigo/purple for secondary surfaces */
+    --border-color: #3C1F79;                 /* Dark, subtle border (purple tone) */
+
+    /* Neon supporting colors */
+    --error-color: #FF004D;                  /* Bright Neon Red */
+    --success-color: #00FF40;                /* Bright Neon Green */
+    --info-color: #2DE2E6;                   /* Bright Neon Cyan/Teal */
+    --warning-color: #FFCC00;                /* Bright Neon Yellow */
+
+    --placeholder-color: #795D9A;            /* Muted purple/gray for placeholders */
+}
+
+/* Specific overrides from base.css, adapted for Retro Wave Dark */
+
+.base-nav-dropdown-item-link:hover { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.base-nav-dropdown-menu li.active .base-nav-dropdown-item-link { /* */
+    background-color: rgba(var(--primary-color-rgb), 0.30);
+    color: var(--primary-color);
+}
+
+h1, h2, h4, h5, h6 { /* */
+    color: var(--primary-color); /* Use primary neon pink for main headers */
+}
+h3 { /* */
+    color: var(--info-color); /* Use neon cyan for sub-headers for variety */
+}
+
+.btn-primary,
+.unified-action-button.primary { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(var(--primary-color-rgb), 0.7), 0 0 10px rgba(var(--primary-color-rgb), 0.5); /* Subtle glow */
+}
+.btn-primary:hover,
+.unified-action-button.primary:hover { /* */
+    background-color: #FF33B8; /* Slightly brighter/different pink for hover */
+    border-color: #FF33B8;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(var(--primary-color-rgb), 0.9), 0 0 15px rgba(var(--primary-color-rgb), 0.7); /* Enhanced glow */
+}
+
+/* Input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input) { /* */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input):focus { /* */
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(var(--primary-color-rgb), 0.7); /* Glow on focus */
+}
+
+/* Toast message text colors for high contrast */
+.base-toast-message.toast-success { /* */
+    background-color: var(--success-color);
+    color: #0D0221; /* Dark text on neon green */
+}
+.base-toast-message.toast-error { /* */
+    background-color: var(--error-color);
+    color: #ffffff; /* White text on neon red */
+}
+.base-toast-message.toast-info { /* */
+    background-color: var(--info-color);
+    color: #0D0221; /* Dark text on neon cyan */
+}
+.base-toast-message.toast-warning { /* */
+    background-color: var(--warning-color);
+    color: #0D0221; /* Dark text on neon yellow */
+}

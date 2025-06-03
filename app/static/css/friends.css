@@ -1,0 +1,321 @@
+/* static/css/friends.css - Dark Theme with fr- prefixes */
+
+/* Ensure this file is loaded AFTER base.css if it also defines body styles,
+ * or make body.fr-body-friends-page specific enough. */
+
+/* Add necessary RGB values here if not in base.css for rgba usage */
+:root {
+    --primary-color-rgb: 74, 144, 226; /* Ensure this matches your base.css */
+    --secondary-color-rgb: 42, 42, 42; /* Ensure this matches your base.css */
+    --border-color-rgb: 68, 68, 68; /* Ensure this matches your base.css */
+    --error-color-rgb: 231, 76, 60; /* Ensure this matches your base.css */
+}
+
+body.fr-body-friends-page {
+    /* Background color and text color typically inherited from base.css body */
+}
+
+.fr-page-container {
+    max-width: 1200px; /* Increased max-width for more horizontal space on large screens */
+    width: calc(100% - 40px); /* Use 100% minus padding for dynamic width, fallback for browsers not supporting calc */
+    width: -webkit-fill-available; /* For Safari/webkit compatibility */
+    width: fill-available; /* For other browsers */
+    margin: 35px auto; /* Centers the container horizontally */
+    padding: 0 20px; /* Consistent horizontal padding */
+    overflow: hidden; /* Ensures rounded corners are applied on elements inside */
+}
+
+.fr-header {
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0; /* Padding relative to fr-page-container horizontal padding */
+    margin-bottom: 25px; /* Space between header and the content card */
+    gap: 15px; /* Space between header items when wrapped */
+}
+
+.fr-header h1 {
+    font-size: 1.8em; /* Slightly larger, prominent title */
+    color: var(--primary-color); /* Use primary color for main title */
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    flex-shrink: 0; /* Prevent title from shrinking */
+}
+
+/* Search input styling if it were part of this page specifically */
+input.fr-search-input {
+    padding: 10px 15px; /* Consistent padding */
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 6px; /* Consistent rounding */
+    font-size: 0.9em;
+    width: 280px; /* Slightly wider */
+    max-width: 100%; /* Ensure it doesn't overflow on small screens */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+input.fr-search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring */
+    background-color: color-mix(in srgb, var(--bg-color) 90%, black); /* Slightly darker on focus */
+}
+input.fr-search-input::placeholder {
+    color: var(--placeholder-color);
+}
+
+/* This is the main card container for the friend list or empty message */
+.fr-content-card {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); /* Consistent shadow */
+    padding: 20px 25px; /* Internal padding for the list area */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Hover animation for the content card */
+}
+
+.fr-content-card:hover {
+    transform: translateY(-5px); /* Lifts the entire content card on hover */
+    box-shadow: 0 12px 35px rgba(0,0,0,0.55); /* Deeper shadow on hover */
+}
+
+.fr-list-area {
+    /* No specific background, inherits from fr-content-card */
+}
+
+.fr-list-ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex; /* Use flexbox for the list to control gaps between items */
+    flex-direction: column;
+    gap: 15px; /* Space between each friend item (card) */
+}
+
+.fr-item { /* Each list item is now a distinct card */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border: 1px solid rgba(var(--border-color-rgb), 0.6); /* Softer border */
+    border-radius: 8px; /* Consistent rounded corners for each friend card */
+    padding: 0; /* No internal padding, the content wrapper will have it */
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Subtle shadow */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease;
+    overflow: hidden; /* Ensures content respects border-radius */
+}
+
+.fr-item:hover {
+    transform: translateY(-3px); /* Subtle lift on hover */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* More pronounced shadow */
+    background-color: rgba(var(--secondary-color-rgb), 0.8); /* Slightly more opaque on hover */
+}
+
+.fr-item-content-wrapper { /* Wrapper for profile link and chat button within the card */
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pushes chat button to the right */
+    padding: 15px 20px; /* Internal padding for the card content */
+}
+
+.fr-item-profile-link { /* Style the link wrapping main friend info */
+    display: flex;
+    align-items: center;
+    flex-grow: 1; /* Allows it to take space for clickability */
+    text-decoration: none; /* No underline by default */
+    color: inherit; /* Inherit text color */
+    padding-right: 15px; /* Space between info and chat button */
+    min-width: 0; /* Allow content to shrink */
+}
+
+.fr-pfp-status-wrapper {
+    position: relative;
+    margin-right: 18px; /* More space */
+    flex-shrink: 0;
+}
+
+.fr-pfp,
+.fr-pfp-placeholder {
+    width: 50px; /* Slightly larger PFP */
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em; /* Larger initial for placeholder */
+    font-weight: 500;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.fr-pfp {
+    border: 2px solid var(--primary-color);
+}
+
+.fr-status-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    border: 3px solid var(--secondary-color);
+    box-sizing: border-box;
+}
+
+.fr-status-indicator.online {
+    background-color: var(--success-color);
+}
+.fr-status-indicator.afk {
+    background-color: var(--warning-color);
+}
+.fr-status-indicator.offline {
+    background-color: var(--placeholder-color);
+}
+
+.fr-details {
+    flex-grow: 1;
+    min-width: 0; /* Allows content to shrink */
+}
+
+.fr-username {
+    font-size: 1.1em; /* Slightly larger username */
+    font-weight: 600; /* Bolder */
+    color: var(--text-color); /* Main text color */
+    margin-bottom: 2px; /* Reduced margin */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s ease;
+}
+.fr-item-profile-link:hover .fr-username {
+    color: var(--primary-color);
+}
+
+
+.fr-status-text {
+    font-size: 0.8em;
+    color: var(--placeholder-color);
+}
+
+.fr-chat-button {
+    background-color: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fr-chat-button svg {
+    width: 20px;
+    height: 20px;
+    color: var(--primary-color);
+    transition: color 0.2s ease;
+}
+
+.fr-chat-button:hover {
+    background-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(var(--primary-color-rgb), 0.2);
+    transform: scale(1.05);
+}
+
+.fr-chat-button:hover svg {
+    color: var(--text-color);
+}
+
+
+.fr-no-friends-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--placeholder-color);
+    font-size: 1em;
+    background-color: rgba(var(--secondary-color-rgb), 0.15);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    margin: 20px auto;
+    max-width: 500px;
+}
+
+/* Adjust container padding on friends page if necessary */
+body.fr-body-friends-page .base-container {
+    padding-bottom: 40px; /* Assuming fr-page-container handles all padding */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+    .fr-page-container {
+        /* On small screens, let it take up almost full width with padding */
+        width: calc(100% - 30px); /* 15px padding left + 15px padding right = 30px */
+        margin: 15px auto; /* Center it */
+        padding: 0 15px; /* Consistent horizontal padding */
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
+    }
+    .fr-header {
+        flex-direction: column; /* Stack header items vertically */
+        align-items: flex-start; /* Align header items to the left */
+        padding: 15px 0;
+        margin-bottom: 20px;
+    }
+    .fr-header h1 {
+        font-size: 1.6em;
+        margin-bottom: 15px; /* Space between title and search */
+    }
+    input.fr-search-input {
+        width: 100%;
+    }
+    .fr-content-card { /* Adjust padding for smaller screens */
+        padding: 15px; /* Uniform padding */
+        border-radius: 0; /* Make content card full width on mobile */
+        border-left: none;
+        border-right: none;
+    }
+    .fr-list-ul {
+        gap: 10px; /* Slightly smaller gap on small screens */
+    }
+    .fr-item-content-wrapper {
+        padding: 12px 15px; /* Adjusted padding inside item */
+    }
+    .fr-pfp, .fr-pfp-placeholder {
+        width: 45px; /* Slightly larger PFP on mobile */
+        height: 45px;
+        font-size: 1.3em;
+    }
+    .fr-status-indicator {
+        width: 13px;
+        height: 13px;
+        border: 2.5px solid var(--secondary-color);
+    }
+    .fr-username {
+        font-size: 1.05em;
+    }
+    .fr-status-text {
+        font-size: 0.85em;
+    }
+    .fr-chat-button {
+        width: 38px;
+        height: 38px;
+    }
+    .fr-chat-button svg {
+        width: 19px;
+        height: 19px;
+    }
+    .fr-no-friends-message {
+        padding: 25px 15px;
+        font-size: 0.95em;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+}

@@ -1,0 +1,335 @@
+/* app/static/css/monitor.css */
+
+.monitor-page-container {
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: var(--text-color); /* Base text color for the page */
+}
+
+.monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.monitor-main-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-color); /* Primary text color for titles */
+}
+
+/* Modal Styles */
+.monitor-modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6); /* Semi-transparent black overlay, not from theme vars directly but common */
+}
+
+.monitor-modal-content {
+    background-color: var(--bg-color); /* Modal background */
+    margin: 10% auto;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) if defined, or a sensible default */
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2); /* Generic shadow */
+    position: relative;
+    color: var(--text-color); /* Text color inside modal */
+}
+
+.monitor-modal-close-btn {
+    color: var(--placeholder-color); /* Dimmed color for close icon */
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+}
+
+.monitor-modal-close-btn:hover,
+.monitor-modal-close-btn:focus {
+    color: var(--text-color); /* Brighter on hover */
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.monitor-modal-header h2 {
+    font-size: 1.5rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.monitor-add-server-form {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.monitor-form-group {
+    margin-bottom: 1rem;
+}
+
+.monitor-form-group label {
+    display: block;
+    margin-bottom: .3rem;
+    font-weight: 500;
+    color: var(--text-color); /* Label text color */
+}
+
+.monitor-form-group input[type="text"],
+.monitor-form-group input[type="number"],
+.monitor-form-group input[type="password"] {
+    width: 100%;
+    padding: .6rem .8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.3rem; /* Consistent with var(--border-radius-md) */
+    background-color: var(--secondary-color); /* Input background */
+    color: var(--text-color); /* Input text color */
+    font-size: .95rem;
+}
+
+.monitor-form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.25); /* Focus glow using primary color */
+}
+
+.monitor-btn {
+    color: var(--bg-color); /* Text on primary buttons (assuming primary is light) */
+    padding: 0.7rem 1.2rem;
+    border: none;
+    border-radius: 0.3rem; /* Consistent with var(--border-radius-md) */
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+.monitor-btn:disabled {
+    background-color: var(--placeholder-color);
+    cursor: not-allowed;
+}
+
+.monitor-btn i {
+    margin-right: 0.5em;
+}
+
+.monitor-btn-primary {
+    background-color: var(--primary-color);
+    color: var(--bg-color); /* High contrast text for primary button */
+}
+
+.monitor-btn-primary:hover:not(:disabled) {
+    background-color: var(--info-color); /* Darken primary or use another theme color for hover */
+}
+
+.monitor-btn-secondary {
+    background-color: var(--secondary-color);
+    color: var(--text-color); /* Text on secondary buttons */
+    border: 1px solid var(--border-color);
+}
+
+.monitor-btn-secondary:hover:not(:disabled) {
+    background-color: var(--border-color); /* Darken secondary or use another theme color */
+}
+
+.monitor-btn-danger {
+    background-color: var(--error-color);
+    color: var(--bg-color); /* High contrast text for danger button */
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.monitor-btn-danger:hover:not(:disabled) {
+    filter: brightness(0.9);
+}
+
+
+.monitor-server-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    list-style: none;
+    padding: 0;
+    margin:0;
+}
+
+.monitor-server-card {
+    background-color: var(--secondary-color); /* Card background */
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) */
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Softer shadow */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: grab;
+    color: var(--text-color); /* Default text color for card content */
+}
+
+.monitor-server-card:active {
+    cursor: grabbing;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.monitor-server-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.8rem;
+}
+
+.monitor-server-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color); /* Title color within card */
+    margin: 0;
+}
+
+.monitor-server-status {
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid transparent; /* Base border */
+}
+
+.monitor-server-status.status-ok {
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.monitor-server-status.status-error {
+    background-color: rgba(231, 76, 60, 0.1); /* Lighter shade of error (using --error-color's RGB if available) */
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+.monitor-server-status.status-loading {
+    background-color: rgba(var(--primary-color-rgb), 0.1); /* Lighter shade of info */
+    color: var(--info-color);
+    border-color: var(--info-color);
+}
+
+.monitor-server-card-body {
+    font-size: 0.9rem;
+    color: var(--text-color); /* Secondary text color for body */
+    transition: opacity 0.3s ease-in-out;
+}
+
+.server-info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    flex-wrap: wrap;
+}
+
+.info-label {
+    font-weight: 500;
+    color: var(--text-color); /* Dimmed label color */
+    margin-right: 0.5rem;
+}
+
+.info-value {
+    color: var(--text-color); /* Regular text color for values */
+    text-align: right;
+}
+
+.progress-section {
+    margin-top: 0.5rem;
+    display: block;
+}
+
+.progress-section .info-label,
+.progress-section .info-value {
+    display: inline-block;
+    width: auto;
+    text-align: left;
+}
+
+.progress-section .info-value {
+    margin-left: 0.5rem;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: var(--border-color); /* Track background */
+    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
+    overflow: hidden;
+    margin-top: 0.25rem;
+    height: 18px;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
+    text-align: center;
+    color: var(--bg-color); /* Text on progress bar (high contrast) */
+    font-size: 0.8rem;
+    line-height: 18px;
+    font-weight: 500;
+}
+
+.progress-bar.low {
+    background-color: var(--success-color);
+}
+.progress-bar.medium {
+    background-color: var(--warning-color);
+    color: var(--bg-color); /* Ensure contrast on yellow */
+}
+.progress-bar.high {
+    background-color: var(--error-color);
+}
+
+
+.monitor-server-card-body pre { /* For error messages or fallback */
+    background-color: var(--secondary-color); /* Code block background */
+    color: var(--text-color); /* Code block text */
+    padding: 0.5rem;
+    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
+    max-height: 300px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.85em;
+    border: 1px solid var(--border-color);
+}
+
+.monitor-server-card-footer {
+    margin-top: 1rem;
+    text-align: right;
+}
+
+.monitor-no-servers {
+    text-align: center;
+    padding: 2rem;
+    background-color: var(--secondary-color); /* Background for "no servers" message */
+    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) */
+    color: var(--text-color); /* Text color */
+}
+
+.monitor-no-servers-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--placeholder-color); /* Dimmed icon color */
+}

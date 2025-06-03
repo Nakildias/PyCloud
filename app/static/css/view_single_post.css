@@ -1,0 +1,125 @@
+/* static/css/view_single_post.css */
+
+:root {
+    /* Ensure these are defined in base.css or inherited */
+    /* --primary-color-rgb: ...; */
+    /* --secondary-color-rgb: ...; */
+    /* --border-color-rgb: ...; */
+    /* --error-color-rgb: ...; */
+}
+
+.vsp-page-container {
+    max-width: 900px; /* Consistent with other page containers */
+    margin: 35px auto; /* Consistent with other page containers */
+    padding: 0 20px; /* Consistent horizontal padding */
+    color: var(--text-color);
+}
+
+.vsp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    margin-bottom: 25px; /* Space between header and the content card */
+    border-bottom: 1px solid var(--border-color); /* Consistent with post_feed header */
+    padding-bottom: 18px; /* Consistent with post_feed header */
+}
+
+.vsp-page-title {
+    color: var(--primary-color); /* Consistent primary color for main titles */
+    font-size: 2.1em; /* Consistent with other page titles */
+    font-weight: 600;
+    margin: 0; /* Remove default margin */
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.vsp-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+/* This is the main card container for the single post */
+.vsp-content-card {
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); /* Consistent shadow */
+    padding: 25px 30px; /* Internal padding for the post content */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Consistent hover animation */
+    /* max-width is now handled by the parent vsp-page-container, remove from here */
+    /* margin: 20px auto; also handled by parent */
+}
+
+.vsp-content-card:hover {
+    transform: translateY(-5px); /* Lifts the entire content card on hover */
+    box-shadow: 0 12px 35px rgba(0,0,0,0.55); /* Deeper shadow on hover */
+}
+
+/* The .vsp-post-wrapper class is no longer needed as vsp-content-card is the main wrapper */
+/* However, if display_post creates an internal wrapper, keep it minimal or remove */
+/* Assuming display_post itself is sufficiently styled by posts.css's .pm-post-item-container */
+/* If the post content is too narrow, adjust the max-width of the .vsp-page-container */
+
+.vsp-not-found-message {
+    color: var(--error-color);
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+.vsp-back-link-container {
+    margin-top: 25px; /* Increased margin */
+    text-align: center;
+    padding-bottom: 20px; /* Space at the bottom of the page */
+}
+
+.vsp-back-link {
+    /* Inherits .btn and .btn-secondary from base.css */
+    /* Add specific overrides if needed: */
+    padding: 8px 20px; /* Slightly larger button */
+    font-weight: 500;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+    .vsp-page-container {
+        margin: 15px auto;
+        padding: 15px;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
+    }
+    .vsp-header {
+        padding: 15px 0;
+        margin-bottom: 20px;
+    }
+    .vsp-page-title {
+        font-size: 1.6em;
+    }
+    .vsp-content-card {
+        padding: 15px; /* Reduce padding for smaller screens */
+        border-radius: 0; /* Remove radius on mobile for full-bleed effect */
+        box-shadow: none;
+        border-left: none; /* Remove left/right borders for full-bleed */
+        border-right: none;
+    }
+    .vsp-content-card:hover {
+        transform: none; /* No lift on mobile */
+        box-shadow: none;
+    }
+    .vsp-not-found-message {
+        padding: 15px;
+        font-size: 1em;
+    }
+    .vsp-back-link-container {
+        margin-top: 20px;
+        padding-bottom: 15px;
+    }
+    .vsp-back-link {
+        padding: 6px 15px;
+        font-size: 0.9em;
+    }
+}

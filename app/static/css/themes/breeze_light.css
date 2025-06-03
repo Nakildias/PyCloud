@@ -1,0 +1,89 @@
+/* static/css/themes/breeze_light.css */
+:root {
+    /* Breeze Light Inspired Palette */
+    --bg-color: #EFF0F1;                     /* Main light background (very light gray) */
+    --text-color: #2D3035;                   /* Dark text for readability */
+    --primary-color: #3DAEE9;                /* Breeze signature blue for accents */
+    --primary-color-rgb: 61, 174, 233;       /* RGB for the Breeze blue */
+    --secondary-color: #FFFFFF;              /* White for secondary surfaces/cards */
+    --border-color: #CFD8DC;                 /* Light gray border color */
+
+    --error-color: #D32F2F;                  /* Slightly desaturated red for errors on light bg */
+    --success-color: #388E3C;                /* Slightly desaturated green for success */
+    --info-color: #0288D1;                   /* A clear blue for info */
+    --warning-color: #F57C00;                /* Clear orange for warnings */
+
+    --placeholder-color: #7F8C8D;            /* Muted text color for placeholders */
+}
+
+/* Optional: More specific overrides from base.css if needed */
+
+.base-nav-dropdown-item-link:hover { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.base-nav-dropdown-menu li.active .base-nav-dropdown-item-link { /* */
+    background-color: rgba(var(--primary-color-rgb), 0.15); /* Lighter translucent effect for light theme */
+    color: var(--primary-color);
+}
+
+h1, h2, h4, h5, h6 { /* */
+    color: var(--primary-color);
+}
+h3 { /* */
+    color: var(--text-color);
+}
+
+.btn-primary,
+.unified-action-button.primary { /* */
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+}
+.btn-primary:hover,
+.unified-action-button.primary:hover { /* */
+    background-color: #2980B9; /* A slightly darker shade of Breeze blue for hover */
+    border-color: #2980B9;
+    color: #ffffff;
+}
+
+/* Input fields for light theme */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input) { /* */
+    background-color: var(--secondary-color); /* White background for inputs */
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"],
+textarea:not(#ollama-chat-form textarea):not(#chat-form textarea):not(.comment-input):not(.text-content-area):not(.pm-post-main-comment-input):not(.pm-comment-reply-input):focus { /* */
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.4);
+}
+
+/* Toast message text colors for light theme */
+.base-toast-message.toast-success { /* */
+    color: #ffffff; /* White text on darker green */
+}
+.base-toast-message.toast-error { /* */
+    color: #ffffff; /* White text on darker red */
+}
+.base-toast-message.toast-info { /* */
+    color: #ffffff; /* White text on darker info blue */
+}
+.base-toast-message.toast-warning { /* */
+    color: #2D3035; /* Dark text on orange for better contrast */
+}

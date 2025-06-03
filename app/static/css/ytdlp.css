@@ -1,0 +1,230 @@
+/* static/css/ytdlp.css - Adapted to match consistent dark theme style */
+
+/* Ensure this file is loaded AFTER base.css if it also defines body styles,
+ * or make body.ytdlp-page specific enough. */
+
+/* Add necessary RGB values here if not in base.css for rgba usage */
+:root {
+    --primary-color-rgb: 74, 144, 226; /* Ensure this matches your base.css */
+    --secondary-color-rgb: 42, 42, 42; /* Ensure this matches your base.css */
+    --border-color-rgb: 68, 68, 68; /* Ensure this matches your base.css */
+    --error-color-rgb: 231, 76, 60; /* Ensure this matches your base.css */
+    --success-color-rgb: 25, 135, 84; /* Example success color RGB, ensure this matches your base.css */
+    --placeholder-color-rgb: 136, 136, 136; /* Example placeholder color RGB, ensure this matches your base.css */
+}
+
+body.ytdlp-page {
+    /* Background color and text color typically inherited from base.css body */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+.ytdlp-page-container {
+    max-width: 750px;
+    margin: 35px auto; /* Consistent with other page containers */
+    padding: 30px 35px; /* Adjusted padding for consistency */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color)); /* Consistent gradient */
+    border-radius: 10px; /* Consistent rounded corners */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); /* Consistent shadow */
+    color: var(--text-color); /* Consistent text color */
+    border: 1px solid var(--border-color); /* Consistent border */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Consistent hover animation */
+}
+
+.ytdlp-page-container:hover {
+    transform: translateY(-5px); /* Lifts the entire container on hover */
+    box-shadow: 0 12px 35px rgba(0,0,0,0.55); /* Deeper shadow on hover */
+}
+
+.ytdlp-header {
+    text-align: center;
+    margin-bottom: 30px; /* Consistent margin */
+}
+
+.ytdlp-header h2 {
+    color: var(--primary-color); /* Consistent primary color for titles */
+    font-size: 2.1em; /* Consistent title size */
+    font-weight: 600;
+    margin-bottom: 8px; /* Adjusted margin */
+    letter-spacing: -0.5px; /* Consistent letter spacing */
+}
+
+.ytdlp-header p {
+    font-size: 0.95em; /* Consistent body text size */
+    opacity: 0.8; /* Consistent subtle opacity */
+    color: var(--text-color); /* Ensure text color is inherited/set */
+}
+
+.ytdlp-form .form-label {
+    font-weight: 500;
+    margin-bottom: 8px; /* Consistent margin */
+    color: var(--text-color);
+    opacity: 0.8; /* Consistent subtle opacity */
+    display: block; /* Ensure it takes full width */
+}
+
+.ytdlp-form .form-control,
+.ytdlp-form .form-select {
+    background-color: var(--bg-color); /* Consistent background */
+    color: var(--text-color); /* Consistent text color */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 6px; /* Consistent rounding */
+    padding: 10px 15px; /* Consistent padding */
+    font-size: 0.9em; /* Consistent font size */
+    line-height: 1.5; /* Consistent line height */
+    width: 100%; /* Ensure full width */
+    box-sizing: border-box; /* Include padding in width */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.ytdlp-form .form-control:focus,
+.ytdlp-form .form-select:focus {
+    outline: none; /* Remove default outline */
+    border-color: var(--primary-color); /* Consistent primary color border on focus */
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3); /* Consistent focus ring */
+    background-color: color-mix(in srgb, var(--bg-color) 90%, black); /* Slightly darker on focus */
+}
+
+.ytdlp-form .form-control::placeholder {
+    color: var(--placeholder-color); /* Consistent placeholder color */
+    opacity: 0.7;
+}
+
+.ytdlp-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px; /* Consistent gap */
+    margin-bottom: 25px; /* Consistent margin */
+    margin-top: 20px; /* Consistent margin */
+}
+
+.ytdlp-form .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Consistent gap for icons */
+    background-color: var(--primary-color); /* Consistent primary color background */
+    border: 1px solid var(--primary-color); /* Explicit border for consistency */
+    color: var(--text-color); /* Assuming light text on primary background */
+    padding: 9px 22px; /* Consistent padding */
+    font-size: 0.9em; /* Consistent font size */
+    font-weight: 600; /* Consistent bolder font weight */
+    border-radius: 6px; /* Consistent rounded corners */
+    cursor: pointer;
+    text-decoration: none;
+    user-select: none;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.15s ease;
+    width: 100%;
+    margin-top: 20px; /* Consistent margin */
+    box-sizing: border-box; /* Include padding in width */
+}
+
+.ytdlp-form .btn-primary:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 80%, black); /* Darken primary on hover */
+    border-color: color-mix(in srgb, var(--primary-color) 80%, black);
+    transform: translateY(-2px); /* Consistent subtle lift */
+    box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.3); /* Consistent shadow */
+}
+.ytdlp-form .btn-primary:active {
+    background-color: color-mix(in srgb, var(--primary-color) 70%, black); /* Further darken on active */
+    border-color: color-mix(in srgb, var(--primary-color) 70%, black);
+    transform: translateY(1px); /* Consistent press effect */
+    box-shadow: 0 1px 3px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.ytdlp-form .btn-primary .spinner-border-sm {
+    margin-right: 8px; /* Consistent margin for icon/spinner */
+}
+
+
+.ytdlp-download-success {
+    margin-top: 30px; /* Consistent margin */
+    padding: 20px; /* Adjusted padding */
+    background-color: var(--success-color); /* Use success color from base theme */
+    color: var(--text-color); /* Assuming light text on success background */
+    border: 1px solid var(--success-color); /* Consistent border */
+    border-radius: 8px; /* Consistent rounding */
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Subtle shadow */
+}
+.ytdlp-download-success h4 {
+    margin-bottom: 8px; /* Consistent margin */
+    font-weight: 600;
+    color: var(--text-color); /* Ensure heading is light */
+}
+.ytdlp-download-success p {
+    margin-bottom: 12px; /* Consistent margin */
+    font-size: 0.9em; /* Consistent font size */
+}
+.ytdlp-download-success .btn {
+    margin: 4px; /* Consistent margin */
+    padding: 8px 16px; /* Consistent button padding */
+    font-size: 0.85em; /* Consistent button font size */
+    border-radius: 6px; /* Consistent button rounding */
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.ytdlp-download-success .btn-outline-success { /* Custom for success context */
+    color: var(--text-color); /* Light text on success background */
+    border-color: var(--text-color); /* Light border */
+    background-color: transparent;
+}
+.ytdlp-download-success .btn-outline-success:hover {
+    background-color: var(--text-color); /* Light background on hover */
+    color: var(--success-color); /* Success color text on hover */
+}
+.ytdlp-download-success .btn-outline-secondary {
+    color: var(--placeholder-color); /* Use placeholder for secondary outline */
+    border-color: var(--placeholder-color);
+    background-color: transparent;
+}
+.ytdlp-download-success .btn-outline-secondary:hover {
+    background-color: rgba(var(--placeholder-color-rgb), 0.1); /* Subtle background on hover */
+    border-color: var(--text-color); /* Stronger border on hover */
+    color: var(--text-color);
+}
+
+.invalid-feedback.d-block { /* Ensure WTForms errors are visible */
+    color: var(--error-color); /* Consistent error color */
+    font-size: 0.875em;
+    margin-top: 4px; /* Consistent margin */
+}
+
+/* Hide video quality by default */
+#videoQualityGroup {
+display: block; /* Default to block, JS will hide if mp3 selected initially */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) { /* Consistent breakpoint */
+    .ytdlp-page-container {
+        margin: 15px auto; /* Consistent margin */
+        padding: 15px; /* Consistent padding */
+        border-radius: 0; /* Full width on mobile, no border-radius */
+        box-shadow: none; /* No shadow on mobile */
+        border: none; /* No border on mobile */
+    }
+    .ytdlp-header h2 {
+        font-size: 1.6em; /* Consistent font size */
+        margin-bottom: 15px;
+    }
+    .ytdlp-header p {
+        font-size: 0.9em;
+    }
+    .ytdlp-options-grid {
+        grid-template-columns: 1fr; /* Single column on small screens */
+        gap: 15px; /* Reduced gap */
+        margin-bottom: 20px;
+        margin-top: 15px;
+    }
+    .ytdlp-form .btn-primary {
+        padding: 12px 15px; /* Adjusted padding for smaller buttons */
+        font-size: 1em; /* Adjusted font size */
+        margin-top: 15px;
+    }
+    .ytdlp-download-success {
+        padding: 15px; /* Reduced padding */
+    }
+    .ytdlp-download-success .btn {
+        padding: 6px 12px; /* Further reduced button padding */
+        font-size: 0.8em;
+    }
+}

@@ -1,0 +1,682 @@
+/* static/css/group_chat.css - Modernized Group Chat Styles (Revised for stronger aesthetic) */
+
+/*
+ * NOTE: Color variables (e.g., --primary-color-rgb, --bg-color) are strictly sourced from base.css.
+ * This file relies solely on base.css for all color definitions.
+ */
+
+/* Ensure this file is loaded AFTER base.css. */
+body.fl-body-group-chat-page {
+    background-color: var(--bg-color); /* Use global background color */
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height for chat layout */
+    overflow: hidden; /* Prevent body scroll, chat history handles it */
+}
+
+/* --- Main Chat Container (if you have one, e.g., in group_chat.html) --- */
+.gc-main-chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Take full height of parent (body) */
+    overflow: hidden;
+    position: relative; /* For fixed input bar positioning */
+}
+
+/* --- Group Chat History Styles --- */
+.gc-chat-history-area {
+    flex-grow: 1; /* Allows history to take all available space */
+    overflow-y: auto; /* Enables scrolling for chat history */
+    height: 0; /* Important for flex-grow to work correctly with overflow */
+    border: none;
+    padding: 30px 35px; /* More generous padding for a spacious feel */
+    padding-bottom: calc(var(--input-bar-height, 90px) + 30px); /* Space for input bar + extra */
+    margin-bottom: 0;
+    background-color: transparent;
+    border-radius: 0;
+    width: 100%;
+    max-width: 950px; /* Slightly wider chat area */
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px; /* More space from top if no header */
+    box-sizing: border-box;
+    scroll-behavior: smooth; /* Smooth scrolling for new messages */
+}
+
+.gc-empty-chat-message {
+    color: rgba(var(--placeholder-color-rgb), 0.7); /* Slightly more faded placeholder color */
+    text-align: center;
+    margin: auto; /* Centers message vertically and horizontally */
+    padding: 50px 30px; /* More padding */
+    font-size: 1.2em; /* Larger font */
+    font-style: italic;
+    background-color: var(--secondary-color-rgb);
+    border: 2px dashed rgba(var(--border-color-rgb), 0.6); /* Clearer dashed border */
+    border-radius: 15px; /* More rounded */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3); /* Stronger shadow */
+    max-width: 550px; /* Slightly wider */
+}
+
+/* --- Group Chat Fixed Input Form --- */
+.gc-chat-form-element {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(var(--bg-color-rgb), 0.20); /* Almost opaque background */
+    padding: 20px 0; /* Increased padding top/bottom */
+    width: 100%;
+    z-index: 100;
+    backdrop-filter: blur(12px); /* Stronger blur effect */
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(var(--border-color-rgb), 0.6); /* Clearer, more solid border top */
+    box-sizing: border-box;
+    --input-bar-height: 90px; /* Increased height variable */
+}
+
+.gc-chat-form-element .gc-chat-input-inner {
+    max-width: 900px; /* Wider input area */
+    margin: 0 auto;
+    background-color: var(--secondary-color-rgb);
+    padding: 12px 12px 12px 25px; /* More padding inside the input bubble */
+    border-radius: 32px; /* Even more rounded, very pill-like */
+    display: flex;
+    align-items: flex-end; /* Align items to the bottom (textarea grows upwards) */
+    gap: 12px; /* More space between input and buttons */
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother, more distinct transition */
+}
+
+.gc-chat-form-element .gc-chat-input-inner:focus-within {
+    border-color: var(--primary-color); /* Primary color border on focus */
+    background-color: var(--secondary-color-rgb);
+
+.gc-chat-form-element .gc-message-input-textarea {
+    flex-grow: 1;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    resize: none;
+    outline: none;
+    padding: 10px 0; /* Vertical padding only */
+    margin: 0;
+    font-size: 1.1em; /* Larger font */
+    line-height: 1.7; /* More comfortable line height */
+    min-height: 32px; /* Taller min height */
+    max-height: 200px; /* Increased max height */
+    overflow-y: auto;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: color 0.2s ease;
+}
+.gc-chat-form-element .gc-message-input-textarea::placeholder {
+    color: rgba(var(--placeholder-color-rgb), 0.6); /* More faded placeholder */
+}
+
+.gc-chat-form-element .gc-btn-file-attach,
+.gc-chat-form-element .gc-btn-send {
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    line-height: 1;
+    background-color: transparent;
+    color: rgba(var(--placeholder-color-rgb), 0.7); /* More visible icon color */
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px; /* Even larger touch target */
+    height: 50px;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transitions */
+}
+.gc-chat-form-element .gc-btn-file-attach:hover,
+.gc-chat-form-element .gc-btn-send:hover {
+    background-color: rgba(var(--text-color-rgb), 0.15); /* More visible hover background */
+    color: var(--text-color); /* Brighter icon on hover */
+    transform: translateY(-3px) scale(1.05); /* More pronounced lift and slight scale */
+}
+.gc-chat-form-element .gc-btn-file-attach:active,
+.gc-chat-form-element .gc-btn-send:active {
+    transform: translateY(1px) scale(0.98); /* Press effect with slight shrink */
+}
+
+.gc-chat-form-element .gc-btn-send {
+    color: var(--primary-color); /* Primary color for send button */
+}
+.gc-chat-form-element .gc-btn-send:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.25); /* More vibrant primary color hover background */
+}
+.gc-chat-form-element .gc-btn-send:disabled {
+    background-color: transparent;
+    cursor: not-allowed;
+    opacity: 0.4; /* More faded when disabled */
+    transform: none; /* No lift when disabled */
+}
+
+.gc-chat-form-element .gc-icon-upload,
+.gc-chat-form-element .gc-icon-send {
+    width: 28px; /* Larger icons */
+    height: 28px;
+    display: block;
+}
+
+.gc-file-input-actual.visually-hidden {
+    /* Uses .visually-hidden from base.css */
+}
+
+
+/* --- Group Chat Message Styles (Inside .gc-chat-history-area) --- */
+.gc-chat-history-area .gc-chat-message-wrapper {
+    display: flex;
+    margin-bottom: 15px; /* More space between messages */
+    align-items: flex-end; /* Align PFP and bubble base */
+    gap: 12px; /* More space between PFP and bubble */
+    max-width: 100%;
+}
+
+.gc-chat-history-area .gc-chat-message-wrapper.current-user {
+    margin-left: auto; /* Push the whole wrapper to the right */
+    margin-right: 0;
+    flex-direction: row; /* PFP on the right for current user */
+    justify-content: flex-end; /* Aligns content within the reversed flex container */
+}
+
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) {
+    flex-direction: row; /* PFP on the left for other users */
+    margin-right: auto;
+    margin-left: 0;
+}
+
+.gc-chat-message-pfp-container {
+    flex-shrink: 0;
+    position: relative;
+}
+.gc-chat-message-pfp {
+    width: 50px; /* Larger PFP */
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary-color); /* More prominent border */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* Stronger subtle shadow */
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.gc-chat-message-pfp:hover {
+    transform: scale(1.05); /* Slight pop on hover */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+}
+
+.gc-chat-history-area .gc-chat-message {
+    padding: 15px 22px; /* More padding inside bubble */
+    border-radius: 28px; /* Very rounded bubble */
+    max-width: 65%; /* Slightly smaller max width for bubbles */
+    word-wrap: break-word;
+    line-height: 1.7; /* More comfortable line height */
+    position: relative;
+    box-sizing: border-box;
+    width: fit-content; /* Make bubble snug to its content */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25); /* Stronger subtle shadow for bubbles */
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Bubble colors */
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-chat-message {
+    background: linear-gradient(135deg, var(--secondary-color), color-mix(in srgb, var(--secondary-color) 90%, black)); /* Gradient for other user */
+    color: var(--text-color);
+    border-bottom-left-radius: 12px; /* Less rounded corner near PFP */
+    border: 1px solid rgba(var(--border-color-rgb), 0.4);
+}
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-chat-message {
+    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 80%, black)); /* Gradient for current user */
+    color: #ffffff; /* White text on primary background */
+    border-bottom-right-radius: 12px; /* Less rounded corner near PFP */
+    border: 1px solid rgba(var(--primary-color-rgb), 0.4);
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 0.9em; /* Larger font */
+    color: inherit;
+    opacity: 0.95; /* Very visible header info */
+    margin-bottom: 8px; /* More space below header */
+}
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-message-header {
+    align-items: flex-start; /* Aligns items (username, timestamp) to the left */
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-sender a,
+.gc-chat-history-area .gc-chat-message .gc-message-sender {
+    font-weight: bold;
+    color: inherit;
+    text-decoration: none;
+    transition: text-decoration 0.2s ease;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-sender a:hover {
+    text-decoration: underline;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-timestamp {
+    font-size: 0.8em; /* Larger timestamp */
+    line-height: 1.2;
+    opacity: 0.85; /* More visible opacity */
+}
+/* Specific timestamp colors for clarity */
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-message-timestamp {
+    color: rgba(255,255,255,0.8); /* Lighter for primary bubble */
+}
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-message-timestamp {
+    color: rgba(var(--text-color-rgb), 0.7); /* Darker for secondary bubble */
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-edited-marker {
+    font-size: 0.85em; /* Larger for edited marker */
+    font-style: italic;
+    line-height: 1.2;
+    opacity: 0.75;
+    margin-left: 8px; /* More space from timestamp */
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-content {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 1.05em; /* Slightly larger content font */
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-file-attachment {
+    margin-top: 15px; /* More space above attachment */
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2); /* Clearer separator */
+}
+/* Specific border colors for attachments based on bubble */
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-chat-message .gc-message-file-attachment {
+    border-top-color: rgba(0,0,0,0.3);
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name {
+    font-size: 1em; /* Larger font for file name */
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name a {
+    color: inherit;
+    text-decoration: none;
+    transition: opacity 0.2s ease, text-decoration 0.2s ease;
+}
+.gc-chat-history-area .gc-chat-message .gc-file-name a:hover {
+    opacity: 0.9;
+    text-decoration: underline;
+}
+
+.gc-chat-history-area .gc-file-preview { margin-top: 10px; } /* More space for preview */
+.gc-chat-history-area .gc-file-preview img,
+.gc-chat-history-area .gc-file-preview video {
+    display: block;
+    border-radius: 10px; /* More rounded previews */
+    max-width: 100%;
+    height: auto;
+    max-height: 300px; /* Increased max height */
+    object-fit: contain;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.35); /* Stronger shadow for previews */
+}
+.gc-chat-history-area .gc-text-file-preview {
+    background-color: rgba(0, 0, 0, 0.3); /* Even darker background for text preview */
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    max-height: 150px; /* Increased max height */
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-text-file-preview {
+    border-color: rgba(0,0,0,0.4);
+}
+.gc-chat-history-area .gc-text-file-preview pre {
+    margin: 0;
+    font-size: 0.95em; /* Slightly larger font */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: inherit;
+    font-family: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace;
+}
+
+.gc-chat-history-area .gc-chat-message .gc-message-actions {
+    position: absolute;
+    top: -15px; /* Position further above the bubble */
+    display: flex;
+    gap: 8px; /* More space between action buttons */
+    background-color: rgba(var(--secondary-color-rgb), 0.95); /* More opaque action bubble */
+    border: 1px solid rgba(var(--border-color-rgb), 0.6);
+    padding: 8px 12px;
+    border-radius: 16px; /* More rounded action bubble */
+    z-index: 10;
+    opacity: 0;
+    transform: translateY(15px); /* Start further below */
+    transition: opacity 0.3s ease, transform 0.3s ease; /* Smoother transition */
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* Stronger shadow */
+}
+.gc-chat-history-area .gc-chat-message:hover .gc-message-actions {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Position actions for current user messages */
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-chat-message .gc-message-actions {
+    left: -25px; /* Position further to the left */
+    right: auto;
+}
+/* Position actions for other user messages */
+.gc-chat-history-area .gc-chat-message-wrapper:not(.current-user) .gc-chat-message .gc-message-actions {
+    right: -25px; /* Position further to the right */
+    left: auto;
+}
+
+
+.gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only {
+    padding: 8px; /* More padding for icon-only */
+    width: 36px; /* Larger fixed size */
+    height: 36px;
+    border-radius: 50%;
+    background-color: rgba(var(--bg-color-rgb), 0.3); /* More visible background */
+    border: 1px solid rgba(var(--border-color-rgb), 0.4);
+    color: rgba(var(--text-color-rgb), 0.9);
+    box-shadow: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.3); /* More vibrant primary hover */
+    color: var(--primary-color);
+    transform: none;
+    box-shadow: none;
+}
+.gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only svg {
+    width: 18px; /* Larger icon size */
+    height: 18px;
+    display: block;
+}
+
+
+.gc-edit-message-container {
+    display: none;
+    position: fixed;
+    bottom: var(--input-bar-height, 90px); /* Position right above the input bar */
+    left: 0;
+    right: 0;
+    background-color: var(--secondary-color);
+    padding: 15px 0; /* More padding */
+    z-index: 105;
+    border-top: 1px solid rgba(var(--border-color-rgb), 0.6);
+    box-sizing: border-box;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.3); /* Stronger shadow above it */
+}
+.gc-edit-message-container .gc-edit-message-inner {
+    max-width: 900px; /* Consistent with input bar */
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 20px; /* More space */
+    padding: 0 35px; /* Consistent padding */
+}
+.gc-edit-input-field {
+    flex-grow: 1;
+    background-color: rgba(var(--bg-color-rgb), 0.8); /* More opaque background */
+    color: var(--text-color);
+    border: 1px solid rgba(var(--border-color-rgb), 0.7);
+    border-radius: 10px; /* More rounded */
+    padding: 12px 18px;
+    font-size: 1.05em;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.25);
+    transition: all 0.3s ease;
+}
+.gc-edit-input-field:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.5), inset 0 1px 4px rgba(0,0,0,0.25);
+}
+.gc-edit-message-container .nl-btn {
+    padding: 10px 20px;
+    font-size: 0.95em;
+}
+
+
+/* --- File Preview in Messages (Audio/Video) --- */
+.gc-chat-history-area .gc-chat-message .gc-file-preview audio,
+.gc-chat-history-area .gc-chat-message .gc-file-preview video {
+    width: 100%;
+    max-width: 450px; /* Even wider for better media display */
+    height: auto;
+    min-height: 50px;
+    margin-top: 10px;
+    border-radius: 10px; /* More rounded media players */
+    background-color: transparent;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.35); /* Stronger shadow for media players */
+}
+
+/* Styling for audio controls to match theme */
+.gc-chat-history-area .gc-chat-message .gc-file-preview audio {
+    filter: invert(1) sepia(100%) saturate(0%) hue-rotate(0deg) brightness(150%) contrast(100%);
+}
+.gc-chat-history-area .gc-chat-message-wrapper.current-user .gc-file-preview audio {
+    filter: invert(0.9) brightness(1.1);
+}
+
+/* Firefox specific audio control override */
+@-moz-document url-prefix() {
+    .gc-chat-history-area .gc-chat-message .gc-file-preview audio {
+        filter: none;
+    }
+}
+/* Webkit (Chrome/Safari) audio control override */
+.gc-chat-history-area .gc-chat-message .gc-file-preview audio::-webkit-media-controls-panel {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+
+/* --- Responsive Adjustments --- */
+
+/* For screens smaller than 992px (e.g., tablets) */
+@media (max-width: 992px) {
+    .gc-chat-history-area {
+        padding: 25px 30px calc(var(--input-bar-height, 90px) + 25px) 30px;
+    }
+    .gc-chat-form-element .gc-chat-input-inner {
+        max-width: 90%;
+        padding: 10px 10px 10px 20px;
+        gap: 10px;
+    }
+    .gc-edit-message-container .gc-edit-message-inner {
+        max-width: 90%;
+        padding: 0 30px;
+    }
+}
+
+/* For screens smaller than 768px (e.g., large phones) */
+@media (max-width: 768px) {
+    .gc-chat-history-area {
+        padding: 20px 25px calc(var(--input-bar-height, 90px) + 20px) 25px;
+    }
+    .gc-chat-form-element {
+        padding: 15px 0;
+    }
+    .gc-chat-form-element .gc-chat-input-inner {
+        border-radius: 28px;
+        padding: 10px 10px 10px 20px;
+        gap: 8px;
+    }
+    .gc-chat-form-element .gc-message-input-textarea {
+        font-size: 1em;
+        min-height: 28px;
+        max-height: 150px;
+    }
+    .gc-chat-form-element .gc-btn-file-attach,
+    .gc-chat-form-element .gc-btn-send {
+        width: 44px;
+        height: 44px;
+    }
+    .gc-chat-form-element .gc-icon-upload,
+    .gc-chat-form-element .gc-icon-send {
+        width: 24px;
+        height: 24px;
+    }
+
+    .gc-chat-history-area .gc-chat-message-wrapper {
+        margin-bottom: 10px;
+        gap: 8px;
+    }
+    .gc-chat-message-pfp {
+        width: 45px;
+        height: 45px;
+    }
+    .gc-chat-history-area .gc-chat-message {
+        padding: 12px 18px;
+        border-radius: 22px;
+        max-width: 75%;
+        font-size: 1em;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-header {
+        font-size: 0.85em;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions {
+        top: -10px;
+        gap: 5px;
+        padding: 5px 8px;
+        border-radius: 12px;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only {
+        width: 32px;
+        height: 32px;
+        padding: 6px;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only svg {
+        width: 16px;
+        height: 16px;
+    }
+    .gc-edit-message-container .gc-edit-input-field {
+        padding: 10px 15px;
+        font-size: 0.95em;
+    }
+    .gc-edit-message-container .nl-btn {
+        padding: 8px 15px;
+        font-size: 0.9em;
+    }
+}
+
+/* For screens smaller than 480px (e.g., very small phones) */
+@media (max-width: 480px) {
+    .gc-chat-history-area {
+        padding: 15px 15px calc(var(--input-bar-height, 90px) + 15px) 15px;
+    }
+    .gc-chat-form-element {
+        padding: 10px 0;
+    }
+    .gc-chat-form-element .gc-chat-input-inner {
+        padding: 8px 8px 8px 15px;
+        border-radius: 24px;
+    }
+    .gc-chat-form-element .gc-message-input-textarea {
+        font-size: 0.9em;
+        min-height: 24px;
+    }
+    .gc-chat-form-element .gc-btn-file-attach,
+    .gc-chat-form-element .gc-btn-send {
+        width: 40px;
+        height: 40px;
+    }
+    .gc-chat-form-element .gc-icon-upload,
+    .gc-chat-form-element .gc-icon-send {
+        width: 22px;
+        height: 22px;
+    }
+    .gc-chat-message-pfp {
+        width: 40px;
+        height: 40px;
+    }
+    .gc-chat-history-area .gc-chat-message {
+        padding: 10px 15px;
+        border-radius: 20px;
+        font-size: 0.95em;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-file-preview img,
+    .gc-chat-history-area .gc-chat-message .gc-file-preview video {
+        max-height: 200px;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions {
+        top: -8px;
+        gap: 3px;
+        padding: 3px 6px;
+        border-radius: 10px;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only {
+        width: 28px;
+        height: 28px;
+        padding: 5px;
+    }
+    .gc-chat-history-area .gc-chat-message .gc-message-actions .nl-btn-icon-only svg {
+        width: 14px;
+        height: 14px;
+    }
+}
+
+/* DOT ANIMATION WHEN THINKING */
+.dot-pulse {
+    position: relative;
+    width: 8px; /* Slightly smaller dots */
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--primary-color); /* Using primary color from base.css */
+    animation: dot-pulse 1s infinite linear;
+    display: inline-block;
+    margin: 0 1.5px; /* Smaller margin between dots */
+    vertical-align: middle; /* Align with text */
+}
+
+.dot-pulse::before, .dot-pulse::after {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--primary-color); /* Same color as the main dot from base.css */
+    animation: dot-pulse 1s infinite linear;
+}
+
+.dot-pulse::before {
+    left: -12px; /* Adjust spacing */
+    animation-delay: -0.16s;
+}
+
+.dot-pulse::after {
+    left: 12px; /* Adjust spacing */
+    animation-delay: 0.16s;
+}
+
+@keyframes dot-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Specific styling for the 'thinking' message content */
+.gc-chat-message-wrapper.thinking .gc-chat-message {
+    background-color: rgba(var(--secondary-color-rgb), 0.7); /* Using secondary color from base.css */
+    border: 1px solid rgba(var(--border-color-rgb), 0.5); /* Using border color from base.css */
+    color: var(--text-color); /* Using text color from base.css */
+    font-style: italic;
+}
+.gc-chat-message-wrapper.thinking .gc-message-content {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.gc-chat-message-wrapper.thinking .gc-message-content > span {
+    /* For the "Ollama is thinking" text part */
+    font-size: 0.95em;
+    opacity: 0.8;
+}
