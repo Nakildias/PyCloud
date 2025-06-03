@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/material.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/' + (user_codemirror_theme | default('material-darker.css'))) }}">
     <style>
         .CodeMirror {
             border: 1px solid #ced4da;
@@ -83,6 +83,10 @@
     <script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
 
     <script>
+        const rawUserThemeCssFile = "{{ user_codemirror_theme | default('material-darker.css') }}";
+        const codeMirrorThemeName = rawUserThemeCssFile.endsWith('.css') ? rawUserThemeCssFile.slice(0, -4) : rawUserThemeCssFile;
+
+
         document.addEventListener('DOMContentLoaded', function() {
             const contentTextarea = document.getElementById('file_content_editor');
             const fileNameInput = document.getElementById('file_name');
@@ -113,7 +117,6 @@
             }
 
             function initializeCodeMirror(currentPathValue) {
-                // If CodeMirror instance exists, remove it before re-initializing
                 if (editor) {
                     editor.toTextArea();
                     editor = null;
@@ -122,23 +125,20 @@
                 const details = getPathDetails(currentPathValue);
 
                 if (details.isFolder) {
-                    contentTextarea.value = ""; // Clear content for folders
+                    contentTextarea.value = "";
                     contentTextarea.disabled = true;
                     contentTextarea.placeholder = "Content is not applicable for folders.";
-                    // For folders, initialize a minimal, read-only CodeMirror instance or leave as plain textarea
-                    // This helps visually indicate it's disabled.
                     editor = CodeMirror.fromTextArea(contentTextarea, {
                         lineNumbers: true,
                         mode: 'text/plain',
-                        theme: 'material',
+                        theme: codeMirrorThemeName, // MODIFIED: Use dynamic theme name
                         readOnly: true,
-                        value: "" // Ensure editor content is also empty
+                        value: ""
                     });
                 } else {
                     contentTextarea.disabled = false;
-                    contentTextarea.placeholder = ""; // Default placeholder for files
+                    contentTextarea.placeholder = "";
                     let mode = 'text/plain';
-                    // Determine mode for files based on filename
                     if (details.originalPath && CodeMirror.findModeByFileName) {
                         const modeInfo = CodeMirror.findModeByFileName(details.originalPath);
                         if (modeInfo) {
@@ -148,7 +148,7 @@
                     editor = CodeMirror.fromTextArea(contentTextarea, {
                         lineNumbers: true,
                         mode: mode,
-                        theme: 'material',
+                        theme: codeMirrorThemeName, // MODIFIED: Use dynamic theme name
                         matchBrackets: true,
                         autoCloseBrackets: true,
                         indentUnit: 4,
@@ -160,7 +160,7 @@
                     });
                 }
                 if (editor) {
-                    editor.setSize(null, '40vh'); // Adjust height as needed
+                    editor.setSize(null, '40vh');
                 }
             }
 
