@@ -13,7 +13,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // URLs are expected to be defined globally in the HTML template
     // e.g., const MONITOR_FETCH_URL_BASE = "...";
     // e.g., const MONITOR_REORDER_URL = "...";
-    // e.g., const CSRF_TOKEN = "...";
+    // e.g., const MONITOR_REBOOT_URL_BASE = "...";
+    // e.g., const MONITOR_UPDATE_URL_BASE = "...";
+    // CSRF_TOKEN should be available globally if your Flask-WTF setup provides it, or handle as needed.
 
 
     // Modal event listeners
@@ -43,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getProgressBarClass(percentage) {
         const numericPercent = parseFloat(percentage);
-        if (isNaN(numericPercent)) return 'low'; // Default if parsing fails
+        if (isNaN(numericPercent)) return 'low';
         if (numericPercent < 60) return 'low';
         if (numericPercent < 85) return 'medium';
         return 'high';
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateText(elementId, text) {
         const el = document.getElementById(elementId);
-        if (el && el.textContent !== text) { // Only update if text is different
+        if (el && el.textContent !== text) {
             el.textContent = text;
         }
     }
@@ -66,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (bar) {
             const currentWidth = parseFloat(bar.style.width) || 0;
-            if (Math.abs(currentWidth - numPercent) > 0.1) { // Update if significantly different
+            if (Math.abs(currentWidth - numPercent) > 0.1) {
                 bar.style.width = numPercent + '%';
             }
             const newClass = getProgressBarClass(numPercent);
@@ -94,11 +96,11 @@ document.addEventListener('DOMContentLoaded', function () {
         updateText(`distro-${serverId}`, get(['distro_name'], serverData));
         updateText(`kernel-${serverId}`, get(['kernel_version'], serverData));
         updateText(`uptime-${serverId}`, get(['uptime_string'], serverData));
-        const uptime7d = get(['uptime_percentage_last_7_days'], serverData);
+        const uptime7d = get(['uptime_percentage_last_7_days'], serverData); // Already a string with '%'
         updateText(`uptime7d-${serverId}`, uptime7d !== 'N/A' ? uptime7d : 'N/A');
 
-        const cpuUsagePercent = get(['cpu_usage_percent'], serverData);
-        updateProgressBar(`cpu-bar-${serverId}`, `cpu-value-${serverId}`, cpuUsagePercent !== 'N/A' ? cpuUsagePercent : 'N/A', cpuUsagePercent);
+        const cpuUsagePercent = get(['cpu_usage_percent'], serverData); // Already a string with '%'
+        updateProgressBar(`cpu-bar-${serverId}`, `cpu-value-${serverId}`, cpuUsagePercent !== 'N/A' ? cpuUsagePercent : 'N/A', parseFloat(cpuUsagePercent));
 
         const ramTotalGb = parseFloat(get(['ram_usage', 'total_gb'], serverData));
         const ramAvailableGb = parseFloat(get(['ram_usage', 'available_gb'], serverData));
@@ -106,74 +108,60 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!isNaN(ramTotalGb) && !isNaN(ramAvailableGb)) {
             ramUsedGbStr = (ramTotalGb - ramAvailableGb).toFixed(2);
         }
-        const ramPercentUsed = get(['ram_usage', 'percent_used'], serverData);
+        const ramPercentUsed = get(['ram_usage', 'percent_used'], serverData); // Already a string with '%'
         const ramText = `${ramUsedGbStr} GB / ${!isNaN(ramTotalGb) ? ramTotalGb.toFixed(2) : 'N/A'} GB (${ramPercentUsed !== 'N/A' ? ramPercentUsed : 'N/A'})`;
-        updateProgressBar(`ram-bar-${serverId}`, `ram-value-${serverId}`, ramText, ramPercentUsed);
+        updateProgressBar(`ram-bar-${serverId}`, `ram-value-${serverId}`, ramText, parseFloat(ramPercentUsed));
 
         const diskData = get(['disk_usage_root'], serverData);
         const diskTotalGb = parseFloat(get(['total_gb'], diskData));
         const diskUsedGb = parseFloat(get(['used_gb'], diskData));
-        const diskPercentUsed = get(['percent_used'], diskData);
+        const diskPercentUsed = get(['percent_used'], diskData); // Already a string with '%'
         const diskText = `${!isNaN(diskUsedGb) ? diskUsedGb.toFixed(2) : 'N/A'} GB / ${!isNaN(diskTotalGb) ? diskTotalGb.toFixed(2) : 'N/A'} GB (${diskPercentUsed !== 'N/A' ? diskPercentUsed : 'N/A'})`;
-        updateProgressBar(`disk-bar-${serverId}`, `disk-value-${serverId}`, diskText, diskPercentUsed);
+        updateProgressBar(`disk-bar-${serverId}`, `disk-value-${serverId}`, diskText, parseFloat(diskPercentUsed));
     }
 
     function fetchDataForServer(serverId) {
         const statusEl = document.getElementById(`status-${serverId}`);
         const cardBodyEl = document.getElementById(`data-${serverId}`);
+        const actionOutputEl = document.getElementById(`action-output-${serverId}`);
 
-        // Only apply visual loading cue to the card body
         if (cardBodyEl) {
             cardBodyEl.classList.add('loading');
         }
-        // Do NOT change statusEl text or class during the fetch initiation
+        if(actionOutputEl) actionOutputEl.style.display = 'none'; // Hide previous action output
+
 
         const fetchUrl = `${MONITOR_FETCH_URL_BASE}${serverId}`;
 
         fetch(fetchUrl)
         .then(response => response.json())
         .then(result => {
-            if (cardBodyEl) cardBodyEl.classList.remove('loading'); // Remove loading cue from body
+            if (cardBodyEl) cardBodyEl.classList.remove('loading');
 
             if (result.error) {
                 if (statusEl) {
-                    statusEl.textContent = 'Error'; // Set text to Error
-                    statusEl.className = 'monitor-server-status status-error'; // Set class for error color
+                    statusEl.textContent = 'Error';
+                    statusEl.className = 'monitor-server-status status-error';
                 }
-                // Handle error display in card body
                 const errorDisplayId = `error-display-${serverId}`;
                 let errorDisplayEl = document.getElementById(errorDisplayId);
                 if (!errorDisplayEl && cardBodyEl) {
-                    const pHost = cardBodyEl.querySelector('p');
-                    let tempErrorContainer = document.createElement('div');
-                    if(pHost) tempErrorContainer.appendChild(pHost.cloneNode(true));
-                    errorDisplayEl = document.createElement('pre');
-                    errorDisplayEl.id = errorDisplayId;
-                    errorDisplayEl.style.color = 'var(--danger-color-text, red)';
-                    errorDisplayEl.style.marginTop = '10px';
-                    tempErrorContainer.appendChild(errorDisplayEl);
-                    cardBodyEl.innerHTML = tempErrorContainer.innerHTML; // Replace body with host + error
-                    // Ensure the error text is set on the newly created element
+                    // Preserve host info if possible, or just clear and show error
+                    cardBodyEl.innerHTML = `<pre id="${errorDisplayId}" style="color: var(--danger-color-text, red); margin-top: 10px;"></pre>`;
                     document.getElementById(errorDisplayId).textContent = `Error: ${result.error}`;
                 } else if (errorDisplayEl) {
                     errorDisplayEl.textContent = `Error: ${result.error}`;
                 }
             } else {
                 if (statusEl) {
-                    statusEl.textContent = 'Online'; // Set text to Online
-                    statusEl.className = 'monitor-server-status status-ok'; // Set class for online color
+                    statusEl.textContent = 'Online';
+                    statusEl.className = 'monitor-server-status status-ok';
                 }
-                // Remove any previous error message display
                 const errorDisplayEl = document.getElementById(`error-display-${serverId}`);
                 if (errorDisplayEl) errorDisplayEl.remove();
 
-                // Ensure the grid structure is present if it was wiped by a previous error
                 if (!cardBodyEl.querySelector('.server-info-grid')) {
-                    const pHost = cardBodyEl.querySelector('p'); // Try to preserve host info if it exists
-                    cardBodyEl.innerHTML = ''; // Clear potentially error-filled content
-                    if(pHost) cardBodyEl.appendChild(pHost.cloneNode(true)); // Re-add host info
-                    // Re-add the grid structure for data display
-                    cardBodyEl.insertAdjacentHTML('beforeend', `
+                    cardBodyEl.innerHTML = `
                     <div class="server-info-grid">
                     <div class="info-item"><span class="info-label">Distro:</span> <span class="info-value" id="distro-${serverId}">N/A</span></div>
                     <div class="info-item"><span class="info-label">Kernel:</span> <span class="info-value" id="kernel-${serverId}">N/A</span></div>
@@ -192,47 +180,163 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="progress-bar-container"><div class="progress-bar" id="disk-bar-${serverId}" style="width: 0%;"></div></div>
                     </div>
                     </div>
-                    `);
+                    <div class="monitor-action-output" id="action-output-${serverId}" style="display:none; margin-top: 10px; white-space: pre-wrap; background-color: #282c34; color: #abb2bf; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto;"></div>`;
                 }
-                formatServerData(serverId, result.data); // Populate with new data
+                formatServerData(serverId, result.data);
             }
         })
         .catch(error => {
-            if (cardBodyEl) cardBodyEl.classList.remove('loading'); // Remove loading cue
+            if (cardBodyEl) cardBodyEl.classList.remove('loading');
             console.error('Fetch error for server ' + serverId + ':', error);
             if (statusEl) {
-                statusEl.textContent = 'Fetch Error'; // Set text to Fetch Error
-                statusEl.className = 'monitor-server-status status-error'; // Set class for error color
+                statusEl.textContent = 'Fetch Err';
+                statusEl.className = 'monitor-server-status status-error';
             }
-            // Handle error display in card body for catch block
             const errorDisplayId = `error-display-${serverId}`;
             let errorDisplayEl = document.getElementById(errorDisplayId);
             if (!errorDisplayEl && cardBodyEl) {
-                const pHost = cardBodyEl.querySelector('p');
-                cardBodyEl.innerHTML = '';
-                if(pHost) cardBodyEl.appendChild(pHost.cloneNode(true));
-                errorDisplayEl = document.createElement('pre');
-                errorDisplayEl.id = errorDisplayId;
-                errorDisplayEl.style.color = 'var(--danger-color-text, red)';
-                errorDisplayEl.style.marginTop = '10px';
-                cardBodyEl.appendChild(errorDisplayEl);
+                cardBodyEl.innerHTML = `<pre id="${errorDisplayId}" style="color: var(--danger-color-text, red); margin-top: 10px;"></pre>`;
+                document.getElementById(errorDisplayId).textContent = 'Network error or backend unavailable.';
+            } else if(errorDisplayEl) {
+                errorDisplayEl.textContent = 'Network error or backend unavailable.';
             }
-            if(errorDisplayEl) errorDisplayEl.textContent = 'Network error or backend unavailable.';
         });
     }
 
     serverCards.forEach(card => {
         const serverId = card.dataset.serverId;
-        fetchDataForServer(serverId); // Initial fetch
-        const intervalId = setInterval(() => fetchDataForServer(serverId), 1000);
-        // card.dataset.intervalId = intervalId; // If you need to clear intervals later
+        fetchDataForServer(serverId);
+        const intervalId = setInterval(() => fetchDataForServer(serverId), 500); // Fetch every 30 seconds
+        card.dataset.intervalId = intervalId;
     });
 
+    function handleServerAction(action, serverId, serverName) {
+        let url;
+        let confirmMessage = `Are you sure you want to ${action} server '${serverName}'?`;
+        if (action === 'reboot') {
+            url = `${MONITOR_REBOOT_URL_BASE}${serverId}`;
+        } else if (action === 'update') {
+            url = `${MONITOR_UPDATE_URL_BASE}${serverId}`;
+            confirmMessage = `Are you sure you want to ${action} server '${serverName}'? This may take a while.`;
+        } else {
+            console.error("Unknown action:", action);
+            return;
+        }
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        const actionButton = document.querySelector(`.monitor-action-btn[data-action="${action}"][data-server-id="${serverId}"]`);
+        const originalButtonText = actionButton.innerHTML;
+        actionButton.disabled = true;
+
+        let loadingActionText = action.charAt(0).toUpperCase() + action.slice(1);
+        if (action === 'update') {
+            loadingActionText = loadingActionText.slice(0, -1); // Removes 'e' from "Update" to make "Updat"
+        }
+        actionButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingActionText}ing...`;
+
+        const actionOutputEl = document.getElementById(`action-output-${serverId}`);
+        if (actionOutputEl) {
+            actionOutputEl.textContent = `Performing ${action}...`;
+            actionOutputEl.style.display = 'block';
+            actionOutputEl.style.color = 'var(--text-color)'; // Neutral color while processing
+        }
+
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            actionButton.disabled = false;
+            actionButton.innerHTML = originalButtonText;
+            if (typeof showToast === 'function') {
+                showToast(data.message || `${action} request processed.`, data.success ? 'success' : 'error');
+            } else {
+                alert(data.message || `${action} request processed.`);
+            }
+
+            if (actionOutputEl) {
+                let outputContent = `Action: ${action}\nStatus: ${data.success ? 'Success' : 'Failed'}\nMessage: ${data.message || 'N/A'}\n`;
+                if (data.output) {
+                    outputContent += `\n--- Output ---\n${data.output}`;
+                }
+                if (data.error_output) {
+                    outputContent += `\n--- Errors ---\n${data.error_output}`;
+                }
+                actionOutputEl.textContent = outputContent;
+                actionOutputEl.style.color = data.success ? 'var(--success-color-text, green)' : 'var(--danger-color-text, red)';
+            }
+
+            if (action === 'reboot' && data.success) {
+                const statusEl = document.getElementById(`status-${serverId}`);
+                if (statusEl) {
+                    statusEl.textContent = 'Rebooting...';
+                    statusEl.className = 'monitor-server-status status-warning';
+                }
+            }
+        })
+        .catch(error => {
+            actionButton.disabled = false;
+            actionButton.innerHTML = originalButtonText;
+            console.error(`Error during ${action}:`, error);
+            const errorMessage = `Network error or failed to send ${action} command.`;
+            if (typeof showToast === 'function') {
+                showToast(errorMessage, 'error');
+            } else {
+                alert(errorMessage);
+            }
+            if (actionOutputEl) {
+                actionOutputEl.textContent = `Error during ${action}: ${error.message || 'Unknown network error'}`;
+                actionOutputEl.style.color = 'var(--danger-color-text, red)';
+            }
+        });
+    }
+
+    document.querySelectorAll('.monitor-action-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const serverId = this.dataset.serverId;
+            const serverNameEl = document.getElementById(`name-${serverId}`);
+            const serverName = serverNameEl ? serverNameEl.textContent : 'this server';
+            handleServerAction(action, serverId, serverName);
+        });
+    });
+
+
     if (serverGrid) {
+        serverGrid.addEventListener('dragstart', e => {
+            if (e.target.classList.contains('monitor-server-card')) {
+                draggedItem = e.target;
+                setTimeout(() => {
+                    // e.target.style.display = 'none'; // Hides the original item
+                    e.target.style.opacity = '0.5'; // Or make it semi-transparent
+                }, 0);
+            }
+        });
+
+        serverGrid.addEventListener('dragend', e => {
+            if (draggedItem && e.target.classList.contains('monitor-server-card')) {
+                setTimeout(() => {
+                    // e.target.style.display = ''; // Make it visible again
+                    e.target.style.opacity = '1';
+                    draggedItem = null;
+                    saveOrder(); // Save order after drag ends
+                }, 0);
+            }
+        });
+
+
         serverGrid.addEventListener('dragover', e => {
             e.preventDefault();
             const afterElement = getDragAfterElement(serverGrid, e.clientY);
-            if (draggedItem) {
+            if (draggedItem) { // Ensure draggedItem is not null
                 if (afterElement == null) {
                     serverGrid.appendChild(draggedItem);
                 } else {
@@ -263,7 +367,8 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : ''
+                // Use globally available CSRF_TOKEN or get from meta tag
+                'X-CSRFToken': typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
             },
             body: JSON.stringify({ order: orderedServerIds })
         })
