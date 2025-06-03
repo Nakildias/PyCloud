@@ -1,5 +1,6 @@
 # PyCloud: Your Personal Cloud & Social Platform 
-`(In developement some features are subject to change / removal)`
+# One Line Installation 
+`git clone https://github.com/Nakildias/PyCloud && cd PyCloud && bash install.sh`
 
 ## 🚀 Overview
 
@@ -147,5 +148,3 @@ PyCloud is packed with a wide array of features, categorized below:
 * **Responsive Design**: The interface is designed to work across different screen sizes.
 * **Toast Notifications**: Non-intrusive feedback messages for user actions.
 * **Dynamic Time Formatting**: Human-readable time ("2 hours ago") and localized timestamps.
-
-## One line installation (WIP)
