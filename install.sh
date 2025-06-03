@@ -7,16 +7,11 @@ set -u
 # Pipelines return the exit status of the last command that failed, or zero if all succeeded.
 set -o pipefail
 
-# --- PRE-FLIGHT CHECK: PREVENT RUNNING WITH SUDO ---
-if [ "$EUID" -eq 0 ]; then
-  error "This script should NOT be run with sudo. Please run it as a regular user."
-fi
-
 # --- Configuration ---
 APP_NAME="PyCloud" # Updated App Name
 VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
 APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live
-TARGET_BIN_DIR="/usr/local/bin" # Standard location for user-installed executables
+TARGET_BIN_DIR="/usr/local/bin"         # Standard location for user-installed executables
 # Source directories/files relative to the script location
 SOURCE_APP_DIR="./" # This means run.py, app are in the same dir as install.sh
 REQUIRED_ITEMS=( # Items needed from the source directory
@@ -47,12 +42,6 @@ PYTHON_DEPS=( # Python packages to install via pip
 MAIN_EXECUTABLE_NAME="PyCloud" # Name of the script to link in TARGET_BIN_DIR
 LINK_NAMES=( "pycloud" ) # Additional names (symlinks)
 
-# Systemd Service Configuration
-SERVICE_NAME="pycloud.service"
-SERVICE_FILE_PATH="$HOME/.config/systemd/user/${SERVICE_NAME}" # User-specific service
-USERNAME=$(id -un) # Get the current username
-GROUPNAME=$(id -gn) # Get the current groupname
-
 # --- Helper Functions ---
 info() {
     echo "[INFO] $1"
@@ -73,8 +62,6 @@ command_exists() {
 }
 
 # Function to run command with sudo, prompting if needed
-# This function is retained for system-level package installations,
-# but the script itself will not execute if run with sudo.
 run_sudo() {
     if command_exists sudo; then
         info "Requesting sudo privileges for: $*"
@@ -84,7 +71,12 @@ run_sudo() {
     fi
 }
 
-# --- Pre-flight Checks (After initial sudo check) ---
+# --- Pre-flight Checks ---
+
+# This is the primary change: explicitly disallow running with sudo
+if [ "$EUID" -eq 0 ]; then
+   error "This script should NOT be run with sudo. Please run it as a regular user: bash ./install.sh"
+fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 info "Script source directory: ${SCRIPT_DIR}"
@@ -217,7 +209,7 @@ info "Copying contents of app directory..."
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/app/." "${APP_INSTALL_DIR}/app/" || error "Failed to copy contents of app directory"
 # Add copy for default manager_settings.json if needed
 # if [[ -f "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" ]]; then
-#       cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
+#      cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
 # fi
 info "Application files copied."
 
@@ -230,7 +222,6 @@ if [[ "${DB_WAS_BACKED_UP}" == true ]]; then
         info "Database restored. Original backup is at ${DB_BACKUP_PATH} (can be manually deleted if desired)."
     else
         warn "Database backup was indicated but not found at ${DB_BACKUP_PATH}. Database may not have been restored."
-    SENSITIVE_CONTENT_START
     fi
 fi
 
@@ -266,9 +257,6 @@ deactivate
 
 # --- Executable Setup ---
 info "Copying ${MAIN_EXECUTABLE_NAME} executable to ${TARGET_BIN_DIR}/"
-# The installation script itself cannot be run with sudo, but it still needs to
-# use sudo for copying to /usr/local/bin, which is a system directory.
-# The user will be prompted for their password for this specific action.
 run_sudo cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/${MAIN_EXECUTABLE_NAME}" "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to copy ${MAIN_EXECUTABLE_NAME} to ${TARGET_BIN_DIR}"
 run_sudo chmod +x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to set executable permission."
 
@@ -282,44 +270,6 @@ for link_name in "${LINK_NAMES[@]}"; do
 done
 info "Executable setup completed."
 
-# --- Systemd Service Setup ---
-
-info "Setting up systemd user service for ${APP_NAME}..."
-
-# Create the .config/systemd/user directory if it doesn't exist
-mkdir -p "$(dirname "${SERVICE_FILE_PATH}")" || error "Failed to create systemd user directory."
-
-# Generate the service file content
-SERVICE_CONTENT="[Unit]
-Description=${APP_NAME} Flask Application
-After=network.target
-
-[Service]
-ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
-WorkingDirectory=${APP_INSTALL_DIR}
-Environment=\"FLASK_APP=run.py\"
-Restart=always
-User=${USERNAME}
-Group=${GROUPNAME}
-# Prevent running with sudo - this check is performed by systemd at service start
-ExecCondition=/bin/bash -c '[ \"\$\$EUID\" -ne 0 ]'
-
-[Install]
-WantedBy=default.target"
-
-# Write the service file
-echo "${SERVICE_CONTENT}" > "${SERVICE_FILE_PATH}" || error "Failed to write systemd service file."
-info "Systemd service file created at ${SERVICE_FILE_PATH}"
-
-info "Reloading systemd user daemon..."
-systemctl --user daemon-reload || warn "Failed to reload systemd user daemon. You may need to run 'systemctl --user daemon-reload' manually."
-
-info "Enabling ${SERVICE_NAME} to start on boot for the current user..."
-systemctl --user enable "${SERVICE_NAME}" || warn "Failed to enable ${SERVICE_NAME}. You may need to run 'systemctl --user enable ${SERVICE_NAME}' manually."
-
-info "Starting ${SERVICE_NAME}..."
-systemctl --user start "${SERVICE_NAME}" || warn "Failed to start ${SERVICE_NAME}. Check 'journalctl --user -u ${SERVICE_NAME}' for errors."
-info "${SERVICE_NAME} setup complete."
 
 # --- Final Check ---
 if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
@@ -332,9 +282,7 @@ if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
         info " Static files in ${APP_INSTALL_DIR}/static (css,js,icons updated, others preserved)"
         info " Executable: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
         info " Symlinks: ${LINK_NAMES[*]} (if any) in ${TARGET_BIN_DIR}"
-        info " Systemd User Service: ${SERVICE_NAME} is enabled and running."
-        info " You can check its status with: systemctl --user status ${SERVICE_NAME}"
-        info " You can run the application directly using: ${MAIN_EXECUTABLE_NAME} or pycloud"
+        info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME} or pycloud"
         info " If the command isn't found immediately, try opening a new terminal session."
         info "-------------------------------------------"
     else
