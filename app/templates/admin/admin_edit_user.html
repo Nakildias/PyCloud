@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Edit User {{ user_to_edit.username }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }} {# Good practice if base might have extensions #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page-container admin-edit-user-page">
+    <div class="admin-page-header">
+        <h1>Edit User: <span class="admin-username-highlight">{{ user_to_edit.username }}</span></h1>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="admin-alert admin-alert-{{ category }} admin-alert-dismissible admin-fade admin-show" role="alert">
+                {{ message }}
+                <button type="button" class="admin-btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+                <div class="admin-form-group admin-form-check-group">
+                    <input type="checkbox" class="admin-form-check-input" id="is_admin" name="is_admin" value="y" {% if (form and form.is_admin.data) or (not form and user_to_edit.is_admin) %}checked{% endif %} {% if user_to_edit.id == current_user.id %}disabled{% endif %}>
+                    <label class="admin-form-check-label" for="is_admin">Is Admin</label>
+                    {% if user_to_edit.id == current_user.id %}
+                    {% endif %}
+                </div>
+
+    <div class="admin-card">
+        <div class="admin-card-header">
+        </div>
+        <div class="admin-card-body">
+            <div class="admin-status-section">
+                <div class="admin-status-actions">
+                    {% if user_to_edit.id != current_user.id %}
+                        {% if user_to_edit.is_disabled %}
+                        <form action="{{ url_for('admin.enable_user', user_id=user_to_edit.id) }}" method="POST" class="admin-inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="admin-btn admin-btn-success">Enable User</button>
+                        </form>
+                        {% else %}
+                        <form action="{{ url_for('admin.disable_user', user_id=user_to_edit.id) }}" method="POST" class="admin-inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="admin-btn admin-btn-warning">Disable User</button>
+                        </form>
+                        {% endif %}
+                    {% else %}
+                    {% endif %}
+
+                    {% if user_to_edit.id != current_user.id %}
+                    <form action="{{ url_for('admin.delete_user', user_id=user_to_edit.id) }}" method="POST" class="admin-inline-form" onsubmit="return confirm('Are you sure you want to PERMANENTLY delete user {{ user_to_edit.username }}? This action cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="admin-btn admin-btn-danger ms-2" {% if not user_to_edit.is_disabled %}disabled title="User must be disabled first to be deleted."{% endif %}>Delete User</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.admin_edit_user', user_id=user_to_edit.id) }}" class="admin-form">
+                {{ form.hidden_tag() if form else '' }}
+
+                <div class="admin-form-group">
+                    <label for="username" class="admin-form-label">Username</label>
+                    <input type="text" class="admin-form-control {% if form and form.username.errors %}is-invalid{% endif %}" id="username" name="username" value="{{ form.username.data if form else user_to_edit.username }}" required>
+                    {% if form and form.username.errors %}
+                        <div class="admin-form-invalid-feedback">
+                            {% for error in form.username.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form-group">
+                    <label for="email" class="admin-form-label">Email address</label>
+                    <input type="email" class="admin-form-control {% if form and form.email.errors %}is-invalid{% endif %}" id="email" name="email" value="{{ form.email.data if form else user_to_edit.email }}" required>
+                     {% if form and form.email.errors %}
+                        <div class="admin-form-invalid-feedback">
+                            {% for error in form.email.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form-group">
+                    <label for="password" class="admin-form-label">New Password</label>
+                    <input type="password" class="admin-form-control {% if form and form.password.errors %}is-invalid{% endif %}" id="password" name="password" placeholder="Leave blank to keep current password">
+                    <div class="admin-form-text"></div>
+                    {% if form and form.password.errors %}
+                        <div class="admin-form-invalid-feedback">
+                            {% for error in form.password.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form-group">
+                    <label for="confirm_password" class="admin-form-label">Confirm New Password</label>
+                    <input type="password" class="admin-form-control {% if form and form.confirm_password.errors %}is-invalid{% endif %}" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
+                     {% if form and form.confirm_password.errors %}
+                        <div class="admin-form-invalid-feedback">
+                            {% for error in form.confirm_password.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                 <div class="admin-form-group">
+                      {{ form.storage_limit_mb.label(class="admin-form-label") }}
+                      {{ form.storage_limit_mb(class="admin-form-control admin-form-input-short", placeholder="Default") }}
+                      <small class="admin-form-text">
+                          {% if form.storage_limit_mb.description %}
+                              {{ form.storage_limit_mb.description }}
+                          {% else %}
+                          {% endif %}
+                      </small>
+                    {% if form.storage_limit_mb.errors %}
+                        <ul class="admin-form-errors">
+                            {% for error in form.storage_limit_mb.errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form-group">
+                    <label for="max_file_size" class="admin-form-label">Per User Max File Upload Size (MB)</label>
+                    <input type="number" class="admin-form-control admin-form-input-short" id="max_file_size" name="max_file_size" value="{{ user_to_edit.max_file_size if user_to_edit.max_file_size is not none else '' }}" placeholder="Global: {{ (config.MAX_CONTENT_LENGTH // (1024*1024)) if config.MAX_CONTENT_LENGTH else 'Not Set' }}">
+                    <div class="admin-form-text">
+                    </div>
+                </div>
+
+                <hr class="admin-hr">
+                <div class="admin-form-actions">
+                    <button type="submit" class="admin-btn admin-btn-primary">Save Changes</button>
+                    <a href="{{ url_for('admin.admin_list_users') }}" class="admin-btn admin-btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

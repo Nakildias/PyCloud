@@ -1,0 +1,95 @@
+{# templates/social/post_feed.html #}
+{% extends "base.html" %}
+{% from "_post_macros.html" import display_post %} {# Import the macro #}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="pf-page-container"> {# Main wrapper for the page content #}
+    <div class="pf-header-bar"> {# Was feed-header #}
+        <h2 class="pf-page-title">{{ title }}</h2> {# Specific class for page title #}
+        <div class="pf-header-actions"> {# Was feed-header-actions #}
+            <a href="{{ url_for('social_routes.create_post') }}" class="btn btn-primary btn-sm pf-btn-new-post"> {# Was feed-new-post-btn #}
+                <img src="{{ url_for('static', filename='icons/plus.svg') }}" alt="New Post" class="pf-new-post-icon"> {# Was btn-icon #}
+                Create New Post
+            </a>
+            <div class="pf-sort-options"> {# Was feed-sort-options #}
+                {# <span class="pf-sort-label">Sort by:</span> #} {# Was sort-label #}
+                <div class="pf-sort-dropdown"> {# Was sort-dropdown #}
+                    <button class="pf-sort-dropdown-toggle"> {# Was sort-dropdown-toggle #}
+                        {% if current_sort == 'recent_desc' %}Most Recent
+                        {% elif current_sort == 'recent_asc' %}Least Recent
+                        {% elif current_sort == 'likes_desc' %}Most Liked
+                        {% elif current_sort == 'comments_desc' %}Most Commented
+                        {% elif current_sort == 'shares_desc' %}Most Shared
+                        {% else %}Sort Feed
+                        {% endif %}
+                        <img src="{{ url_for('static', filename='icons/chevron-down.svg') }}" alt="Sort options" class="pf-sort-arrow-icon"> {# Was sort-arrow-icon #}
+                    </button>
+                    <div class="pf-sort-dropdown-menu"> {# Was sort-dropdown-menu #}
+                        <a href="{{ url_for('social_routes.post_feed', sort='recent_desc') }}" class="pf-sort-dropdown-item {% if current_sort == 'recent_desc' %}active{% endif %}">Most Recent</a>
+                        <a href="{{ url_for('social_routes.post_feed', sort='recent_asc') }}" class="pf-sort-dropdown-item {% if current_sort == 'recent_asc' %}active{% endif %}">Least Recent</a>
+                        <a href="{{ url_for('social_routes.post_feed', sort='likes_desc') }}" class="pf-sort-dropdown-item {% if current_sort == 'likes_desc' %}active{% endif %}">Most Liked</a>
+                        <a href="{{ url_for('social_routes.post_feed', sort='comments_desc') }}" class="pf-sort-dropdown-item {% if current_sort == 'comments_desc' %}active{% endif %}">Most Commented</a>
+                        <a href="{{ url_for('social_routes.post_feed', sort='shares_desc') }}" class="pf-sort-dropdown-item {% if current_sort == 'shares_desc' %}active{% endif %}">Most Shared</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Move pf-feed-card inside the loop to wrap each individual post #}
+    <div class="pf-posts-list-container"> {# This will now hold multiple pf-feed-cards #}
+        {% if posts and posts.items %}
+            {% for post in posts.items %}
+                <div class="pf-feed-card"> {# Each post gets its own pf-feed-card #}
+                    {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="pf-empty-feed-message"> {# This will be outside any pf-feed-card since no posts #}
+                <p>Your feed is empty.</p>
+                <p>Follow some users to see their posts here, or <a href="{{ url_for('social_routes.create_post') }}" class="pf-empty-feed-create-link">create your own post</a>!</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {# Pagination Links - general classes kept, specific pf- classes added #}
+    {% if posts.has_prev or posts.has_next %}
+    <nav aria-label="Feed navigation" class="pagination-nav pf-pagination-nav">
+        <ul class="pagination pf-pagination-list">
+            <li class="page-item pf-page-item {% if not posts.has_prev %}disabled{% endif %}">
+                <a class="page-link pf-page-link" href="{{ url_for('social_routes.post_feed', page=posts.prev_num, sort=current_sort) if posts.has_prev else '#_posts' }}" aria-label="Previous">
+                    &laquo; Previous
+                </a>
+            </li>
+            {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item pf-page-item {% if posts.page == page_num %}active{% endif %}">
+                        <a class="page-link pf-page-link" href="{{ url_for('social_routes.post_feed', page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item pf-page-item disabled"><span class="page-link pf-page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item pf-page-item {% if not posts.has_next %}disabled{% endif %}">
+                <a class="page-link pf-page-link" href="{{ url_for('social_routes.post_feed', page=posts.next_num, sort=current_sort) if posts.has_next else '#_posts' }}" aria-label="Next">
+                    Next &raquo;
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# Include scripts from base.html #}
+    <script src="{{ url_for('static', filename='js/posts.js') }}"></script> {# Link to the new posts.js #}
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}Commit {{ commit.short_id }} - {{ repo.owner.username }}/{{ repo.name }}{% endblock %}
+
+{% block repo_content %}
+    <div class="git-commit-view-container">
+        <div class="git-commit-header">
+            <h2 class="git-commit-message-summary">{{ commit.message_summary }}</h2>
+            <p class="git-commit-meta">
+                Authored by <strong>{{ commit.author_name }}</strong> {{ commit.authored_date | timesince }} ago
+                <br>
+                Committed by <strong>{{ commit.committer_name }}</strong>  {{ commit.committed_date | timesince }} ago
+            </p>
+            <p class="git-commit-id">Commit: <code>{{ commit.hex }}</code></p>
+            {% if commit.parents %}
+                <p class="git-commit-parents">
+                    Parents:
+                    {% for parent_id in commit.parents %}
+                        <a href="{{ url_for('git.view_commit_route', owner_username=owner_username, repo_short_name=repo_short_name, commit_id=parent_id.hex) }}" class="git-link">{{ parent_id.short_id }}</a>
+                    {% endfor %}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="git-commit-stats">
+            <p>
+                <strong>{{ commit.stats.files }}</strong> file(s) changed,
+                <span class="git-stats-insertions">+{{ commit.stats.insertions }}</span> insertions,
+                <span class="git-stats-deletions">-{{ commit.stats.deletions }}</span> deletions.
+            </p>
+        </div>
+
+        {# Basic diff display (can be improved significantly) #}
+        {#
+        <h3>Changes:</h3>
+        {% for diff_item in commit.diffs %}
+            <div class="git-diff-item">
+                <h4>{{ diff_item.a_path if diff_item.a_path == diff_item.b_path else diff_item.a_path + " -> " + diff_item.b_path }} ({{ diff_item.change_type }})</h4>
+                <pre class="git-code-block">{{ diff_item.diff_text }}</pre>
+            </div>
+        {% else %}
+            <p>No detailed diff information available for this view (or initial commit shown against empty tree).</p>
+        {% endfor %}
+        #}
+         <p class="mt-3"><em>Detailed diff display not yet fully implemented in this view.</em></p>
+
+    </div>
+{% endblock %}

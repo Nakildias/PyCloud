@@ -1,0 +1,175 @@
+{# templates/user_profile.html #}
+{% extends "base.html" %}
+{% from "_post_macros.html" import display_post %} {# Import the macro #}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="up-page-container"> {# Main wrapper for the page content #}
+
+    <div class="up-profile-header"> {# Was profile-header #}
+        {# --- Column 1: Profile Picture --- #}
+        <div class="up-picture-area"> {# Was profile-picture-area #}
+            {% if profile_picture_url %}
+                <img src="{{ profile_picture_url }}" alt="" class="up-picture"> {# Was profile-picture #}
+            {% else %}
+                {# Display default-pfp.svg if no profile picture is available #}
+                <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="" class="up-picture">
+            {% endif %}
+        </div>
+
+        {# --- Column 2: Main Info (includes Left and Right sub-columns) --- #}
+        <div class="up-info-main"> {# Was profile-info-main #}
+
+            {# --- Sub-Column A: Left Side (Username, Stats, Buttons) --- #}
+            <div class="up-info-left"> {# Was profile-info-left #}
+                <h2 class="up-username">{{ user.username }}</h2> {# Was profile-username #}
+                <div class="up-stats"> {# Was profile-stats #}
+                    <span>Followers: <strong class="up-stat-value">{{ user.followers.count() }}</strong></span>
+                    <span class="up-stat-separator">|</span>
+                    <span>Following: <strong class="up-stat-value">{{ user.followed.count() }}</strong></span>
+                </div>
+                <p class="up-member-since">Member since {{ member_since_date }} ({{ member_for }})</p> {# Was profile-member-since #}
+                <div class="up-actions-bar"> {# Was profile-actions #}
+                    {% if current_user.id == user.id %}
+                        <a href="{{ url_for('main_routes.edit_profile') }}" class="btn btn-secondary btn-sm up-btn-edit-profile">Edit Profile</a>
+                        <a href="{{ url_for('social_routes.create_post') }}" class="btn btn-primary btn-sm up-btn-new-post">New Post</a>
+                    {% else %}
+                        {% set is_following = current_user.is_following(user) %}
+                        <form method="POST" action="{{ url_for('main_routes.follow_user', username=user.username) if not is_following else url_for('main_routes.unfollow_user', username=user.username) }}" class="up-follow-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn {{ 'btn-danger' if is_following else 'btn-primary' }} btn-sm up-btn-follow-toggle">
+                                {{ 'Unfollow' if is_following else 'Follow' }}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>{# End up-info-left #}
+
+            </div>{# End up-info-left #}
+
+            {# --- Sub-Column B: Right Side (Bio Box, Links Box) --- #}
+            <div class="up-info-right"> {# Was profile-info-right #}
+                {% if user.bio %}
+                <div class="up-bio-box"> {# Was profile-bio-box #}
+                    {{ user.bio }}
+                </div>
+                {% endif %}
+
+                {% set has_links = user.github_url or user.spotify_url or user.youtube_url or user.twitter_url or user.steam_url or user.twitch_url or user.discord_server_url or user.reddit_url %}
+                {% if has_links %}
+                <div class="up-links-box"> {# Was profile-links-box #}
+                    <ul class="up-links-list"> {# Was profile-header-links ul #}
+                        {% if user.github_url %}<li><a href="{{ user.github_url }}" target="_blank" rel="noopener noreferrer" title="GitHub">
+<svg class="up-link-icon-github" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-github"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.spotify_url %}<li><a href="{{ user.spotify_url }}" target="_blank" rel="noopener noreferrer" title="Spotify">
+<svg class="up-link-icon-spotify" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-spotify"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M8 11.973c2.5 -1.473 5.5 -.973 7.5 .527" /><path d="M9 15c1.5 -1 4 -1 5 .5" /><path d="M7 9c2 -1 6 -2 10 .5" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.youtube_url %}<li><a href="{{ user.youtube_url }}" target="_blank" rel="noopener noreferrer" title="YouTube">
+<svg class="up-link-icon-youtube" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-youtube"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8z" /><path d="M10 9l5 3l-5 3z" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.twitter_url %}<li><a href="{{ user.twitter_url }}" target="_blank" rel="noopener noreferrer" title="X (Twitter)">
+<svg class="up-link-icon-twitter" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4l11.733 16h4.267l-11.733 -16z" /><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.steam_url %}<li><a href="{{ user.steam_url }}" target="_blank" rel="noopener noreferrer" title="Steam">
+<svg class="up-link-icon-steam" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-steam"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.5 5a4.5 4.5 0 1 1 -.653 8.953l-4.347 3.009l0 .038a3 3 0 0 1 -2.824 3l-.176 0a3 3 0 0 1 -2.94 -2.402l-2.56 -1.098v-3.5l3.51 1.755a2.989 2.989 0 0 1 2.834 -.635l2.727 -3.818a4.5 4.5 0 0 1 4.429 -5.302z" /><circle cx="16.5" cy="9.5" r="1" fill="currentColor" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.twitch_url %}<li><a href="{{ user.twitch_url }}" target="_blank" rel="noopener noreferrer" title="Twitch">
+<svg class="up-link-icon-twitch" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-twitch"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5v11a1 1 0 0 0 1 1h2v4l4 -4h5.584c.266 0 .52 -.105 .707 -.293l2.415 -2.414c.187 -.188 .293 -.442 .293 -.708v-8.585a1 1 0 0 0 -1 -1h-14a1 1 0 0 0 -1 1z" /><path d="M16 8l0 4" /><path d="M12 8l0 4" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.discord_server_url %}<li><a href="{{ user.discord_server_url }}" target="_blank" rel="noopener noreferrer" title="Discord Server">
+<svg class="up-link-icon-discord" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-discord"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 12a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M14 12a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M15.5 17c0 1 1.5 3 2 3c1.5 0 2.833 -1.667 3.5 -3c.667 -1.667 .5 -5.833 -1.5 -11.5c-1.457 -1.015 -3 -1.34 -4.5 -1.5l-.972 1.923a11.913 11.913 0 0 0 -4.053 0l-.975 -1.923c-1.5 .16 -3.043 .485 -4.5 1.5c-2 5.667 -2.167 9.833 -1.5 11.5c.667 1.333 2 3 3.5 3c.5 0 2 -2 2 -3" /><path d="M7 16.5c3.5 1 6.5 1 10 0" /></svg>
+                        </a></li>{% endif %}
+                        {% if user.reddit_url %}<li><a href="{{ user.reddit_url }}" target="_blank" rel="noopener noreferrer" title="Reddit">
+<svg class="up-link-icon-reddit" xmlns="http://www.w3.org/2000/svg"  width="32"  height="32"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-reddit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 8c2.648 0 5.028 .826 6.675 2.14a2.5 2.5 0 0 1 2.326 4.36c0 3.59 -4.03 6.5 -9 6.5c-4.875 0 -8.845 -2.8 -9 -6.294l-1 -.206a2.5 2.5 0 0 1 2.326 -4.36c1.646 -1.313 4.026 -2.14 6.674 -2.14z" /><path d="M12 8l1 -5l6 1" /><path d="M19 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><circle cx="9" cy="13" r=".5" fill="currentColor" /><circle cx="15" cy="13" r=".5" fill="currentColor" /><path d="M10 17c.667 .333 1.333 .5 2 .5s1.333 -.167 2 -.5" /></svg>
+                        </a></li>{% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div> {# End up-info-right #}
+        </div> {# End of up-info-main #}
+    </div> {# End of up-profile-header #}
+
+    <div class="up-profile-details-content"> {# Was profile-details #}
+        <div class="up-posts-section"> {# Was user-posts-section #}
+            <div class="up-posts-section-header"> {# Was section-header-with-sort #}
+                <h3 class="up-posts-section-title">{{ user.username }}'s Posts</h3> {# Specific class for this h3 #}
+                {# Sort options structure copied from post_feed.html, using up- prefixes #}
+                <div class="up-sort-options"> {# Was profile-sort-options feed-sort-options #}
+                    <div class="up-sort-dropdown">
+                        <button class="up-sort-dropdown-toggle">
+                            {% if current_sort == 'recent_desc' %}Latest
+                            {% elif current_sort == 'recent_asc' %}Oldest
+                            {% elif current_sort == 'likes_desc' %}Most Liked
+                            {% elif current_sort == 'comments_desc' %}Most Commented
+                            {% elif current_sort == 'shares_desc' %}Most Shared
+                            {% else %}Sort Posts
+                            {% endif %}
+                            {# Inline SVG for chevron-down icon #}
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="up-sort-arrow-icon"><path d="M7 10l5 5 5-5z"/></svg>
+                        </button>
+                        <div class="up-sort-dropdown-menu">
+                            <a href="{{ url_for('main_routes.user_profile', username=user.username, sort='recent_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'recent_desc' %}active{% endif %}">Latest</a>
+                            <a href="{{ url_for('main_routes.user_profile', username=user.username, sort='recent_asc') }}" class="up-sort-dropdown-item {% if current_sort == 'recent_asc' %}active{% endif %}">Oldest</a>
+                            <a href="{{ url_for('main_routes.user_profile', username=user.username, sort='likes_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'likes_desc' %}active{% endif %}">Most Liked</a>
+                            <a href="{{ url_for('main_routes.user_profile', username=user.username, sort='comments_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'comments_desc' %}active{% endif %}">Most Commented</a>
+                            <a href="{{ url_for('main_routes.user_profile', username=user.username, sort='shares_desc') }}" class="up-sort-dropdown-item {% if current_sort == 'shares_desc' %}active{% endif %}">Most Shared</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# NEW: Wrapper for the entire posts list section on the user profile #}
+            <div class="pf-posts-list-container"> {# Changed up-posts-list-container to pf-posts-list-container for consistency #}
+                {% if posts and posts.items %}
+                    {% for post in posts.items %}
+                        <div class="pf-feed-card"> {# Each post gets its own pf-feed-card #}
+                            {# display_post macro uses pm- prefixed classes #}
+                            {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+                        </div>
+                    {% endfor %}
+
+                    {% if posts.has_prev or posts.has_next %}
+                    <nav aria-label="User posts navigation" class="pagination-nav pf-pagination-nav">
+                        <ul class="pagination pf-pagination-list">
+                            <li class="page-item pf-page-item {% if not posts.has_prev %}disabled{% endif %}">
+                                <a class="page-link pf-page-link" href="{{ url_for('main_routes.user_profile', username=user.username, page=posts.prev_num, sort=current_sort) if posts.has_prev else '#' }}" aria-label="Previous">
+                                    &laquo; Previous
+                                </a>
+                            </li>
+                            {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item pf-page-item {% if posts.page == page_num %}active{% endif %}">
+                                        <a class="page-link pf-page-link" href="{{ url_for('main_routes.user_profile', username=user.username, page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item pf-page-item disabled"><span class="page-link pf-page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            <li class="page-item pf-page-item {% if not posts.has_next %}disabled{% endif %}">
+                                <a class="page-link pf-page-link" href="{{ url_for('main_routes.user_profile', username=user.username, page=posts.next_num, sort=current_sort) if posts.has_next else '#' }}" aria-label="Next">
+                                    Next &raquo;
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <p class="pf-empty-feed-message">{{ user.username }} hasn't made any posts yet.</p> {# Changed up-no-posts-message to pf-empty-feed-message for consistency #}
+                {% endif %}
+            </div> {# END pf-feed-card #}
+        </div> {# End up-posts-section #}
+    </div> {# End up-profile-details-content #}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/posts.js') }}"></script>
+{% endblock %}

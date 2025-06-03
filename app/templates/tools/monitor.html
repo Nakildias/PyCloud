@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Server Monitor - PyCloud{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    {# Link to the monitor.css file #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/monitor.css') }}">
+    {# Font Awesome is still useful for icons #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="monitor-page-container">
+    <header class="monitor-header">
+        <h1 class="monitor-main-title">Server Monitor</h1>
+        <button id="openAddServerModalBtn" class="monitor-btn monitor-btn-primary">
+            <i class="fas fa-plus-circle"></i> Add Server
+        </button>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages-container" style="padding: 0; margin-bottom: 1rem;">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show git-flash-message" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close git-flash-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div id="addServerModal" class="monitor-modal">
+        <div class="monitor-modal-content">
+            <span class="monitor-modal-close-btn" id="closeAddServerModalBtn">&times;</span>
+            <div class="monitor-modal-header">
+                <h2>Add New Server</h2>
+            </div>
+            <form method="POST" action="{{ url_for('tool_routes.monitor_dashboard') }}" class="monitor-add-server-form">
+                {{ form.hidden_tag() }}
+                <div class="monitor-form-group">
+                    {{ form.name.label }}
+                    {{ form.name(class="form-control", id="serverName") }}
+                    {% if form.name.errors %}
+                        {% for error in form.name.errors %}<span class="text-danger">{{ error }}</span>{% endfor %}
+                    {% endif %}
+                </div>
+                <div class="monitor-form-group">
+                    {{ form.host.label }}
+                    {{ form.host(class="form-control", id="serverHost") }}
+                    {% if form.host.errors %}
+                        {% for error in form.host.errors %}<span class="text-danger">{{ error }}</span>{% endfor %}
+                    {% endif %}
+                </div>
+                <div class="monitor-form-group">
+                    {{ form.port.label }}
+                    {{ form.port(class="form-control", id="serverPort") }}
+                    {% if form.port.errors %}
+                        {% for error in form.port.errors %}<span class="text-danger">{{ error }}</span>{% endfor %}
+                    {% endif %}
+                </div>
+                <div class="monitor-form-group">
+                    {{ form.password.label }}
+                    {{ form.password(class="form-control", id="serverPassword") }}
+                    {% if form.password.errors %}
+                        {% for error in form.password.errors %}<span class="text-danger">{{ error }}</span>{% endfor %}
+                    {% endif %}
+                </div>
+                {{ form.submit(class="monitor-btn monitor-btn-primary") }}
+                 <button type="button" id="cancelAddServerModalBtn" class="monitor-btn monitor-btn-secondary" style="margin-left: 0.5rem;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <section class="monitor-servers-list">
+        <h2 class="git-mygit-section-title" style="margin-bottom:1rem;">Monitored Servers</h2>
+        {% if servers %}
+            <ul class="monitor-server-grid" id="monitorServerGrid">
+                {% for server in servers %}
+                <li class="monitor-server-card" data-server-id="{{ server.id }}" draggable="true">
+                    <div class="monitor-server-card-header">
+                        <h3 class="monitor-server-name" id="name-{{ server.id }}">{{ server.name }}</h3>
+                        <span class="monitor-server-status status-loading" id="status-{{ server.id }}">Loading...</span>
+                    </div>
+                    <div class="monitor-server-card-body" id="data-{{ server.id }}">
+                        <div class="server-info-grid">
+                            <div class="info-item"><span class="info-label">Distro:</span> <span class="info-value" id="distro-{{ server.id }}">N/A</span></div>
+                            <div class="info-item"><span class="info-label">Kernel:</span> <span class="info-value" id="kernel-{{ server.id }}">N/A</span></div>
+                            <div class="info-item"><span class="info-label">Uptime:</span> <span class="info-value" id="uptime-{{ server.id }}">N/A</span></div>
+                            <div class="info-item"><span class="info-label">Uptime (7d):</span> <span class="info-value" id="uptime7d-{{ server.id }}">N/A</span></div>
+
+                            <div class="info-item progress-section">
+                                <span class="info-label">CPU:</span> <span class="info-value" id="cpu-value-{{ server.id }}">N/A</span>
+                                <div class="progress-bar-container"><div class="progress-bar" id="cpu-bar-{{ server.id }}" style="width: 0%;"></div></div>
+                            </div>
+                            <div class="info-item progress-section">
+                                <span class="info-label">RAM:</span> <span class="info-value" id="ram-value-{{ server.id }}">N/A</span>
+                                <div class="progress-bar-container"><div class="progress-bar" id="ram-bar-{{ server.id }}" style="width: 0%;"></div></div>
+                            </div>
+                            <div class="info-item progress-section">
+                                <span class="info-label">Disk (/):</span> <span class="info-value" id="disk-value-{{ server.id }}">N/A</span>
+                                <div class="progress-bar-container"><div class="progress-bar" id="disk-bar-{{ server.id }}" style="width: 0%;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="monitor-server-card-footer">
+                        <form method="POST" action="{{ url_for('tool_routes.delete_monitored_server', server_id=server.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this server?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="monitor-btn monitor-btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="monitor-no-servers">
+                <div class="monitor-no-servers-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+                <h3 class="git-mygit-no-repos-title">No Servers Monitored Yet</h3>
+                <p class="git-mygit-no-repos-text">Add a server using the form above to start monitoring.</p>
+                <p class="git-mygit-no-repos-text"><a href="https://github.com/Nakildias/PyCloudMonitorDaemon">PyCloudMonitorDaemon</a> is required on the machine you want to monitor.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# Define URLs and CSRF token needed by monitor.js before including the script #}
+{# These are made available as global JavaScript variables #}
+<script>
+    const MONITOR_FETCH_URL_BASE = "{{ url_for('tool_routes.fetch_server_data_api', server_id=0) }}".slice(0, -1); // Remove trailing 0
+    const MONITOR_REORDER_URL = "{{ url_for('tool_routes.reorder_monitored_servers') }}";
+</script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
+{% endblock %}

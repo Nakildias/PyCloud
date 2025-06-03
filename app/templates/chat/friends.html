@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}My Friends - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
+{% endblock %}
+
+{% block body_class %}fr-body-friends-page{% endblock %} {# Prefixed body class #}
+
+{% block content %}
+<div class="fr-page-container"> {# Main wrapper for the page content #}
+
+    {# This is the page header, separate from the content card #}
+    <div class="fr-header">
+        <h1>My Friends</h1>
+        {# You could place a search input here if you want it aligned with the main header #}
+        {# <input type="search" id="friend-search-input" class="fr-search-input" placeholder="Search friends..."> #}
+    </div>
+
+    {# This is the new card that contains the actual list of friends or the empty message #}
+    <div class="fr-content-card"> {# This div now acts as the distinct card for the friend list #}
+        <div class="fr-list-area">
+            {% if friends %}
+                <ul id="friends-list-ul" class="fr-list-ul">
+                    {% for friend in friends %}
+                        <li class="fr-item" data-friend-id="{{ friend.id }}" data-friend-username="{{ friend.username }}" data-friend-pfp="{{ friend.profile_picture_filename or '' }}">
+                            <div class="fr-item-content-wrapper">
+                                <a href="{{ url_for('main_routes.user_profile', username=friend.username) }}" class="fr-item-profile-link">
+                                    <div class="fr-pfp-status-wrapper">
+                                        {% if friend.profile_picture_filename %}
+                                            <img src="{{ url_for('static', filename='uploads/profile_pics/' + friend.profile_picture_filename) }}" alt="{{ friend.username }}" class="fr-pfp">
+                                        {% else %}
+                                            <div class="fr-pfp-placeholder">
+                                                {{ friend.username[0]|upper }}
+                                            </div>
+                                        {% endif %}
+                                        <span class="fr-status-indicator {{ initial_friend_statuses.get(friend.id, 'offline') }}" id="status-indicator-{{ friend.id }}"></span>
+                                    </div>
+                                    <div class="fr-details">
+                                        <span class="fr-username">{{ friend.username }}</span>
+                                        <small class="fr-status-text" id="status-text-{{ friend.id }}">
+                                            {{ 'Online' if initial_friend_statuses.get(friend.id) == 'online' else ('Away' if initial_friend_statuses.get(friend.id) == 'afk' else 'Offline') }}
+                                        </small>
+                                    </div>
+                                </a>
+                                <button class="fr-chat-button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                </button>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="fr-no-friends-message">No friends yet. Find and add friends to start chatting!</p>
+            {% endif %}
+        </div>
+    </div> {# End fr-content-card #}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+
+    <script id="friends-data-json" type="application/json">
+        {{ friends|map(attribute='id')|list|tojson|safe }}
+    </script>
+    <script id="initial-friend-statuses-json" type="application/json">
+        {{ initial_friend_statuses|tojson|safe }}
+    </script>
+
+    <script src="{{ url_for('static', filename='js/friends.js') }}"></script>
+{% endblock %}

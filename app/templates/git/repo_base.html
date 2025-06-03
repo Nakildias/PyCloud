@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="git-card git-rb-container">
+
+    {% block repo_heading_override %}
+    <div class="git-repo-header">
+        <div class="git-repo-header-main">
+            <h1 class="git-repo-header-title">
+                <a href="{{ url_for('git.view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-repo-header-name-link">{{ owner_username }} / {{ repo_short_name }}</a>
+                {% if ref_name %}
+                <span class="git-repo-header-ref">{{ ref_name }}</span>
+                {% endif %}
+                {% if g.repo %}
+                <span class="git-repo-header-visibility-badge {% if g.repo.is_private %}git-repo-header-visibility-badge-private{% else %}git-repo-header-visibility-badge-public{% endif %}">
+                    {{ 'Private' if g.repo.is_private else 'Public' }}
+                </span>
+                {% endif %}
+            </h1>
+            {% if g.repo and g.repo.description %}
+            <p class="git-repo-header-description">{{ g.repo.description }}</p>
+            {% endif %}
+        </div>
+        {% if current_user.username == owner_username %}
+        <div class="git-repo-header-actions">
+            <a href="{{ url_for('git.repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) }}"
+               class="git-btn git-btn-secondary git-btn-sm git-repo-settings-link">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endblock repo_heading_override %}
+
+    {% block repo_content %}{% endblock %}
+</div>
+{% endblock %}

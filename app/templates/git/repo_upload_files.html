@@ -1,0 +1,424 @@
+{% extends "git/repo_base.html" %} {# Or base.html if that's your new pattern #}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+    {# Add Font Awesome if not globally available and you use its icons #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+{% endblock %}
+
+{% block repo_content %}
+    <h2 class="git-ruf-title">Upload Files or Folders</h2>
+    <p class="git-ruf-upload-target-info">
+        Upload to: <code class="git-code git-ruf-path-display">{{ owner_username }}/{{ repo_short_name }}{% if dir_path %}/{{ dir_path }}{% endif %}</code><br>
+        Branch: <strong class="git-ruf-branch-name">{{ ref_name }}</strong>
+    </p>
+
+    <form id="upload_form" method="POST" enctype="multipart/form-data"
+          action="{{ url_for('.upload_repo_files', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path) }}"
+          class="git-ruf-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# Separate hidden inputs #}
+        <input id="actual_file_input_files_only" type="file" class="git-sr-only" multiple>
+        <input id="actual_file_input_folder_only" type="file" class="git-sr-only" webkitdirectory directory multiple>
+
+        <div class="git-ruf-form-group">
+            <div id="drop_zone" class="git-ruf-dropzone">
+                <div class="git-ruf-dropzone-content">
+                    <svg class="git-ruf-dropzone-icon" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="git-ruf-dropzone-text-wrapper">
+                        <p class="git-ruf-dropzone-main-text">Drag & drop files or folders here, or</p>
+                        <div class="git-ruf-browse-buttons-container">
+                            <button type="button" id="trigger_file_input_files" class="git-btn git-btn-secondary git-btn-sm">Select Files</button>
+                            <button type="button" id="trigger_file_input_folder" class="git-btn git-btn-secondary git-btn-sm">Select Folder</button>
+                        </div>
+                    </div>
+                    <p class="git-ruf-dropzone-help-text">Folder structure will be preserved.</p>
+                </div>
+            </div>
+            <div id="file_list_display" class="git-ruf-file-list-container">
+                 <p class="git-ruf-file-list-placeholder">No files or folders selected.</p>
+            </div>
+        </div>
+
+        <div class="git-ruf-form-group">
+            <label for="commit_message" class="git-form-label git-ruf-commit-label">Commit message <span class="git-form-required-indicator">*</span></label>
+            <input type="text" name="commit_message" id="commit_message" value="Uploaded content via web interface"
+                   class="git-form-input git-ruf-commit-input"
+                   placeholder="Optional: Default is 'Uploaded content'" required>
+        </div>
+
+        <div class="git-ruf-action-buttons">
+            <a href="{{ url_for('.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path) }}" class="git-btn git-btn-secondary">Cancel</a>
+            <button type="submit" id="submit_upload_button" class="git-btn git-btn-primary">Commit uploaded content</button>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const dropZone = document.getElementById('drop_zone');
+        const actualFileInputFilesOnly = document.getElementById('actual_file_input_files_only');
+        const actualFileInputFolderOnly = document.getElementById('actual_file_input_folder_only');
+        const triggerFileInputFiles = document.getElementById('trigger_file_input_files');
+        const triggerFileInputFolder = document.getElementById('trigger_file_input_folder');
+        const fileListDisplay = document.getElementById('file_list_display');
+        const uploadForm = document.getElementById('upload_form');
+        const commitMessageInput = document.getElementById('commit_message');
+        const submitButton = document.getElementById('submit_upload_button');
+
+        let stagedFilesAndPaths = [];
+
+        if (!dropZone || !actualFileInputFilesOnly || !actualFileInputFolderOnly || !triggerFileInputFiles || !triggerFileInputFolder || !fileListDisplay || !uploadForm || !submitButton) {
+            console.error('One or more critical elements for repo file upload are missing from the DOM.');
+            if(typeof showToast === 'function') showToast('Upload interface failed to initialize correctly.', 'danger', 7000);
+            return;
+        }
+
+        triggerFileInputFiles.addEventListener('click', () => actualFileInputFilesOnly.click());
+        triggerFileInputFolder.addEventListener('click', () => actualFileInputFolderOnly.click());
+
+        actualFileInputFilesOnly.addEventListener('change', function(event) {
+            addFilesToStaging(event.target.files, true);
+            this.value = '';
+        });
+
+        actualFileInputFolderOnly.addEventListener('change', function(event) {
+            addFilesToStaging(event.target.files, false);
+            this.value = '';
+        });
+
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dropZone.classList.add('git-ruf-dropzone-active');
+        });
+
+        dropZone.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dropZone.classList.remove('git-ruf-dropzone-active');
+        });
+
+        async function traverseFileTree(entry, currentPath) {
+            if (entry.isFile) {
+                return new Promise((resolve) => {
+                    entry.file(
+                        file => {
+                            const relativePath = (currentPath ? currentPath + "/" : "") + file.name;
+                            resolve([{ file: file, relativePath: relativePath.replace(/^\/+/, '') }]);
+                        },
+                        err => {
+                            console.error(`Error getting file object for ${entry.name} in ${currentPath}:`, err);
+                            resolve([]);
+                        }
+                    );
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                const newPath = (currentPath ? currentPath + "/" : "") + entry.name;
+                return new Promise(async (resolve) => {
+                    let allSubEntriesProcessed = [];
+                    function readAllDirectoryEntries() {
+                        return new Promise((resolveBatch, rejectBatch) => {
+                            let accumulatedEntries = [];
+                            function readNextBatch() {
+                                dirReader.readEntries(
+                                    (batch) => {
+                                        if (!batch.length) resolveBatch(accumulatedEntries);
+                                        else { accumulatedEntries.push(...batch); readNextBatch(); }
+                                    },
+                                    (err) => rejectBatch(err)
+                                );
+                            }
+                            readNextBatch();
+                        });
+                    }
+                    try {
+                        const directoryEntries = await readAllDirectoryEntries();
+                        const nestedFilePromises = directoryEntries.map(subEntry => traverseFileTree(subEntry, newPath));
+                        const settledNestedResults = await Promise.allSettled(nestedFilePromises);
+                        settledNestedResults.forEach(result => {
+                            if (result.status === 'fulfilled' && result.value) allSubEntriesProcessed.push(...result.value);
+                            else if (result.status === 'rejected') console.error(`Error processing a sub-entry in ${newPath}:`, result.reason);
+                        });
+                        resolve(allSubEntriesProcessed);
+                    } catch (error) { console.error(`Failed to process directory ${entry.name}:`, error); resolve([]); }
+                });
+            }
+            console.warn(`Item ${entry.name} was neither file nor directory. This should ideally not be reached if items are pre-filtered.`);
+            return Promise.resolve([]);
+        }
+
+        dropZone.addEventListener('drop', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dropZone.classList.remove('git-ruf-dropzone-active');
+
+            // --- ENHANCED INITIAL DIAGNOSTIC LOGGING ---
+            console.log("--- Drop Event Diagnostics START ---");
+            if (event.dataTransfer) {
+                console.log("  event.dataTransfer object: PRESENT");
+                try {
+                    console.log("  event.dataTransfer.types:", JSON.stringify(Array.from(event.dataTransfer.types)));
+                } catch (e) {
+                    console.log("  event.dataTransfer.types: (Could not stringify - possibly null or special object)", event.dataTransfer.types);
+                }
+
+
+                if (event.dataTransfer.items) {
+                    console.log(`  event.dataTransfer.items: PRESENT, length = ${event.dataTransfer.items.length}`);
+                    if (event.dataTransfer.items.length > 0) {
+                        for (let i = 0; i < event.dataTransfer.items.length; i++) {
+                            const item = event.dataTransfer.items[i];
+                            console.log(`    Item ${i}: kind = ${item.kind}, type = ${item.type}, webkitGetAsEntry available: ${typeof item.webkitGetAsEntry === 'function'}`);
+                        }
+                    } else {
+                        console.log("    event.dataTransfer.items collection is empty.");
+                    }
+                } else {
+                    console.log("  event.dataTransfer.items: NULL or UNDEFINED.");
+                }
+
+                if (event.dataTransfer.files) {
+                    console.log(`  event.dataTransfer.files: PRESENT, length = ${event.dataTransfer.files.length}`);
+                    if (event.dataTransfer.files.length > 0) {
+                        for (let i = 0; i < event.dataTransfer.files.length; i++) {
+                            console.log(`    File ${i}: name = ${event.dataTransfer.files[i].name}, size = ${event.dataTransfer.files[i].size}, type = ${event.dataTransfer.files[i].type}`);
+                        }
+                    } else {
+                        console.log("    event.dataTransfer.files collection is empty.");
+                    }
+                } else {
+                    console.log("  event.dataTransfer.files: NULL or UNDEFINED.");
+                }
+            } else {
+                console.error("  CRITICAL: event.dataTransfer object is NULL or UNDEFINED.");
+                if(typeof showToast === 'function') showToast('Drag and drop data is not available from the browser.', 'danger', 7000);
+                console.log("--- Drop Event Diagnostics END ---");
+                return;
+            }
+            console.log("--- Drop Event Diagnostics END ---");
+            // --- END ENHANCED INITIAL DIAGNOSTIC LOGGING ---
+
+            const newEntriesToStage = [];
+            let hasAnyError = false;
+            let attemptedWebkitProcessing = false;
+            let attemptedFileProcessing = false;
+
+            if (event.dataTransfer.items && event.dataTransfer.items.length > 0) {
+                let canUseWebkitGetAsEntry = false;
+                for (let i = 0; i < event.dataTransfer.items.length; i++) {
+                    if (event.dataTransfer.items[i].kind === 'file' && typeof event.dataTransfer.items[i].webkitGetAsEntry === 'function') {
+                        canUseWebkitGetAsEntry = true;
+                        break;
+                    }
+                }
+
+                if (canUseWebkitGetAsEntry) {
+                    attemptedWebkitProcessing = true;
+                    console.log("Attempting processing via webkitGetAsEntry API.");
+                    const promises = [];
+                    for (let i = 0; i < event.dataTransfer.items.length; i++) {
+                        if (event.dataTransfer.items[i].kind === 'file') {
+                            const itemEntry = event.dataTransfer.items[i].webkitGetAsEntry();
+                            if (itemEntry) {
+                                promises.push(traverseFileTree(itemEntry, ""));
+                            } else {
+                                console.warn(`  Item ${i} (kind: 'file', type: ${event.dataTransfer.items[i].type}) did not yield a valid entry via webkitGetAsEntry.`);
+                            }
+                        } else {
+                             console.log(`  Skipping Item ${i} for webkitGetAsEntry processing as its kind is '${event.dataTransfer.items[i].kind}'.`);
+                        }
+                    }
+
+                    if (promises.length > 0) {
+                        const settledResults = await Promise.allSettled(promises);
+                        settledResults.forEach(result => {
+                            if (result.status === 'fulfilled' && result.value) {
+                                newEntriesToStage.push(...result.value);
+                            } else if (result.status === 'rejected') {
+                                console.error("  Error processing a top-level dropped entry:", result.reason);
+                                hasAnyError = true;
+                            }
+                        });
+                    } else if (event.dataTransfer.items.length > 0) {
+                        console.log("  DataTransfer items were present, but none were suitable for webkitGetAsEntry processing or all failed to produce entries.");
+                        if (!hasAnyError) hasAnyError = true;
+                    }
+                } else {
+                     console.log("No items suitable for webkitGetAsEntry API found (e.g., not 'file' kind or no webkitGetAsEntry method).");
+                }
+            }
+
+            if (newEntriesToStage.length === 0 && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                attemptedFileProcessing = true;
+                console.log("Attempting processing via event.dataTransfer.files API.");
+                for (let i = 0; i < event.dataTransfer.files.length; i++) {
+                    const file = event.dataTransfer.files[i];
+                    if (file.name === '.DS_Store') continue;
+                    if (file.size > 0 || file.type || file.name) {
+                        newEntriesToStage.push({ file: file, relativePath: file.name });
+                    } else {
+                        console.warn(`  Skipping item from event.dataTransfer.files (no size, type, or name): index ${i}`);
+                    }
+                }
+            }
+
+            if (newEntriesToStage.length > 0) {
+                stagedFilesAndPaths.push(...newEntriesToStage);
+                renderStagedFiles();
+                if (hasAnyError) {
+                    if(typeof showToast === 'function') showToast('Some items could not be processed, but others were added.', 'warning', 7000);
+                } else {
+                     if(typeof showToast === 'function') showToast(`${newEntriesToStage.length} item(s) added to staging.`, 'success', 3000);
+                }
+            } else {
+                console.log("No files were staged from the drop event.");
+                let toastMessage = 'Could not retrieve files from drop. Please ensure you are dragging actual files/folders and try again, or use selection buttons.';
+                let toastType = 'warning';
+
+                if (!attemptedWebkitProcessing && !attemptedFileProcessing) {
+                    toastMessage = 'No files were found in the dropped items, or items were not recognizable by the browser.';
+                    toastType = 'info';
+                } else if (attemptedWebkitProcessing && hasAnyError) {
+                    toastMessage = 'Could not process the dropped items using entry API. Try selecting them using the buttons.';
+                    toastType = 'danger';
+                } else if (attemptedWebkitProcessing && !hasAnyError) {
+                    toastMessage = 'The dropped items could not be read as processable files/folders via entry API. Please use the selection buttons.';
+                } else if (attemptedFileProcessing && !hasAnyError && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                    // This case means event.dataTransfer.files had items, but all were filtered out (e.g. size 0 and no type)
+                    toastMessage = 'The dropped items were recognized as files, but none could be processed (e.g., they might be empty or directories not readable this way).';
+                } else if (attemptedFileProcessing && !hasAnyError) {
+                     toastMessage = 'The dropped files could not be read. Please try the selection buttons.';
+                }
+
+                if(typeof showToast === 'function') showToast(toastMessage, toastType, 7000);
+            }
+        });
+
+        function addFilesToStaging(fileList, areIndividualFiles) {
+            const newEntries = [];
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                let relativePath;
+                if (areIndividualFiles) {
+                    relativePath = file.name;
+                } else {
+                    relativePath = file.webkitRelativePath || file.name;
+                }
+                relativePath = relativePath.replace(/^\/+/, '');
+                console.log(`Adding to staging from input: ${file.name} as ${relativePath}`);
+                newEntries.push({ file: file, relativePath: relativePath });
+            }
+            if (newEntries.length > 0) {
+                stagedFilesAndPaths.push(...newEntries);
+                renderStagedFiles();
+            }
+        }
+
+        function renderStagedFiles() {
+            fileListDisplay.innerHTML = '';
+            if (stagedFilesAndPaths.length === 0) {
+                fileListDisplay.innerHTML = '<p class="git-ruf-file-list-placeholder">No files or folders selected.</p>';
+                return;
+            }
+            const ul = document.createElement('ul');
+            ul.className = 'git-ruf-file-list';
+            stagedFilesAndPaths.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'git-ruf-file-list-item';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = `${item.relativePath} (${formatFileSize(item.file.size)})`;
+                li.appendChild(nameSpan);
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.className = 'git-btn git-btn-danger git-btn-xs';
+                removeBtn.title = `Remove ${item.relativePath}`;
+                removeBtn.style.padding = '1px 5px';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    stagedFilesAndPaths.splice(index, 1);
+                    renderStagedFiles();
+                };
+                li.appendChild(removeBtn);
+                ul.appendChild(li);
+            });
+            fileListDisplay.appendChild(ul);
+        }
+
+        uploadForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (stagedFilesAndPaths.length === 0) {
+                if(typeof showToast === 'function') showToast("No files or folders selected to upload.", "warning");
+                else alert("No files or folders selected to upload.");
+                return;
+            }
+            const commitMsg = commitMessageInput.value.trim();
+            if (!commitMsg) {
+                 if(typeof showToast === 'function') showToast("A commit message is required.", "warning");
+                else alert("A commit message is required.");
+                commitMessageInput.focus();
+                return;
+            }
+            const formData = new FormData(uploadForm);
+            stagedFilesAndPaths.forEach(item => {
+                formData.append('uploaded_files[]', item.file, item.relativePath);
+                formData.append('uploaded_files_relative_paths[]', item.relativePath);
+            });
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Uploading...';
+            if(typeof showToast === 'function') showToast('Uploading files... This may take a moment.', 'info', 15000);
+            try {
+                const response = await fetch(uploadForm.action, { method: 'POST', body: formData });
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const data = await response.json();
+                    if (response.ok && data.status === 'success') {
+                        if(typeof showToast === 'function') showToast(data.message || "Files uploaded successfully! Redirecting...", 'success');
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url || "{{ url_for('.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path) }}";
+                        }, 1500);
+                    } else { throw new Error(data.message || `Upload failed with status: ${response.status}`); }
+                } else {
+                    if (response.redirected) { window.location.href = response.url; return; }
+                    const textResponse = await response.text();
+                    console.error("Server responded with non-JSON:", response.status, textResponse);
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = textResponse;
+                    const flashMessageElement = tempDiv.querySelector('.alert');
+                    const flashMessage = flashMessageElement ? flashMessageElement.textContent.trim() : `Server error (${response.status}). Check console.`;
+                    throw new Error(flashMessage);
+                }
+            } catch (error) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                console.error('Error during upload submission:', error);
+                if(typeof showToast === 'function') showToast(`Upload Error: ${error.message}`, 'danger', 7000);
+                else alert(`Upload Error: ${error.message}`);
+            }
+        });
+
+        function formatFileSize(bytes, decimals = 2) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        renderStagedFiles(); // Initial render
+    });
+    </script>
+{% endblock %}

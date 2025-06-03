@@ -1,0 +1,211 @@
+{% from "git/includes/_language_stats.html" import render_language_stats with context %}
+{% extends "base.html" %}
+
+{% block title %}Starred Repositories - PyCloud Git{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="git-page-container git-sr-page"> {# Main page container for padding/width, if not fully handled by base.html's content area #}
+    <header class="git-page-header"> {# Reusable header style #}
+        <h1 class="git-page-title">Starred Repositories</h1>
+        <p class="git-page-subtitle">Your collection of bookmarked repositories.</p>
+    </header>
+
+    {# Flash messages #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages-container" style="margin-bottom:1rem;"> {# Ensure this doesn't add excessive padding if .git-page-container already has it #}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show git-flash-message" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close git-flash-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if repos_data %}
+        <div class="git-repo-list"> {# This div will act as the container for all repo items #}
+            {% for item_data in repos_data %}
+                {% set repo = item_data.repo %}
+                {% set starred_at_time = item_data.starred_at %}
+                {# {% set git_details = item_data.git_details %} #} {# git_details not used in this simplified version #}
+                {% set language_stats = item_data.language_stats %}
+
+                {# Each 'article' is a distinct container for a starred repo #}
+                <article class="git-repo-list-item starred-repo-item">
+                    <div class="git-repo-list-item-main-content">
+                        <div class="git-repo-list-item-name-line">
+                            <h3 class="git-repo-list-item-name"> {# Changed from div to h3 for semantics #}
+                                <a href="{{ url_for('.view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-link git-repo-main-link">
+<svg  class="git-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                    <span class="git-repo-list-owner">{{ repo.owner.username }}</span>/<strong class="git-repo-list-name-strong">{{ repo.name }}</strong>
+                                </a>
+                            </h3>
+                            {% if repo.is_private %}
+                                <span class="git-privacy-badge git-privacy-badge-private">Private</span>
+                            {% endif %}
+                        </div>
+
+                        {% if repo.description %}
+                            <p class="git-repo-list-item-description">{{ repo.description|truncate(150) }}</p>
+                        {% else %}
+                            <p class="git-repo-list-item-description git-text-muted"><em>No description provided.</em></p>
+                        {% endif %}
+
+                        <div class="git-repo-list-item-langs">
+                            {{ render_language_stats(language_stats, repo_id=repo.id) }}
+                        </div>
+                        <div class="git-repo-list-item-meta starred-repo-item-meta-details">
+                            <span class="git-repo-stat git-repo-stat--subtle" title="Starred on {{ starred_at_time.strftime('%Y-%m-%d %H:%M') if starred_at_time else 'N/A' }}">
+                                <i class="fas fa-calendar-alt git-repo-stat-icon"></i>
+                                Starred {{ naturaltime(starred_at_time) if starred_at_time else 'N/A' }}
+                            </span>
+                            {% if repo.source_repo %}
+                            <span class="git-repo-stat git-repo-stat--subtle git-repo-stat--fork-info">
+                                <i class="fas fa-code-branch git-repo-stat-icon"></i>
+                                Forked from <a href="{{ url_for('view_repo_root', owner_username=repo.source_repo.owner.username, repo_short_name=repo.source_repo.name) }}" class="git-link git-link--subtle">{{ repo.source_repo.owner.username }}/{{ repo.source_repo.name }}</a>
+                            </span>
+                            {% endif %}
+                             <span class="git-repo-stat git-repo-stat--subtle git-repo-stat--total-stars">
+                                <i class="fas fa-star git-repo-stat-icon git-star-icon"></i> {{ repo.star_count }}
+                            </span>
+                        </div>
+                    </div>{# End of .git-repo-list-item-main-content #}
+
+                    <div class="git-repo-list-item-actions">
+                         {% if current_user.is_authenticated %}
+                            <button class="git-btn git-btn-sm git-btn-outline git-star-button unstar-action-list {% if current_user.has_starred_repo(repo) %}starred{% else %}unstarred{% endif %}"
+                                    data-repo-id="{{ repo.id }}"
+                                    data-starred="{{ 'true' if current_user.has_starred_repo(repo) else 'false' }}"
+                                    title="{{ 'Unstar' if current_user.has_starred_repo(repo) else 'Star' }} this repository">
+                                <i class="{% if current_user.has_starred_repo(repo) %}fas fa-star{% else %}far fa-star{% endif %}"></i>
+                                <span class="star-button-text">{% if current_user.has_starred_repo(repo) %}Unstar{% else %}Star{% endif %}</span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </article> {# End of .git-repo-list-item / .starred-repo-item #}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="git-no-results"> {# Using the general .git-no-results class #}
+            <div class="git-no-results-icon-container">
+                <i class="fas fa-star fa-3x" style="color: var(--placeholder-color);"></i>
+            </div>
+            <h3 class="git-no-results-title">No Starred Repositories Yet</h3>
+            <p class="git-no-results-text">You haven't starred any repositories. Explore <a href="{{ url_for('.git_homepage') }}" class="git-link">public repositories</a> to find projects to star.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.git-star-button.unstar-action-list').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault(); // Good practice for buttons handling JS actions
+                if (!{{ current_user.is_authenticated | tojson }}) {
+                    alert('Please log in to unstar repositories.');
+                    window.location.href = "{{ url_for('auth.login', next=request.url) }}";
+                    return;
+                }
+                const repoId = this.dataset.repoId;
+                const listItem = this.closest('.git-repo-list-item.starred-repo-item'); // Target the whole item
+
+                // Optimistic UI update for unstar button
+                this.classList.remove('starred');
+                this.classList.add('unstarred');
+                const starIcon = this.querySelector('i');
+                if (starIcon) { starIcon.classList.remove('fas'); starIcon.classList.add('far');}
+                const starText = this.querySelector('.star-button-text');
+                if (starText) { starText.textContent = 'Star'; }
+                this.title = 'Star this repository'; // Though it will be removed
+
+                fetch(`/git/repo/${repoId}/unstar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                    },
+                    body: JSON.stringify({})
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => { throw new Error(errData.message || `HTTP error ${response.status}`); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (listItem) {
+                            listItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease, margin-bottom 0.4s ease, padding 0.4s ease, border-width 0.4s ease';
+                            listItem.style.opacity = '0';
+                            listItem.style.transform = 'scale(0.95)';
+                            listItem.style.maxHeight = '0px';
+                            listItem.style.paddingTop = '0px';
+                            listItem.style.paddingBottom = '0px';
+                            listItem.style.marginBottom = '-1px';
+                            listItem.style.borderWidth = '0px';
+
+                            setTimeout(() => {
+                                listItem.remove();
+                                const list = document.querySelector('.git-repo-list');
+                                if (list && list.children.length === 0) {
+                                    const container = document.querySelector('.git-sr-page');
+                                    let noReposMessage = container.querySelector('.git-no-results');
+                                    if (!noReposMessage) {
+                                        const noResultsHTML = `
+                                        <div class="git-no-results" style="opacity:0; transition: opacity 0.5s ease;">
+                                            <div class="git-no-results-icon-container">
+                                                <i class="fas fa-star fa-3x" style="color: var(--placeholder-color);"></i>
+                                            </div>
+                                            <h3 class="git-no-results-title">No Starred Repositories Yet</h3>
+                                            <p class="git-no-results-text">You haven't starred any repositories. Explore <a href="{{ url_for('.git_homepage') }}" class="git-link">public repositories</a> to find projects to star.</p>
+                                        </div>`;
+                                        const header = container.querySelector('.git-sr-page__header');
+                                        if (header) header.insertAdjacentHTML('afterend', noResultsHTML);
+                                        else container.insertAdjacentHTML('beforeend', noResultsHTML);
+                                        noReposMessage = container.querySelector('.git-no-results');
+                                    }
+                                    if(noReposMessage) {
+                                        noReposMessage.style.display = 'block';
+                                        setTimeout(() => noReposMessage.style.opacity = '1', 50);
+                                    }
+                                }
+                            }, 400);
+                        }
+                        if (typeof showToast === 'function') {
+                            showToast(data.message || 'Repository unstarred', 'success');
+                        }
+                    } else {
+                        // Revert UI if server indicates error
+                        this.classList.add('starred'); this.classList.remove('unstarred');
+                        if(starIcon) {starIcon.classList.remove('far'); starIcon.classList.add('fas');}
+                        if(starText) {starText.textContent = 'Unstar';}
+                        this.title = 'Unstar this repository';
+                        if (typeof showToast === 'function') showToast('Error: ' + (data.message || 'Could not unstar.'), 'error');
+                        else alert('Error: ' + (data.message || 'Could not unstar.'));
+                    }
+                }).catch(error => {
+                    console.error('Unstarring Error:', error);
+                    // Revert UI on network error
+                    this.classList.add('starred'); this.classList.remove('unstarred');
+                    if(starIcon) {starIcon.classList.remove('far'); starIcon.classList.add('fas');}
+                    if(starText) {starText.textContent = 'Unstar';}
+                    this.title = 'Unstar this repository';
+                    if (typeof showToast === 'function') showToast('Error: ' + error.message, 'error');
+                    else alert('Error: ' + error.message);
+                });
+            });
+        });
+    });
+    </script>
+{% endblock %}

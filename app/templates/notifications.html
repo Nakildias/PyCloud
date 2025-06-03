@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}My Notifications - PyCloud{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="notif-page-container"> {# Main wrapper for the page content #}
+    <h2 class="notif-page-title">My Notifications</h2> {# Specific class for page title #}
+
+    {% if processed_notifications %}
+        <div class="notif-actions-bar"> {# Was notifications-actions #}
+            {# ID kept for JS, added class for styling #}
+            <button id="mark-all-read-btn" class="btn btn-secondary btn-sm notif-btn-mark-all-read">Mark All as Read</button>
+        </div>
+        <ul class="notif-list"> {# Was notifications-list #}
+            {% for notification in processed_notifications %}
+            <li class="notif-item {% if not notification.is_read %}unread{% endif %}" data-notification-id="{{ notification.id }}"> {# Was notification-item #}
+                <div class="notif-item-header"> {# Was notification-header #}
+                    {% if notification.sender_profile_pic %}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ notification.sender_profile_pic) }}" alt="{{ notification.sender_username }}" class="notif-sender-pfp"> {# Was notification-sender-pfp #}
+                    {% else %}
+                        {# Display default-pfp.svg if no sender profile picture is available #}
+                        <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="" class="notif-sender-pfp">
+                    {% endif %}
+                    <span class="notif-sender-name"> {# Was notification-sender #}
+                        {% if notification.sender_id %}
+                            <a href="{{ url_for('.user_profile', username=notification.sender_username) }}">{{ notification.sender_username }}</a>
+                        {% else %}
+                            System
+                        {% endif %}
+                    </span>
+                    <span class="notif-timestamp" title="{{ notification.timestamp }}">{{ notification.timestamp | timesince }} ago</span> {# Was notification-timestamp #}
+                    {% if not notification.is_read %}
+                        <span class="notif-unread-indicator" title="Unread">•</span> {# Was unread-indicator #}
+                    {% endif %}
+                </div>
+                <div class="notif-content-text"> {# Was notification-content-text #}
+                    <a href="{{ notification.primary_link }}" class="notif-content-link"> {# Was notification-link #}
+                        {{ notification.message_text }}
+                    </a>
+                </div>
+                <button class="notif-btn-dismiss" data-notification-id="{{ notification.id }}" title="Dismiss this notification"> {# Was btn-dismiss-notification #}
+                    <img src="{{ url_for('static', filename='icons/close.svg') }}" alt="Dismiss" class="notif-dismiss-icon"> {# Added class for icon #}
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {# Pagination - classes now match post_feed.html's pattern #}
+        {% if notifications_pagination_obj.pages > 1 %}
+        <nav aria-label="Page navigation" class="pagination-nav notif-pagination-nav">
+            <ul class="pagination notif-pagination-list">
+                <li class="page-item notif-page-item {% if not notifications_pagination_obj.has_prev %}disabled{% endif %}">
+                    <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.prev_num) if notifications_pagination_obj.has_prev else '#_notifications' }}" aria-label="Previous">
+                        &laquo; Previous
+                    </a>
+                </li>
+                {% for page_num in notifications_pagination_obj.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item notif-page-item {% if notifications_pagination_obj.page == page_num %}active{% endif %}">
+                            <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item notif-page-item disabled"><span class="page-link notif-page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item notif-page-item {% if not notifications_pagination_obj.has_next %}disabled{% endif %}">
+                    <a class="page-link notif-page-link" href="{{ url_for('notifications_page', page=notifications_pagination_obj.next_num) if notifications_pagination_obj.has_next else '#_notifications' }}" aria-label="Next">
+                        Next &raquo;
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+    <p class="notif-no-notifications-message">You have no notifications.</p> {# Was no-notifications #}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="git-card git-cr-container">
+    <h1 class="git-cr-title">Create New Repository</h1>
+    <form method="post" action="{{ url_for('git.create_repo_route') }}" class="git-cr-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="git-cr-form-group">
+            <label for="repo_name" class="git-form-label git-cr-repo-name-label">Repository Name</label>
+            <input type="text" name="repo_name" id="repo_name" class="git-form-input git-cr-repo-name-input" required pattern="[a-zA-Z0-9_-]+" title="Only alphanumeric characters, underscores, and hyphens are allowed.">
+            <p class="git-form-help-text git-cr-repo-name-help">Only alphanumeric characters, underscores (_), and hyphens (-) are allowed. No spaces.</p>
+        </div>
+
+        <div class="git-cr-form-group">
+            <label class="git-form-label git-cr-visibility-label">Visibility</label>
+            <div class="git-cr-visibility-options">
+                <label class="git-cr-visibility-option">
+                    <input type="radio" name="visibility" value="public" class="git-form-radio git-cr-visibility-radio" checked>
+                    <span class="git-cr-visibility-option-details">
+                        <strong class="git-cr-visibility-option-title">Public</strong>
+                        <span class="git-cr-visibility-option-description">Anyone on the internet can see this repository. You choose who can commit.</span>
+                    </span>
+                </label>
+                <label class="git-cr-visibility-option">
+                    <input type="radio" name="visibility" value="private" class="git-form-radio git-cr-visibility-radio">
+                     <span class="git-cr-visibility-option-details">
+                        <strong class="git-cr-visibility-option-title">Private</strong>
+                        <span class="git-cr-visibility-option-description">You choose who can see and commit to this repository.</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+        <button type="submit" class="git-btn git-btn-primary git-cr-submit-button">Create Repository</button>
+    </form>
+</div>
+{% endblock %}

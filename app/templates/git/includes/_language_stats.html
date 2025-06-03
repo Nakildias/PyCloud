@@ -1,0 +1,35 @@
+{% macro render_language_stats(stats, repo_id=None) %}
+  {% if stats and stats is mapping and stats | length > 0 %}
+    <div class="language-stats-bar-container"{% if repo_id %} id="lang-stats-{{ repo_id }}"{% endif %}>
+        <div class="language-stats-bar">
+            {% for lang, perc in stats.items() %}
+                {% if perc > 0.09 %} {# Only show segments for >0.1% #}
+                    <div class="lang-segment"
+                         style="width: {{ perc }}%; background-color: {{ lang | language_color }};"
+                         title="{{ lang }}: {{ "%.1f"|format(perc) }}%">
+                    {# You might also want an sr-only span here for accessibility, similar to _language_stats.html #}
+                    {# e.g., <span class="sr-only">{{ lang }}: {{ "%.1f"|format(perc) }}%</span> #}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <ul class="language-stats-legend">
+            {% for lang, perc in stats.items() %}
+                {% if perc > 0.09 %}
+                <li>
+                    <span class="lang-color-dot" style="background-color: {{ lang | language_color }};"></span>
+                    <span class="lang-name">{{ lang }}</span>
+                    <span class="lang-perc">{{ "%.1f"|format(perc) }}%</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+  {% elif stats is none %}
+    {# Optionally show a loading or error indicator if stats is None (meaning calculation error) #}
+    {# <p class="text-muted small">Could not load language statistics.</p> #}
+  {% else %}
+    {# Optionally show a message if stats is an empty dict (no languages detected or empty repo) #}
+    {# <p class="text-muted small">No dominant languages detected.</p> #}
+  {% endif %}
+{% endmacro %}

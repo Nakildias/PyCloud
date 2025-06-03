@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}PyCloud{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' class='icon icon-tabler icons-tabler-outline icon-tabler-cloud-computing'><path stroke='none' d='M0 0h24v24H0z' fill='none'/><path d='M6.657 16c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878' /><path d='M12 16v5' /><path d='M16 16v4a1 1 0 0 0 1 1h4' /><path d='M8 16v4a1 1 0 0 1 -1 1h-4' /></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base_emb_chat.css') }}">
+    {# Add this block to link the theme CSS #}
+    {% if selected_theme_css %}
+    <link rel="stylesheet" href="{{ selected_theme_css }}">
+    {% endif %}
+    {% block head_extensions %}{% endblock %}
+</head>
+<body class="base-body {% if request.endpoint in ['chat_routes.ollama_chat', 'chat_routes.group_chat', 'chat_routes.friends_interface'] %}base-body-chat-page base-body-no-container-padding{% elif request.endpoint in ['direct_chat_interface_embedded'] %}base-body-chat-page base-body-no-container-padding base-body-has-embedded-chat{% endif %} {% block body_class %}{% endblock %}">
+<nav class="base-nav">
+    <ul class="base-nav-list">
+        {% if current_user.is_authenticated %}
+            <li class="base-nav-item {% if request.endpoint == 'main_routes.notifications_page' %}active{% endif %}">
+                <a href="{{ url_for('main_routes.notifications_page') }}" class="base-nav-link">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-bell"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>
+                    <span id="base-notification-unread-count" class="notification-badge" style="display: none;"></span>
+                </a>
+            </li>
+            {% set cloud_active = request.endpoint in ['file_routes.list_files', 'note_routes.list_notes', 'chat_routes.ollama_chat', 'main_routes.photos', 'main_routes.videos'] %}
+            <li class="base-nav-item base-nav-dropdown {% if cloud_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-computing"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6.657 16c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878" /><path d="M12 16v5" /><path d="M16 16v4a1 1 0 0 0 1 1h4" /><path d="M8 16v4a1 1 0 0 1 -1 1h-4" /></svg>
+                    Cloud <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'file_routes.list_files' %}class="active"{% endif %}><a href="{{ url_for('file_routes.list_files') }}" class="base-nav-dropdown-item-link">Files</a></li>
+                    <li {% if request.endpoint == 'note_routes.list_notes' %}class="active"{% endif %}><a href="{{ url_for('note_routes.list_notes') }}" class="base-nav-dropdown-item-link">Notes</a></li>
+                    <li {% if request.endpoint == 'main_routes.photos' %}class="active"{% endif %}><a href="{{ url_for('main_routes.photos') }}" class="base-nav-dropdown-item-link">Photos</a></li>
+                    <li {% if request.endpoint == 'main_routes.videos' %}class="active"{% endif %}><a href="{{ url_for('main_routes.videos') }}" class="base-nav-dropdown-item-link">Videos</a></li>
+                    {% if settings.ollama_enabled %}
+                        <li {% if request.endpoint == 'chat_routes.ollama_chat' %}class="active"{% endif %}><a href="{{ url_for('chat_routes.ollama_chat') }}" class="base-nav-dropdown-item-link">Ollama</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% set social_active = request.endpoint in ['social_routes.post_feed', 'chat_routes.group_chat', 'chat_routes.friends_interface', 'main_routes.find_people'] %}
+            <li class="base-nav-item base-nav-dropdown {% if social_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-social"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M19 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M12 14m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M12 7l0 4" /><path d="M6.7 17.8l2.8 -2" /><path d="M17.3 17.8l-2.8 -2" /></svg>
+                    Social <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'social_routes.post_feed' %}class="active"{% endif %}><a href="{{ url_for('social_routes.post_feed') }}" class="base-nav-dropdown-item-link">Feed</a></li>
+                    <li {% if request.endpoint == 'chat_routes.group_chat' %}class="active"{% endif %}><a href="{{ url_for('chat_routes.group_chat') }}" class="base-nav-dropdown-item-link">Group Chat</a></li>
+                    <li {% if request.endpoint == 'chat_routes.friends_interface' %}class="active"{% endif %}><a href="{{ url_for('chat_routes.friends_interface') }}" class="base-nav-dropdown-item-link">Friends</a></li>
+                    <li {% if request.endpoint == 'main_routes.find_people' %}class="active"{% endif %}><a href="{{ url_for('main_routes.find_people') }}" class="base-nav-dropdown-item-link">Find People</a></li>
+                </ul>
+            </li>
+            {% set misc_active = request.endpoint in ['tool_routes.emulator_gba', 'tool_routes.image_upscaler', 'tool_routes.ytdlp_downloader', 'tool_routes.ssh_client_page', 'tool_routes.monitor_dashboard'] %}
+            <li class="base-nav-item base-nav-dropdown {% if misc_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21h4l13 -13a1.5 1.5 0 0 0 -4 -4l-13 13v4" /><path d="M14.5 5.5l4 4" /><path d="M12 8l-5 -5l-4 4l5 5" /><path d="M7 8l-1.5 1.5" /><path d="M16 12l5 5l-4 4l-5 -5" /><path d="M16 17l-1.5 1.5" /></svg>
+                    Tools <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'tool_routes.emulator_gba' %}class="active"{% endif %}><a href="{{ url_for('tool_routes.emulator_gba') }}" class="base-nav-dropdown-item-link">GBA</a></li>
+                    <li {% if request.endpoint == 'tool_routes.image_upscaler' %}class="active"{% endif %}><a href="{{ url_for('tool_routes.image_upscaler') }}" class="base-nav-dropdown-item-link">Upscale Image</a></li>
+                    <li {% if request.endpoint == 'tool_routes.ytdlp_downloader' %}class="active"{% endif %}><a href="{{ url_for('tool_routes.ytdlp_downloader') }}" class="base-nav-dropdown-item-link">YT-DLP</a></li>
+                    <li {% if request.endpoint == 'tool_routes.ssh_client_page' %}class="active"{% endif %}><a href="{{ url_for('tool_routes.ssh_client_page') }}" class="base-nav-dropdown-item-link">SSH Client</a></li>
+                    <li {% if request.endpoint == 'tool_routes.monitor_dashboard' %}class="active"{% endif %}><a href="{{ url_for('tool_routes.monitor_dashboard') }}" class="base-nav-dropdown-item-link">Monitor</a></li>
+                </ul>
+            </li>
+            {% set git_active = request.endpoint in ['git.git_homepage', 'git.mygit', 'git.starred_repositories_page'] or (request.endpoint and request.endpoint.startswith('git.')) %}
+            <li class="base-nav-item base-nav-dropdown {% if git_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-git"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 15v-6" /><path d="M15 11l-2 -2" /><path d="M11 7l-1.9 -1.9" /><path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0z" /></svg>
+                    Git <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'git.git_homepage' %}class="active"{% endif %}><a href="{{ url_for('git.git_homepage') }}" class="base-nav-dropdown-item-link">Git Home</a></li>
+                    <li {% if request.endpoint == 'git.mygit' %}class="active"{% endif %}><a href="{{ url_for('git.mygit') }}" class="base-nav-dropdown-item-link">My Git</a></li>
+                    <li {% if request.endpoint == 'git.starred_repositories_page' %}class="active"{% endif %}><a href="{{ url_for('git.starred_repositories_page') }}" class="base-nav-dropdown-item-link">Starred</a></li>
+                </ul>
+            </li>
+            {# Corrected Jinja comment and logic for user_dropdown_active #}
+            {% set user_dropdown_active =
+                (request.endpoint == 'main_routes.user_profile' and request.view_args and request.view_args.get('username') == current_user.username) or
+                (request.endpoint == 'main_routes.user_settings_page') or
+                (request.endpoint == 'admin.admin_settings' and current_user.is_admin) or
+                (request.endpoint and request.endpoint.startswith('admin.') and current_user.is_admin)
+            %}
+            <li class="base-nav-item base-nav-dropdown {% if user_dropdown_active %}active{% endif %}">
+                <a class="base-nav-link base-nav-dropdown-toggle">
+                    {% if current_user.profile_picture_filename %}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_picture_filename) }}" alt="User PFP" class="base-nav-user-pfp">
+                    {% else %}
+                        <span class="base-nav-user-pfp-placeholder">{{ current_user.username[0]|upper if current_user.username else 'U' }}</span>
+                    {% endif %}
+                    {{ current_user.username }}
+                    <span class="base-nav-arrow-down">▼</span>
+                </a>
+                <ul class="base-nav-dropdown-menu">
+                    <li {% if request.endpoint == 'main_routes.user_profile' and request.view_args and request.view_args.get('username') == current_user.username %}class="active"{% endif %}>
+                        <a href="{{ url_for('main_routes.user_profile', username=current_user.username) }}" class="base-nav-dropdown-item-link">My Profile</a>
+                    </li>
+                    <li {% if request.endpoint == 'main_routes.user_settings_page' %}class="active"{% endif %}>
+                        <a href="{{ url_for('main_routes.user_settings_page') }}" class="base-nav-dropdown-item-link">User Settings</a>
+                    </li>
+                    {% if current_user.is_admin %}
+                        <li {% if request.endpoint == 'admin.admin_settings' or (request.endpoint and request.endpoint.startswith('admin.')) %}class="active"{% endif %}><a href="{{ url_for('admin.admin_settings') }}" class="base-nav-dropdown-item-link">Admin Settings</a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('auth.logout') }}" class="base-nav-dropdown-item-link">Logout</a></li>
+                </ul>
+            </li>
+        {% else %}
+             <li class="base-nav-item {% if request.endpoint == 'auth.login' %}active{% endif %}"><a href="{{ url_for('auth.login') }}" class="base-nav-link">Login</a></li>
+             {% if settings.allow_registration %}
+                 <li class="base-nav-item {% if request.endpoint == 'auth.register' %}class="active"{% endif %}><a href="{{ url_for('auth.register') }}" class="base-nav-link">Register</a></li>
+             {% endif %}
+        {% endif %}
+    </ul>
+</nav>
+
+<div class="base-container {% if request.endpoint == 'chat_routes.friends_interface' %}base-container-no-padding{% endif %}">
+    {% block content %}
+    {% endblock %}
+</div>
+
+<div id="base-toast-container" class="base-toast-container-wrapper"></div>
+
+{% if current_user.is_authenticated %}
+<div id="base-embedded-chat-container" class="base-embedded-chat-container-wrapper">
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script>
+    // Define all global JavaScript variables here, calling get_flashed_messages() only ONCE
+    window.flashedMessages = {{ get_flashed_messages(with_categories=true)|tojson }};
+
+    const CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+    const CURRENT_USER_USERNAME = "{{ current_user.username if current_user.is_authenticated else '' }}";
+    const CURRENT_USER_PFP_FILENAME = "{{ current_user.profile_picture_filename if current_user.is_authenticated and current_user.profile_picture_filename else '' }}";
+    const CURRENT_USER_IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.is_admin else 'false' }};
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    const STATIC_PFP_PATH_BASE = "{{ url_for('static', filename='uploads/profile_pics/') }}";
+    const STATIC_ICONS_PATH_BASE = "{{ url_for('static', filename='icons/') }}";
+    const USER_PROFILE_URL_BASE = "{{ url_for('main_routes.user_profile', username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const MAX_UPLOAD_MB_CONFIG = {{ settings.max_upload_mb | default(100) }};
+    const EMB_DM_HISTORY_API_URL_BASE = "{{ url_for('chat_routes.api_direct_chat_history', friend_username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const EMB_DM_SEND_API_URL_BASE = "{{ url_for('chat_routes.api_direct_chat_send', friend_username='__USERNAME__') }}".replace('__USERNAME__', '');
+    const EMB_DM_RECENT_MESSAGES_API_URL = "{{ url_for('chat_routes.api_recent_direct_messages') }}";
+    const API_UNREAD_NOTIFICATION_COUNT_URL = "{{ url_for('main_routes.api_unread_notification_count') }}";
+    const NOTIFICATION_SOUND_URL = "{{ url_for('static', filename='sounds/notification.wav') }}";
+    const API_USERS_ACTIVITY_STATUS_URL = "{{ url_for('main_routes.api_users_activity_status') }}";
+
+    // Now, explicitly call the function from toast.js to process flashed messages
+    if (typeof processFlashedMessagesOnLoad === 'function') {
+        processFlashedMessagesOnLoad();
+    } else {
+        console.error('[Base.html] processFlashedMessagesOnLoad function not found in toast.js. Toasts from flashed messages may not show.');
+    }
+</script>
+
+{% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/base_friend_chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/localetime_formatter.js') }}"></script>
+{% else %}
+    {# For non-authenticated users, only load toast.js if needed, or specific non-auth scripts #}
+    {# <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script> #}
+    {# This might cause errors if it relies on current_user details not present #}
+{% endif %}
+
+{% block scripts %}
+{% endblock %}
+</body>
+</html>

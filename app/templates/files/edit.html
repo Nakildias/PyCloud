@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ original_filename }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit.css') }}">
+    {# CodeMirror Core CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
+    {# Dynamically load the user's preferred CodeMirror Theme CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/' + (user_codemirror_theme | default('material-darker.css'))) }}">
+{% endblock %}
+
+{% block content %}
+<div class="edit-file-page">
+    <h2 class="edit-file-title">Edit File: <span id="filename-display" class="edit-file-filename-display">{{ original_filename }}</span></h2>
+    <p class="edit-file-stored-name-info">Editing file stored as: {{ stored_filename }}</p>
+
+    <form id="edit-form" method="POST" action="{{ url_for('file_routes.edit_file_route', file_id=file_id) }}" novalidate class="edit-file-form"> {# Assuming route is file_routes.edit_file #}
+        {{ form.hidden_tag() }}
+
+        <div class="edit-file-form-group">
+            {{ form.content.label(class="edit-file-label") }}
+            {# Add data-original-filename and data-codemirror-theme attributes here #}
+            {{ form.content(id="content", class="edit-file-textarea-content", rows=25, **{"data-original-filename": original_filename, "data-codemirror-theme": (user_codemirror_theme | default('material.css')) }) }}
+            {% if form.content.errors %}
+                <ul class="edit-file-errors">
+                    {% for error in form.content.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="edit-file-form-group edit-file-submit-group">
+            <a href="{{ url_for('file_routes.list_files', folder_id=parent_folder_id if parent_folder_id else None) }}" class="btn btn-secondary edit-file-btn-cancel">Cancel</a> {# Assuming list_files is in file_routes #}
+            {{ form.submit(class="btn btn-primary edit-file-btn-submit", value="Save Changes") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# CodeMirror Core JS #}
+<script src="{{ url_for('static', filename='codemirror/lib/codemirror.js') }}"></script>
+
+{# CodeMirror Addons #}
+<script src="{{ url_for('static', filename='codemirror/addon/edit/matchbrackets.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/addon/edit/closebrackets.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/addon/mode/meta.js') }}"></script>
+
+{# CodeMirror Language Modes (ensure you have these files or only include used ones) #}
+<script src="{{ url_for('static', filename='codemirror/mode/python/python.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/javascript/javascript.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/css/css.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/xml/xml.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/htmlmixed/htmlmixed.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/markdown/markdown.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/shell/shell.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/sql/sql.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
+<script src="{{ url_for('static', filename='codemirror/mode/clike/clike.js') }}"></script> {# For C, C++, Java, C# etc. #}
+
+
+{# Link to your external JS file for CodeMirror initialization #}
+<script src="{{ url_for('static', filename='js/code_editor.js') }}"></script>
+{% endblock %}

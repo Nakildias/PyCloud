@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Register - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    {# Link to the new register.css file #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="reg-page-container"> {# Main wrapper for the page content #}
+    <h2 class="reg-title">Register New Account</h2>
+    <form method="POST" action="{{ url_for('auth.register') }}" novalidate class="reg-form">
+        {{ form.hidden_tag() }} {# Required for CSRF protection #}
+
+        <div class="reg-form-group"> {# Prefixed form-group #}
+            {{ form.username.label(class="reg-label") }} {# Prefixed label #}
+            {{ form.username(class="form-control reg-input-username") }} {# Kept form-control, added specific #}
+            {% if form.username.errors %}
+                <ul class="reg-errors"> {# Prefixed errors #}
+                    {% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="reg-form-group"> {# Prefixed form-group #}
+            {{ form.email.label(class="reg-label") }} {# Prefixed label #}
+            {{ form.email(class="form-control reg-input-email") }} {# Kept form-control, added specific #}
+            {% if form.email.errors %}
+                <ul class="reg-errors"> {# Prefixed errors #}
+                    {% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="reg-form-group"> {# Prefixed form-group #}
+            {{ form.password.label(class="reg-label") }} {# Prefixed label #}
+            {{ form.password(class="form-control reg-input-password") }} {# Kept form-control, added specific #}
+            {% if form.password.errors %}
+                <ul class="reg-errors"> {# Prefixed errors #}
+                    {% for error in form.password.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="reg-form-group"> {# Prefixed form-group #}
+            {{ form.confirm_password.label(class="reg-label") }} {# Prefixed label #}
+            {{ form.confirm_password(class="form-control reg-input-confirm-password") }} {# Kept form-control, added specific #}
+            {% if form.confirm_password.errors %}
+                <ul class="reg-errors"> {# Prefixed errors #}
+                    {% for error in form.confirm_password.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="reg-form-group reg-submit-group"> {# Prefixed form-group and added submit-group #}
+            {{ form.submit(class="btn btn-primary reg-submit-button") }} {# Kept btn, btn-primary, added specific #}
+        </div>
+    </form>
+    <p class="reg-login-link-text"> {# Specific class for the paragraph #}
+        Already have an account? <a href="{{ url_for('auth.login') }}" class="reg-login-link">Login here</a> {# Specific class for the link #}
+    </p>
+</div>
+{% endblock %}

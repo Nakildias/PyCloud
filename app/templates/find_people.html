@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Find People - PyCloud{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/find_people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="fp-page-container">
+    <div class="fp-header-section"> {# New wrapper for header elements #}
+        <h1 class="fp-page-title">Find People</h1>
+
+        <div class="fp-search-card"> {# New: Search form now lives in its own card #}
+            <section class="fp-search-section">
+                <form method="GET" action="{{ url_for('main_routes.find_people') }}" class="fp-search-form">
+                    <input type="text" name="search_query" class="fp-search-input" placeholder="Search by username or name..." value="{{ search_query if search_query else '' }}">
+                    <button type="submit" class="fp-btn fp-btn-primary fp-search-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        Search
+                    </button>
+                </form>
+            </section>
+        </div> {# End fp-search-card #}
+    </div> {# End fp-header-section #}
+
+    <div class="fp-results-container-card"> {# New: All search results live in one main card #}
+        <section class="fp-results-section">
+            {% if users_data %}
+                <div class="fp-user-grid">
+                    {% for user_data in users_data %}
+                        {% set user_profile = user_data.profile %}
+                        {% set is_following = user_data.is_following %}
+                        <div class="fp-user-card"> {# Individual user card #}
+                            <a href="{{ url_for('main_routes.user_profile', username=user_profile.username) }}" class="fp-user-pfp-link">
+                                {% if user_profile.profile_picture_filename %}
+                                    <img src="{{ url_for('static', filename='uploads/profile_pics/' + user_profile.profile_picture_filename) }}"
+                                         alt="{{ user_profile.username }}'s profile picture"
+                                         class="fp-user-pfp"
+                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default_pfp_placeholder.png') }}';">
+                                {% else %}
+                                    <div class="fp-user-pfp-placeholder">
+                                        {# Default placeholder SVG icon #}
+                                <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="" class="fp-user-pfp">
+                                    </div>
+                                {% endif %}
+                            </a>
+                            <div class="fp-user-info">
+                                <a href="{{ url_for('main_routes.user_profile', username=user_profile.username) }}" class="fp-user-username">{{ user_profile.username }}</a>
+                                {% if user_profile.first_name or user_profile.last_name %}
+                                    <p class="fp-user-fullname">
+                                        {{ user_profile.first_name if user_profile.first_name else '' }}
+                                        {{ user_profile.last_name if user_profile.last_name else '' }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                            <div class="fp-user-actions">
+                                <a href="{{ url_for('main_routes.user_profile', username=user_profile.username) }}" class="fp-btn fp-btn-secondary view-profile-btn">View Profile</a>
+                                {# Follow/Unfollow Button using existing routes #}
+                                {% if is_following %}
+                                    <form method="POST" action="{{ url_for('main_routes.unfollow_user', username=user_profile.username) }}" class="fp-follow-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="fp-btn fp-btn-unfollow">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="17" y1="11" x2="23" y2="11"></line></svg>
+                                            Unfollow
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('main_routes.follow_user', username=user_profile.username) }}" class="fp-follow-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="fp-btn fp-btn-follow">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="17" y1="11" x2="23" y2="11"></line></svg>
+                                            Follow
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div> {# End fp-user-card #}
+                    {% endfor %}
+                </div>
+            {% elif search_query %}
+                <p class="fp-no-results">No users found matching your search for "<strong>{{ search_query }}</strong>".</p>
+            {% else %}
+                <p class="fp-no-results">No other users found on the server.</p>
+            {% endif %}
+        </section>
+    </div> {# End fp-results-container-card #}
+</div>
+{% endblock %}

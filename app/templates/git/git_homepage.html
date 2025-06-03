@@ -1,0 +1,263 @@
+{% from "git/includes/_language_stats.html" import render_language_stats with context %}
+{% extends "base.html" %}
+
+{% block title %}Git Repositories - PyCloud{% endblock %} {# More specific title #}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="git-page-container git-hp-page-container"> {# Changed class for clarity if needed, or use general .git-page-container #}
+    <header class="git-hp-page-header">
+        <h1 class="git-hp-main-title">Explore Repositories</h1> {# Changed title to be more descriptive #}
+        <p class="git-hp-subtitle">Discover public projects hosted on PyCloud.</p>
+        {% if current_user.is_authenticated %}
+            <div class="git-hp-user-actions"> {# Wrapper for user actions #}
+                <a href="{{ url_for('git.create_repo_route') }}" class="git-btn git-btn-primary git-hp-new-repo-link">
+<svg  class="git-btn-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.5"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                    New Repo
+                </a>
+                <br>
+                <br>
+                <a href="{{ url_for('git.mygit') }}" class="git-btn git-btn-secondary git-hp-my-repos-link">
+<svg  class="git-btn-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                    My Repos
+                </a>
+            </div>
+        {% else %}
+            <a href="{{ url_for('auth.login', next=request.url) }}" class="git-btn git-btn-primary git-hp-login-link">
+                Login to Create & Manage Repositories
+            </a>
+        {% endif %}
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages-container" style="padding: 0 1rem; margin-bottom: 1rem;">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show git-flash-message" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close git-flash-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <section class="git-hp-public-repos-section">
+        <h2 class="git-hp-section-title">Public Repositories</h2>
+        {% if public_repos_data %}
+            <div class="git-mygit-repo-grid"> {# Reusing .git-mygit-repo-grid for card layout #}
+                {% for item_data in public_repos_data %}
+                    {% set repo = item_data.repo %}
+                    {% set git_details = item_data.git_details %}
+                    {% set language_stats = item_data.language_stats %} {# Ensure this is passed by the route #}
+                    {% set starred_by_current_user = item_data.current_user_starred %}
+
+                    <article class="git-mygit-repo-card">
+                        <div class="git-mygit-repo-card-header">
+                            <h3 class="git-mygit-repo-name">
+                                <a href="{{ url_for('git.view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-mygit-repo-link">
+<svg  class="git-mygit-repo-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                    {{ repo.owner.username }} / {{ repo.name }}
+                                </a>
+                            </h3>
+                            {# Public repos on homepage are always public, badge is less critical here but can be kept for consistency #}
+                            <span class="git-repo-header-visibility-badge git-repo-header-visibility-badge-public">Public</span>
+                        </div>
+
+                        {% if repo.description %}
+                        <p class="git-mygit-repo-description">{{ repo.description|truncate(100) }}</p>
+                        {% else %}
+                        <p class="git-mygit-repo-description git-mygit-repo-description-empty">No description provided.</p>
+                        {% endif %}
+
+                        <div class="git-repo-list-item-langs">
+                            {{ render_language_stats(language_stats, repo_id=repo.id) }}
+                        </div>
+                          <div class="git-mygit-repo-metadata">
+{% if git_details and not git_details.error and git_details.last_commit_date %}
+    <div class="git-mygit-repo-commit-count">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-git-commit" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+            <path d="M12 3l0 6" />
+            <path d="M12 15l0 6" />
+        </svg>
+        {{ git_details.commit_count }} Commits
+    </div>
+    <div class="git-mygit-repo-last-update">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+            <path d="M12 12l3 2" />
+            <path d="M12 7v5" />
+        </svg>
+        Last Commit: {% if git_details.last_commit_date %}{{ naturaltime(git_details.last_commit_date) }}{% else %}N/A{% endif %}
+    </div>
+{% elif repo.updated_at %} {# Fallback to repo DB update time #}
+    <div class="git-mygit-repo-last-update">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-4" style="transform: translateY(5px);">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+            <path d="M12 12l3 2" />
+            <path d="M12 7v5" />
+        </svg>
+        Updated {{ naturaltime(repo.updated_at) }}
+    </div>
+{% endif %}
+
+                                {% if repo.source_repo %}
+                                <div class="git-mygit-forked-from"> {# Changed span to div #}
+                                    <i class="fas fa-code-branch"></i>
+                                    Forked from <a href="{{ url_for('git.view_repo_root', owner_username=repo.source_repo.owner.username, repo_short_name=repo.source_repo.name) }}" class="git-link">{{ repo.source_repo.owner.username }}/{{ repo.source_repo.name }}</a>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                        <div class="git-mygit-repo-card-footer">
+                            <div class="git-mygit-repo-clone-info">
+                                {# Clone URL can be simplified or removed for homepage if too cluttered #}
+                            </div>
+                            <div class="git-hp-repo-card-actions"> {# Specific class for homepage actions #}
+                                {% if current_user.is_authenticated %}
+                                    <button class="git-btn git-btn-sm git-btn-outline git-star-button {% if starred_by_current_user %}starred{% else %}unstarred{% endif %}"
+                                            data-repo-id="{{ repo.id }}"
+                                            data-starred="{{ 'true' if starred_by_current_user else 'false' }}"
+                                            data-is-authenticated="true"
+                                            title="{{ 'Unstar' if starred_by_current_user else 'Star' }} this repository">
+                                        <i class="{% if starred_by_current_user %}fas fa-star{% else %}far fa-star{% endif %}"></i>
+                                        <span class="star-count-display">{{ repo.star_count }}</span>
+                                    </button>
+                                {% else %}
+                                    <a href="{{ url_for('auth.login', next=request.url) }}"
+                                       class="git-btn git-btn-sm git-btn-outline git-star-button unstarred"
+                                       data-is-authenticated="false"
+                                       title="Log in to star this repository">
+                                        <i class="far fa-star"></i>
+                                        <span class="star-count-display">{{ repo.star_count }}</span>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="git-hp-no-public-repos-message"> {# Or use general .git-no-results class #}
+                <h3 class="git-mygit-no-repos-title">No Public Repositories</h3>
+                <p class="git-mygit-no-repos-text">There are currently no public repositories to display. {% if current_user.is_authenticated %}Why not <a href="{{ url_for('git.create_repo_route') }}" class="git-link">create one</a>?{% endif %}</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Copy clone URL script (if you keep the clone URL input)
+        document.querySelectorAll('.git-mygit-repo-copy-clone-url-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const inputField = this.previousElementSibling; // Assuming input is always before button
+                if (inputField && typeof inputField.select === 'function') {
+                    inputField.select();
+                    try {
+                        document.execCommand('copy');
+                        this.title = 'Copied!';
+                        const originalIconHTML = this.innerHTML;
+                        this.innerHTML = '<svg class="git-btn-icon git-btn-icon-no-text" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg>'; // Checkmark
+                        setTimeout(() => {
+                            this.title = 'Copy clone URL';
+                            this.innerHTML = originalIconHTML;
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy clone URL: ', err);
+                        this.title = 'Copy failed';
+                         if(typeof showToast === 'function') showToast('Failed to copy URL.', 'error');
+                    }
+                    inputField.blur();
+                }
+            });
+        });
+
+        // Star/Unstar functionality
+        document.querySelectorAll('.git-star-button').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const isAuthenticated = this.dataset.isAuthenticated === 'true';
+
+                if (!isAuthenticated) {
+                    // alert('Please log in to star or unstar repositories.'); // Replaced with redirect
+                    window.location.href = "{{ url_for('auth.login', next=request.url) }}";
+                    return;
+                }
+
+                const repoId = this.dataset.repoId;
+                if (!repoId) return;
+
+                let isCurrentlyStarred = this.dataset.starred === 'true';
+                const url = isCurrentlyStarred ? `/git/repo/${repoId}/unstar` : `/git/repo/${repoId}/star`;
+                const starIcon = this.querySelector('i');
+                const starCountDisplay = this.querySelector('.star-count-display');
+
+
+                this.disabled = true;
+
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                    }
+                })
+                .then(response => {
+                    this.disabled = false; // Re-enable button
+                    if (!response.ok) {
+                        return response.json().then(errData => { throw new Error(errData.message || `Server error: ${response.status}`); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        this.dataset.starred = data.starred ? 'true' : 'false';
+                        if (data.starred) {
+                            this.classList.remove('unstarred'); this.classList.add('starred');
+                            if (starIcon) { starIcon.classList.remove('far'); starIcon.classList.add('fas'); }
+
+                            this.title = 'Unstar this repository';
+                        } else {
+                            this.classList.remove('starred'); this.classList.add('unstarred');
+                            if (starIcon) { starIcon.classList.remove('fas'); starIcon.classList.add('far'); }
+
+                            this.title = 'Star this repository';
+                        }
+                        if (starCountDisplay) {
+                            starCountDisplay.textContent = data.star_count;
+                        }
+                        if(typeof showToast === 'function') showToast(data.message, 'success');
+
+                    } else {
+
+                        if(typeof showToast === 'function') showToast('Error: ' + (data.message || 'Could not update star status.'), 'error');
+                        else alert('Error: ' + (data.message || 'Could not update star status.'));
+                    }
+                })
+                .catch(error => {
+                    this.disabled = false; // Re-enable button
+
+                    console.error('Star/Unstar Fetch Error:', error);
+                    if(typeof showToast === 'function') showToast('Network error: ' + error.message, 'error');
+                    else alert('An network error occurred: ' + error.message);
+                });
+            });
+        });
+    });
+    </script>
+{% endblock %}

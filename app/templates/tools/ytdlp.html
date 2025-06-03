@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Youtube Downloader - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ytdlp.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ytdlp-page-container">
+    <header class="ytdlp-header">
+        <h2>YouTube Downloader</h2>
+        <p>Enter the URL of the YouTube video and choose your preferred format and quality.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('tool_routes.ytdlp_downloader') }}" class="ytdlp-form" id="ytdlpForm">
+        {{ form.hidden_tag() }} {# CSRF token #}
+
+        <div class="mb-3">
+            {{ form.youtube_url.label(class="form-label") }}
+            {{ form.youtube_url(class="form-control form-control-lg", placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ") }}
+            {% if form.youtube_url.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.youtube_url.errors %}
+                        <span>{{ error }}</span><br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="ytdlp-options-grid">
+            <div class="mb-3">
+                {{ form.download_format.label(class="form-label") }}
+                {{ form.download_format(class="form-select form-select-lg", id="downloadFormat") }}
+                {% if form.download_format.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.download_format.errors %}<span>{{ error }}</span><br>{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3" id="videoQualityGroup">
+                {{ form.video_quality.label(class="form-label") }}
+                {{ form.video_quality(class="form-select form-select-lg", id="videoQuality") }}
+                {% if form.video_quality.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.video_quality.errors %}<span>{{ error }}</span><br>{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" id="downloadButton">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            <span class="button-text">Download</span>
+        </button>
+    </form>
+
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const downloadFormatSelect = document.getElementById('downloadFormat');
+    const videoQualityGroup = document.getElementById('videoQualityGroup');
+    const ytdlpForm = document.getElementById('ytdlpForm');
+    const downloadButton = document.getElementById('downloadButton');
+    const buttonSpinner = downloadButton.querySelector('.spinner-border');
+    const buttonText = downloadButton.querySelector('.button-text');
+    // const buttonIcon = downloadButton.querySelector('.bi-download'); // Icon not present in HTML
+
+    function toggleVideoQuality() {
+        if (downloadFormatSelect.value === 'mp4') {
+            videoQualityGroup.style.display = 'block';
+        } else {
+            videoQualityGroup.style.display = 'none';
+        }
+    }
+
+    if (downloadFormatSelect && videoQualityGroup) {
+        downloadFormatSelect.addEventListener('change', toggleVideoQuality);
+        // Initial check
+        toggleVideoQuality();
+    }
+
+    if (ytdlpForm && downloadButton && buttonSpinner && buttonText) {
+        ytdlpForm.addEventListener('submit', function() {
+            buttonSpinner.style.display = 'inline-block';
+            // if (buttonIcon) buttonIcon.style.display = 'none';
+            buttonText.textContent = 'Processing...';
+            downloadButton.disabled = true;
+        });
+    }
+});
+</script>
+{% endblock %}

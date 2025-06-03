@@ -1,0 +1,358 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}{{ repo.name }} Settings - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git_settings_tabs.css') }}"> {# New CSS for tabs #}
+{% endblock %}
+
+{% block breadcrumbs_override %}
+    {# Using the existing breadcrumb structure, but it will inherit new CSS styles #}
+    <nav class="git-breadcrumb-container git-rs-breadcrumb-container" aria-label="Breadcrumb">
+        <ol role="list" class="git-breadcrumb-list">
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <a href="{{ url_for('git.mygit') }}" class="git-breadcrumb-link git-breadcrumb-link-home"> {# Changed from 'dashboard' to 'mygit' based on earlier context #}
+                        <svg class="git-breadcrumb-icon git-breadcrumb-icon-home" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+                        <span class="git-sr-only">My Repositories</span>
+                    </a>
+                </div>
+            </li>
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <svg class="git-breadcrumb-icon git-breadcrumb-separator-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" /></svg>
+                    <a href="{{ url_for('git.view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-breadcrumb-link">{{ owner_username }}/{{ repo_short_name }}</a>
+                </div>
+            </li>
+            <li class="git-breadcrumb-item">
+                <div class="git-breadcrumb-item-content">
+                    <svg class="git-breadcrumb-icon git-breadcrumb-separator-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" /></svg>
+                    <span class="git-breadcrumb-current">Settings</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+{% endblock breadcrumbs_override %}
+
+{% block repo_content %}
+<div class="git-rs-page-container">
+    <header class="git-rs-page-header">
+        <h1 class="git-rs-main-title">Repository Settings</h1>
+        <p class="git-rs-subtitle">Manage <strong class="git-rs-repo-identifier">{{ owner_username }}/{{ repo_short_name }}</strong> and its properties.</p>
+    </header>
+
+    {# --- TABS START --- #}
+    <div class="git-tabs-container">
+        <div class="git-tab-nav">
+            <button class="git-tab-button active" onclick="openGitSettingsTab(event, 'GeneralSettings')">General</button>
+            <button class="git-tab-button" onclick="openGitSettingsTab(event, 'Collaborators')">People</button>
+            {% if current_user.username == owner_username %}
+            <button class="git-tab-button" onclick="openGitSettingsTab(event, 'DangerZone')">Danger Zone</button>
+            {% endif %}
+        </div>
+
+        {# --- General Settings Tab Content --- #}
+        <div id="GeneralSettings" class="git-tab-content active">
+            <form method="POST" action="{{ url_for('git.repo_settings', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-rs-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <section class="git-rs-settings-group">
+                    <div class="git-rs-setting-section">
+                        <div class="git-rs-setting-label-group">
+                            <h3 class="git-rs-section-title">Repository Name</h3>
+                            <p class="git-rs-section-description">Change the name of your repository. This will also change its URL. Allowed characters: alphanumeric, underscores, hyphens.</p>
+                        </div>
+                        <div class="git-rs-setting-control-group">
+                            <input type="text" name="repo_name" id="repo_name" value="{{ repo.name }}"
+                                   class="git-form-input git-rs-repo-name-input"
+                                   pattern="[a-zA-Z0-9_-]+" title="Only alphanumeric characters, underscores, and hyphens.">
+                        </div>
+                    </div>
+
+                    <div class="git-rs-setting-section">
+                        <div class="git-rs-setting-label-group">
+                            <h3 class="git-rs-section-title">Description</h3>
+                            <p class="git-rs-section-description">A short, optional description of your repository. This will be visible on the repository page.</p>
+                        </div>
+                        <div class="git-rs-setting-control-group">
+                            <textarea id="description" name="description" rows="4"
+                                      class="git-form-input git-rs-description-textarea"
+                                      placeholder="My awesome project about...">{{ repo.description or '' }}</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="git-rs-settings-group">
+                    <div class="git-rs-setting-section git-rs-visibility-section">
+                         <div class="git-rs-setting-label-group">
+                            <h3 class="git-rs-section-title">Visibility</h3>
+                            <p class="git-rs-section-description">Control who can see and fork this repository.</p>
+                        </div>
+                        <div class="git-rs-setting-control-group">
+                            <div class="git-rs-visibility-options">
+                                <label class="git-rs-visibility-option {% if not repo.is_private %}git-rs-visibility-option-selected{% endif %}">
+                                    <input type="radio" name="visibility" value="public" class="git-form-radio git-rs-visibility-radio" {% if not repo.is_private %}checked{% endif %}>
+                                    <div class="git-rs-visibility-option-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-world"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M3.6 9h16.8" /><path d="M3.6 15h16.8" /><path d="M11.5 3a17 17 0 0 0 0 18" /><path d="M12.5 3a17 17 0 0 1 0 18" /></svg>
+                                    </div>
+                                    <span class="git-rs-visibility-option-details">
+                                        <strong class="git-rs-visibility-option-name">Public</strong>
+                                        <span class="git-rs-visibility-option-desc">Anyone on the internet can see this repository. You choose who can commit.</span>
+                                    </span>
+                                </label>
+                                <label class="git-rs-visibility-option {% if repo.is_private %}git-rs-visibility-option-selected{% endif %}">
+                                    <input type="radio" name="visibility" value="private" class="git-form-radio git-rs-visibility-radio" {% if repo.is_private %}checked{% endif %}>
+                                    <div class="git-rs-visibility-option-icon">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-lock"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg>
+                                    </div>
+                                     <span class="git-rs-visibility-option-details">
+                                        <strong class="git-rs-visibility-option-name">Private</strong>
+                                        <span class="git-rs-visibility-option-desc">You choose who can see and commit to this repository.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <div class="git-rs-form-actions">
+                    <a href="{{ url_for('git.view_repo_root', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-btn git-btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="git-btn git-btn-primary">
+                        Save Repository Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {# --- Collaborators Tab Content --- #}
+        <div id="Collaborators" class="git-tab-content">
+            <section class="git-rs-settings-group" id="collaborators-section">
+                <div class="git-rs-setting-section">
+                    <div class="git-rs-setting-label-group">
+                        <h3 class="git-rs-section-title">People Who Can Commit</h3>
+                        <p class="git-rs-section-description">Manage who has commit access to this repository. Collaborators can pull and push changes.</p>
+                    </div>
+                    <div class="git-rs-setting-control-group">
+                        {% if current_user.username == owner_username %}
+                        <form method="POST" action="{{ url_for('git.add_collaborator_route', owner_username=owner_username, repo_short_name=repo_short_name) }}" class="git-rs-collaborator-add-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label for="username_to_add" class="git-form-label">Add Collaborator</label>
+                            <div class="git-rs-collaborator-input-group">
+                                <input type="text" name="username_to_add" id="username_to_add"
+                                       class="git-form-input git-rs-collaborator-username-input"
+                                       placeholder="Enter username">
+                                <button type="submit" class="git-btn git-btn-primary git-rs-collaborator-add-btn">
+<svg  xmlns="http://www.w3.org/2000/svg"  width="20"  height="20"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+
+                        {% if repo.collaborators and repo.collaborators.count() > 0 %}
+                            <div class="git-rs-collaborator-list-container">
+                                <h4 class="git-rs-subsection-title">Current Collaborators:</h4>
+                                <ul class="git-rs-collaborator-list">
+                                    {% for collaborator in repo.collaborators %}
+                                    <li class="git-rs-collaborator-item">
+                                        <span class="git-rs-collaborator-name">
+                                            <a href="{{ url_for('main_routes.user_profile', username=collaborator.username) }}" class="git-link-profile">
+                                                {% if collaborator.profile_picture_filename %}
+                                                    <img src="{{ url_for('static', filename='uploads/profile_pics/' + collaborator.profile_picture_filename) }}" alt="{{ collaborator.username }}'s profile picture" class="git-collaborator-pfp">
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename='icons/default-pfp.svg') }}" alt="Default avatar" class="git-collaborator-pfp"> {# Fallback avatar #}
+                                                {% endif %}
+                                                {{ collaborator.username }}
+                                            </a>
+                                        </span>
+                                        {% if current_user.username == owner_username %}
+                                        <form method="POST" action="{{ url_for('git.remove_collaborator_route', owner_username=owner_username, repo_short_name=repo_short_name, collaborator_user_id=collaborator.id) }}" class="git-rs-collaborator-remove-form" onsubmit="return confirm('Are you sure you want to remove {{ collaborator.username }} as a collaborator?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="git-btn git-btn-danger git-btn-small git-rs-collaborator-remove-btn">
+                                                Remove
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <p class="git-rs-no-collaborators-message">This repository currently has no collaborators other than the owner.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        {# --- Danger Zone Tab Content --- #}
+        {% if current_user.username == owner_username %}
+        <div id="DangerZone" class="git-tab-content">
+            <hr class="git-rs-divider" style="display:none;"> {# Already a section, divider might be redundant #}
+            <section class="git-rs-settings-group git-rs-danger-zone">
+                <div class="git-rs-setting-section">
+                    <div class="git-rs-setting-label-group">
+                        <h3 class="git-rs-section-title">Danger Zone</h3>
+                         <p class="git-rs-section-description">Be careful, these actions are destructive.</p>
+                    </div>
+                    <div class="git-rs-setting-control-group">
+                        <form method="POST"
+                              id="deleteRepoForm"
+                              action="{{ url_for('git.delete_repo_route', repo_id=repo.id) }}"
+                              class="git-rs-delete-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="button" id="openDeleteRepoModalBtn" class="git-btn git-btn-danger git-rs-delete-repo-btn">Delete this repository</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+        {% endif %}
+    </div> {# End git-tabs-container #}
+
+</div>
+
+<div id="deleteRepoModal" class="git-modal git-modal-hidden" aria-labelledby="deleteRepoModalTitle" role="dialog" aria-modal="true">
+    <div class="git-modal-content git-rtv-delete-modal"> {# Using git-rtv-delete-modal for width consistency if desired, or adjust #}
+        <div class="git-modal-header">
+            <h2 id="deleteRepoModalTitle" class="git-modal-title">Delete Repository</h2>
+            <button type="button" id="closeDeleteRepoModalBtn" class="git-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="git-modal-body">
+            <div class="git-modal-icon-section">
+                <div class="git-modal-icon-wrapper git-modal-icon-wrapper-danger">
+                    <svg class="git-modal-icon git-modal-icon-danger" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div class="git-modal-text-content">
+                    <p>This action is irreversible and will permanently delete the <strong id="repoNameToDeleteInModal">{{ repo.name }}</strong> repository, including all its branches, commits, and associated data.</p>
+                    <p>To confirm, please type <strong class="git-code">{{ repo.name }}</strong> in the box below.</p>
+                </div>
+            </div>
+            <div class="git-cr-form-group" style="margin-top: var(--git-space-4);">
+                <label for="repoNameConfirmInput" class="git-form-label git-sr-only">Repository Name</label>
+                <input type="text" id="repoNameConfirmInput" class="git-form-input" placeholder="Enter repository name" autocomplete="off" aria-label="Confirm repository name">
+                <p id="repoNameMatchError" class="git-form-help-text" style="color: var(--error-color); display: none; margin-top: var(--git-space-1);">The entered name does not match the repository name.</p>
+            </div>
+        </div>
+<div class="git-modal-footer" style="display: flex; gap: 10px;">
+    <button type="button" id="cancelDeleteRepoModalBtn" class="git-btn git-btn-secondary git-modal-cancel-btn">Cancel</button>
+    <button type="button" id="confirmDeleteRepoBtn" class="git-btn git-btn-secondary" disabled>Delete Repository</button>
+</div>
+    </div>
+</div>
+<script>
+// Original Tab Script
+function openGitSettingsTab(evt, tabName) {
+    var i, tabcontent, tabbuttons;
+    tabcontent = document.getElementsByClassName("git-tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+        tabcontent[i].classList.remove("active");
+    }
+    tabbuttons = document.getElementsByClassName("git-tab-button");
+    for (i = 0; i < tabbuttons.length; i++) {
+        tabbuttons[i].classList.remove("active");
+    }
+    document.getElementById(tabName).style.display = "block";
+    document.getElementById(tabName).classList.add("active");
+    evt.currentTarget.classList.add("active");
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Default tab opening logic
+    const firstTabButton = document.querySelector(".git-tab-button");
+    if (firstTabButton) {
+        firstTabButton.click();
+    }
+
+    if(window.location.hash === "#collaborators-section") {
+        const collabButton = Array.from(document.getElementsByClassName("git-tab-button")).find(btn => btn.getAttribute('onclick').includes('Collaborators'));
+        if (collabButton) {
+            collabButton.click();
+        }
+    }
+
+    // --- MODAL SCRIPT START ---
+    const deleteRepoModal = document.getElementById('deleteRepoModal');
+    const openDeleteModalBtn = document.getElementById('openDeleteRepoModalBtn');
+    const closeDeleteModalBtn = document.getElementById('closeDeleteModalBtn');
+    const cancelDeleteModalBtn = document.getElementById('cancelDeleteModalBtn');
+    const repoNameConfirmInput = document.getElementById('repoNameConfirmInput');
+    const confirmDeleteRepoBtn = document.getElementById('confirmDeleteRepoBtn');
+    const deleteRepoForm = document.getElementById('deleteRepoForm');
+    const repoNameMatchError = document.getElementById('repoNameMatchError');
+
+    const repoNameToDelete = {{ repo.name|tojson }}; // Use tojson for safety
+
+    function openDeleteModal() {
+        if (!deleteRepoModal) return;
+        deleteRepoModal.classList.remove('git-modal-hidden');
+        repoNameConfirmInput.value = '';
+        confirmDeleteRepoBtn.disabled = true;
+        confirmDeleteRepoBtn.classList.remove('git-btn-danger');
+        confirmDeleteRepoBtn.classList.add('git-btn-secondary');
+        if(repoNameMatchError) repoNameMatchError.style.display = 'none';
+        repoNameConfirmInput.focus();
+    }
+
+    function closeDeleteModal() {
+        if (!deleteRepoModal) return;
+        deleteRepoModal.classList.add('git-modal-hidden');
+    }
+
+    if (openDeleteModalBtn) {
+        openDeleteModalBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            openDeleteModal();
+        });
+    }
+
+    if (closeDeleteModalBtn) {
+        closeDeleteModalBtn.addEventListener('click', closeDeleteModal);
+    }
+
+    if (cancelDeleteModalBtn) {
+        cancelDeleteModalBtn.addEventListener('click', closeDeleteModal);
+    }
+
+    if (deleteRepoModal) {
+        deleteRepoModal.addEventListener('click', function(event) {
+            if (event.target === deleteRepoModal) {
+                closeDeleteModal();
+            }
+        });
+    }
+
+    if (repoNameConfirmInput) {
+        repoNameConfirmInput.addEventListener('input', function() {
+            if (repoNameConfirmInput.value === repoNameToDelete) {
+                confirmDeleteRepoBtn.disabled = false;
+                confirmDeleteRepoBtn.classList.remove('git-btn-secondary');
+                confirmDeleteRepoBtn.classList.add('git-btn-danger');
+                if(repoNameMatchError) repoNameMatchError.style.display = 'none';
+            } else {
+                confirmDeleteRepoBtn.disabled = true;
+                confirmDeleteRepoBtn.classList.add('git-btn-secondary');
+                confirmDeleteRepoBtn.classList.remove('git-btn-danger');
+                if (repoNameConfirmInput.value.length > 0 && repoNameMatchError) {
+                    repoNameMatchError.style.display = 'block';
+                } else if (repoNameMatchError) {
+                    repoNameMatchError.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    if (confirmDeleteRepoBtn && deleteRepoForm) {
+        confirmDeleteRepoBtn.addEventListener('click', function() {
+            if (repoNameConfirmInput.value === repoNameToDelete && !confirmDeleteRepoBtn.disabled) {
+                deleteRepoForm.submit();
+            }
+        });
+    }
+    // --- MODAL SCRIPT END ---
+});
+</script>
+{% endblock repo_content %}

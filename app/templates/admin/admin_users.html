@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Manage Users{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }} {# Good practice if base might have extensions #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page-container admin-users-page">
+    <div class="admin-page-header">
+        <h1>Manage Users</h1>
+        {# Optional: Add a subtitle or brief description here if needed #}
+        {# <p class="admin-page-subtitle">View and manage user accounts.</p> #}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="admin-alerts-container">
+            {% for category, message in messages %}
+            {#
+                Alert classes are now more specific (e.g., admin-alert-dismissible).
+                This assumes that admin.css will provide the necessary styles for these classes.
+                If Bootstrap JavaScript is used for alert dismissal/animations, it might expect
+                the original 'fade' and 'show' classes. If these are changed to 'admin-fade'
+                and 'admin-show', either the JS needs to be adapted, or admin.css needs to
+                handle these states, or these specific class names ('fade', 'show') might need to be retained
+                if they are purely behavioral and don't conflict stylistically.
+                For full CSS control via admin.css, we use admin-prefixed classes.
+            #}
+            <div class="admin-alert admin-alert-{{ category }} admin-alert-dismissible admin-fade admin-show" role="alert">
+                {{ message }}
+                <button type="button" class="admin-btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <div class="admin-card-header-title">User List</div>
+            {# Placeholder for card-level actions like "Add New User" button if needed in the future #}
+            {# <div class="admin-card-header-actions">
+                <a href="#" class="admin-btn admin-btn-sm admin-btn-success">Add User</a>
+            </div> #}
+        </div>
+        <div class="admin-card-body">
+            {# Section for table controls like search, filters, etc. #}
+            <div class="admin-table-controls">
+                {# Example: <input type="search" class="admin-form-control admin-form-input-short" placeholder="Search users..."> #}
+                {# This section can be populated later with actual controls #}
+            </div>
+
+            <div class="admin-table-container"> {# Wrapper for the responsive table #}
+                <div class="admin-table-responsive">
+                    <table class="admin-table admin-table-striped admin-table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Role</th> {# Changed from "Admin" to "Role" for clarity #}
+                                <th>Max File Size</th> {# Removed (MB) for cleaner header, unit in data #}
+                                <th>Storage Used</th> {# Changed for conciseness #}
+                                <th class="admin-text-center">Actions</th> {# Centering action buttons header #}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item_data in users_with_storage %}
+                            {% set user_item = item_data.user %}
+                            {% set storage_details = item_data.storage %}
+                            <tr>
+                                <td>{{ user_item.id }}</td>
+                                <td>{{ user_item.username }}</td>
+                                <td>{{ user_item.email }}</td>
+                                <td>
+                                    {% if user_item.is_disabled %}
+                                        <span class="admin-badge admin-badge-danger">Disabled</span>
+                                    {% else %}
+                                        <span class="admin-badge admin-badge-success">Enabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user_item.is_admin %}
+                                        <span class="admin-badge admin-badge-info">Admin</span>
+                                    {% else %}
+                                        <span class="admin-badge admin-badge-secondary">User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user_item.max_file_size is not none and user_item.max_file_size > 0 %}
+                                        {{ user_item.max_file_size }} MB
+                                    {% else %}
+                                        <span class="admin-text-muted">Global Default</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ (storage_details.usage_bytes / (1024*1024)) | round(2) }} MB /
+                                    {% if storage_details.limit_mb is not none %}
+                                        {{ storage_details.limit_mb }} MB
+                                    {% else %}
+                                        <span class="admin-text-muted">Unlimited</span>
+                                    {% endif %}
+                                </td>
+                                <td class="admin-table-actions admin-text-center"> {# Centering action buttons #}
+                                    <a href="{{ url_for('admin.admin_edit_user', user_id=user_item.id) }}" class="admin-btn admin-btn-primary admin-btn-sm">Edit</a>
+                                    {# Add other actions like "Delete" or "View Profile" here if needed #}
+                                    {# <button class="admin-btn admin-btn-danger admin-btn-sm ms-1">Delete</button> #}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="admin-text-center">No users found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-page-actions mt-3"> {# mt-3 is defined in admin.css with !important, effectively making it admin-specific in this context #}
+        <a href="{{ url_for('admin.admin_settings') }}" class="admin-btn admin-btn-secondary">
+            {# Example: <i class="fas fa-arrow-left"></i> #} Back to Admin Settings {# Assuming you might add an icon library like FontAwesome later #}
+        </a>
+    </div>
+</div>
+{% endblock %}

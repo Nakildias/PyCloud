@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_post_macros.html" import display_post %} {# Import the macro #}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+    {# Link to the new view_single_post.css file #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/view_single_post.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="vsp-page-container"> {# Main wrapper for the page content #}
+
+    {# This is the page header, consistent with other pages #}
+    <div class="vsp-header">
+        <h1 class="vsp-page-title">{{ title }}</h1> {# Specific class for page title #}
+        <div class="vsp-header-actions">
+            {# Any specific actions for a single post view could go here, e.g., a "back to feed" button #}
+        </div>
+    </div>
+
+    {# This is the new card that contains the actual post content #}
+    <div class="vsp-content-card">
+        {% if post %}
+            {# The display_post macro uses pm- prefixed classes internally #}
+            {{ display_post(post, current_user, csrf_token, comment_form=comment_form) }}
+        {% else %}
+            <p class="vsp-not-found-message">Post not found or unable to display.</p> {# Specific class for error message #}
+        {% endif %}
+    </div>
+
+    {# "Go Back" link container and link with specific classes #}
+    <div class="vsp-back-link-container">
+        <a href="{{ request.referrer or url_for('post_feed') }}" class="btn btn-secondary vsp-back-link">&laquo; Go Back</a> {# Kept btn, btn-secondary, added specific #}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# Include scripts from base.html #}
+    <script src="{{ url_for('static', filename='js/posts.js') }}"></script> {# Link to the new posts.js #}
+{% endblock %}

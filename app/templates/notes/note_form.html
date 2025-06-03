@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    {# Assuming your CSS file for note forms is named note_form.css or similar to notes.css #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="nf-page-container"> {# Main wrapper for the note form page #}
+    <div class="nf-form-wrapper"> {# Wrapper to apply consistent section styling (gradient, shadow, rounded corners) #}
+        <h2 class="nf-title">{{ legend }}</h2> {# Form title (e.g., "Create New Note" or "Edit Note") #}
+
+        {# The action attribute is empty, meaning the form will submit to the current URL.
+           This is standard and correct if the same route handles both GET (displaying the form)
+           and POST (processing the form). So, no url_for correction needed here. #}
+        <form method="POST" action="" novalidate class="nf-form">
+            {{ form.hidden_tag() }} {# CSRF protection token #}
+
+            <div class="nf-form-group"> {# Form group for the note title input #}
+                {{ form.title.label(class="nf-label") }} {# Label for the title field #}
+                {{ form.title(class="form-control nf-input-title", size=50, placeholder="Enter note title...") }} {# Title input field #}
+                {% if form.title.errors %}
+                    <ul class="nf-errors"> {# Display validation errors for the title #}
+                        {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            <div class="nf-form-group"> {# Form group for the note content textarea #}
+                {{ form.content.label(class="nf-label") }} {# Label for the content field #}
+                {{ form.content(class="form-control nf-textarea-content", rows=10, placeholder="Write your note content here...") }} {# Content textarea #}
+                {% if form.content.errors %}
+                    <ul class="nf-errors"> {# Display validation errors for the content #}
+                        {% for error in form.content.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            <div class="nf-submit-group"> {# Button group for form submission and cancellation #}
+                <button type="submit" class="nl-btn nl-btn-primary nf-submit-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Save Changes {# Or "Create Note" depending on context, consider making button text dynamic #}
+                </button>
+                {# Conditional cancel button based on whether editing an existing note or creating a new one #}
+                {% if note_id %}
+                     <a href="{{ url_for('note_routes.view_note', note_id=note_id) }}" class="nl-btn nl-btn-secondary nf-cancel-button">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                         Cancel
+                     </a>
+                {% else %}
+                     <a href="{{ url_for('note_routes.list_notes') }}" class="nl-btn nl-btn-secondary nf-cancel-button">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                         Cancel
+                     </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

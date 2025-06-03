@@ -1,0 +1,94 @@
+{# templates/ollama_chat.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    {# Use the group_chat.css for styling #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/group_chat.css') }}">
+{% endblock %}
+
+{% block content %}
+    {# Main container for chat history, using group chat classes #}
+    <div id="oc-chat-history" class="gc-chat-history-area">
+        {% if ollama_chat_history %}
+            {% for message in ollama_chat_history %}
+                {# Individual message wrapper, using group chat classes #}
+                <div class="gc-chat-message-wrapper {% if message.role == 'user' %}current-user{% endif %}"
+                     data-message-id="{{ message.id if message.id else loop.index }}"> {# Added data-message-id for consistency #}
+                    {% if message.role != 'user' %} {# PFP on left for AI/System #}
+                    <div class="gc-chat-message-pfp-container">
+                        {# Ollama's "profile picture" #}
+                        <img src="{{ url_for('static', filename='icons/ollama_pfp.png') }}" alt="Ollama AI" class="gc-chat-message-pfp">
+                    </div>
+                    {% endif %}
+                    <div class="gc-chat-message">
+                        <div class="gc-message-header">
+                            {% if message.role == 'user' %}
+                                {# Directly append <a> to header, matching group_chat.js #}
+                                <a href="{{ url_for('main_routes.user_profile', username=message.sender_username) }}" class="gc-message-sender">{{ message.sender_username if message.sender_username else 'User' }}</a>
+                            {% elif message.role == 'assistant' %}
+                                <strong class="gc-message-sender">Ollama</strong>
+                            {% else %} {# For 'thinking' or other system messages #}
+                                <strong class="gc-message-sender">System:</strong>
+                            {% endif %}
+                            {% if message.timestamp %}
+                                <span class="gc-message-timestamp" data-timestamp="{{ message.timestamp }}"></span>
+                            {% endif %}
+                        </div>
+                        {# IMPORTANT FIX: Use Jinja2 whitespace control to prevent leading spaces on refresh #}
+                        <div class="gc-message-content">{{- message.content -}}</div>
+                    </div>
+                    {% if message.role == 'user' %} {# PFP on right for user #}
+                    <div class="gc-chat-message-pfp-container">
+                        {# User's profile picture: Assumes message.sender_profile_picture_filename is available #}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + message.sender_profile_picture_filename) if message.sender_profile_picture_filename else url_for('static', filename='icons/default-pfp.svg') }}"
+                             alt="{{ message.sender_username if message.sender_username else 'User' }}"
+                             class="gc-chat-message-pfp">
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            {# Empty history message, using group chat classes #}
+            <p id="oc-empty-chat-msg" class="gc-empty-chat-message">
+                Ollama chat history is empty. Start by sending a message.
+            </p>
+        {% endif %}
+    </div>
+
+    {# Chat input form, using group chat classes #}
+    <form id="oc-chat-form" method="POST" action="#" novalidate class="gc-chat-form-element">
+        {{ form.hidden_tag() }}
+        <div class="gc-chat-input-inner">
+            {# Clear history button, using group chat classes and icons #}
+            <button type="button" id="oc-clear-history-button" class="btn gc-btn-file-attach" aria-label="Clear chat history" title="Clear chat history">
+                <img src="{{ url_for('static', filename='icons/trash.svg') }}" alt="Clear History" class="gc-icon-upload">
+            </button>
+            {# Textarea for message input, using group chat classes #}
+            {{ form.message(class="form-control gc-message-input-textarea", rows="1", placeholder="Type your message...", id="oc-message-textarea") }}
+            {# Send button, using group chat classes #}
+            <button type="submit" id="oc-send-button" class="btn btn-primary gc-btn-send" aria-label="Send message">
+                <img src="{{ url_for('static', filename='icons/send.svg') }}" alt="Send" class="gc-icon-send">
+            </button>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# Include scripts from base.html if any #}
+
+    <script>
+        // Define a global configuration object for Ollama chat
+        window.ollamaChatConfig = {
+            apiSendUrl: "{{ url_for('chat_routes.api_ollama_chat_send') }}",
+            clearHistoryUrl: "{{ url_for('chat_routes.clear_ollama_chat_history') }}",
+            currentUserId: "{{ current_user.id }}",
+            currentUsername: "{{ current_user.username }}",
+            currentUserPfpFilename: "{{ current_user.profile_picture_filename if current_user.profile_picture_filename else '' }}"
+        };
+    </script>
+    {# Link to the rewritten ollama_chat.js #}
+    <script src="{{ url_for('static', filename='js/ollama_chat.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,277 @@
+{# templates/files.html #}
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() }}
+    {# Assuming your CSS file is named files.css or similar, not files_routes.files_routes.css #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+{% endblock %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="fl-page-container"> {# Main wrapper for the files page content #}
+    {# --- Page Header & Breadcrumbs --- #}
+    <div class="fl-header-bar">
+        <h2 class="fl-page-title">
+            <nav aria-label="breadcrumb" class="fl-breadcrumb-nav">
+                <ol class="fl-breadcrumb">
+                    <li class="fl-breadcrumb-item">
+                        {# Corrected this line based on the error #}
+                        <a href="{{ url_for('file_routes.list_files') }}">My Files</a>
+                    </li>
+                    {% for crumb in breadcrumbs %}
+                        <li class="fl-breadcrumb-item" aria-current="page">
+                            <a href="{{ url_for('file_routes.list_files', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ol>
+            </nav>
+        </h2>
+        <p class="fl-storage-usage-display">
+            {{ usage_mb }} MB / {{ limit_display }} {{ limit_type_indicator }}
+        </p>
+    </div>
+
+    {# --- Action Buttons Area --- #}
+    <div class="fl-actions-toolbar-top">
+        <button id="fl-btn-show-create-folder" class="btn btn-secondary btn-sm fl-btn-show-create-folder">
+        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-folder-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5" /><path d="M16 19h6" /><path d="M19 16v6" /></svg>
+        </button>
+        <button id="fl-btn-paste" class="btn btn-primary btn-sm fl-btn-paste" style="display: none;">Paste</button>
+
+        <div id="fl-multi-select-actions-toolbar" class="fl-multi-select-actions-toolbar" style="display: none;">
+            <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-scissors"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.6 8.6l10.4 10.4" /><path d="M8.6 15.4l10.4 -10.4" /></svg>
+            </button>
+            <button id="fl-btn-copy-selected" class="btn btn-secondary btn-sm fl-btn-copy-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-copy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>
+            </button>
+            <button id="fl-btn-archive-selected" class="btn btn-secondary btn-sm fl-btn-archive-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-archive"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" /><path d="M10 12l4 0" /></svg>
+            </button>
+            <button id="fl-btn-unarchive-selected" class="btn btn-secondary btn-sm fl-btn-unarchive-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-archive-off"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 4h11a2 2 0 1 1 0 4h-7m-4 0h-3a2 2 0 0 1 -.826 -3.822" /><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 1.824 -1.18m.176 -3.82v-7" /><path d="M10 12h2" /><path d="M3 3l18 18" /></svg>
+            </button>
+            <button id="fl-btn-edit-selected" class="btn btn-secondary btn-sm fl-btn-edit-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
+            </button>
+            <button id="fl-btn-share-selected" class="btn btn-secondary btn-sm fl-btn-share-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-share"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.7 10.7l6.6 -3.4" /><path d="M8.7 13.3l6.6 3.4" /></svg>
+            </button>
+            <button id="fl-btn-download-selected" class="btn btn-primary btn-sm fl-btn-download-selected" style="display: none;">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-download"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
+            </button>
+            <button id="fl-btn-delete-selected" class="btn btn-danger btn-sm fl-btn-delete-selected">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+            </button>
+        </div>
+
+        <form id="fl-form-create-folder" method="POST" action="{{ url_for('file_routes.create_folder') }}" class="fl-form-create-folder" style="display: none;" novalidate>
+            {{ create_folder_form.hidden_tag() }}
+            <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
+            <div class="fl-create-folder-form-inner">
+                <div class="form-group fl-form-group-foldername" style="flex-grow: 1; margin-bottom: 0;">
+                    {{ create_folder_form.name(class="form-control form-control-sm fl-input-foldername", placeholder="New folder name...", required=True, autocomplete="off") }}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm fl-btn-submit-foldername">{{ create_folder_form.submit.label }}</button>
+                <button type="button" id="fl-btn-cancel-create-folder" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    {# --- Upload Form Section --- #}
+    <div class="fl-upload-section" id="fl-drop-zone">
+        <h3 class="fl-upload-title">Upload New File {{ "to '" + current_folder.name + "'" if current_folder else "to Root" }}</h3>
+        <p class="fl-upload-guidance">Drag files here or use the button below</p>
+        <form id="fl-upload-form" method="POST" action="{{ url_for('file_routes.upload_file_route') }}" enctype="multipart/form-data" novalidate class="fl-upload-form-element">
+            {{ upload_form.hidden_tag() }}
+            <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}" id="fl-upload-parent-folder-id">
+            <div class="fl-upload-input-wrapper">
+                {{ upload_form.file(id="fl-file-upload-input", class="visually-hidden fl-input-file-actual") }}
+                <label for="fl-file-upload-input" class="btn btn-secondary btn-sm fl-btn-browse-files">
+                    Browse Files...
+                </label>
+            </div>
+            <div class="fl-upload-info-group">
+                {% if upload_form.file.errors %}
+                    <ul class="errors fl-upload-errors">{% for error in upload_form.file.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+                <small class="fl-upload-size-limit">Max size per file: {{ max_upload_mb }} MB</small>
+            </div>
+        </form>
+    </div>
+
+    {# --- Folder & File List Section --- #}
+    <div class="fl-file-list-container" id="fl-file-list-container-id">
+        <table id="fl-file-list-table" class="fl-file-list-table-element">
+            <thead>
+                <tr class="fl-table-header-row">
+                    <th class="fl-th fl-th-checkbox">
+                        <input type="checkbox" id="fl-select-all-checkbox" aria-label="Select all items" class="fl-select-all-checkbox-input">
+                    </th>
+                    <th class="fl-th fl-th-name">Name</th>
+                    <th class="fl-th fl-th-size">Size</th>
+                    <th class="fl-th fl-th-modified">Modified</th>
+                </tr>
+            </thead>
+            <tbody>
+                {# NEW: Parent Folder (..) entry #}
+                {% if current_folder %}
+                    <tr class="fl-item-row fl-folder-row fl-parent-folder-row"
+                        data-item-id="{{ parent_folder.id if parent_folder else 'null' }}"
+                        data-item-type="folder"
+                        data-item-name=".."
+                        data-is-parent-folder="true" {# Add this attribute for JS #}
+                        draggable="false"> {# Explicitly make this non-draggable for now #}
+                        <td class="fl-td fl-td-name" colspan="4">
+                            <div class="fl-item-info-wrapper">
+                                <div class="fl-item-header">
+                                    <span class="fl-item-icon fl-item-icon-folder">⬆️</span> {# Up arrow emoji #}
+                                    <span class="fl-itemname-display">
+                                        <a href="{{ url_for('file_routes.list_files', folder_id=parent_folder.id if parent_folder else None) }}">..</a>
+                                    </span>
+                                </div>
+                                <div class="fl-item-details">
+                                    <span class="fl-td-size">--</span>
+                                    <span class="fl-td-modified"></span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+
+                {% for folder in subfolders %}
+                <tr class="fl-item-row fl-folder-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}">
+                    <td class="fl-td fl-td-name" colspan="4">
+                        <div class="fl-item-info-wrapper">
+                            <div class="fl-item-header">
+                                <span class="fl-item-icon fl-item-icon-folder">📁</span>
+                                <span class="fl-itemname-display" id="fl-foldername-display-{{ folder.id }}">
+                                    <a href="{{ url_for('file_routes.list_files', folder_id=folder.id) }}">{{ folder.name }}</a>
+                                </span>
+                                <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
+                            </div>
+                            <div class="fl-item-details">
+                                <span class="fl-td-size">--</span>
+                                <span class="fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% for file in files %}
+                {% set is_viewable = file.mime_type in config.get('VIEWABLE_MIMES', {}) %}
+                {% set file_ext = file.original_filename.split('.')[-1]|lower if '.' in file.original_filename else '' %}
+                {% set is_extractable = file_ext in ['zip', '7z', 'rar'] %}
+                <tr class="fl-item-row fl-file-row"
+                    data-item-id="{{ file.id }}"
+                    data-item-type="file"
+                    data-item-name="{{ file.original_filename|escape }}"
+                    data-is-public="{{ 'true' if file.is_public else 'false' }}"
+                    data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}"
+                    data-public-id="{{ file.public_id }}"
+                    {# Assuming serve_shared_file is in main_routes or a root blueprint #}
+                    data-share-url="{{ url_for('file_routes.serve_shared_file_unprefixed', public_id=file.public_id, _external=True) if file.public_id else '' }}"
+                    data-is-editable="{{ 'true' if file.is_editable else 'false' }}"
+                    data-file-ext="{{ file_ext }}">
+                    <td class="fl-td fl-td-name" colspan="4">
+                        <div class="fl-item-info-wrapper">
+                            <div class="fl-item-header">
+                                <span class="fl-item-icon fl-item-icon-file">
+                                    {% set video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'] %}
+                                    {% set audio_extensions = ['mp3', 'ogg', 'wav', 'flac', 'm4a', 'aac'] %}
+                                    {% set disk_image_extensions = ['iso', 'bin', 'img', 'nrg', 'cue', 'vhd'] %}
+                                    {% set package_extensions = ['deb', 'rpm', 'dmg', 'exe', 'msi', 'apk', 'ipa', 'appimage'] %}
+                                    {% set script_extensions = ['py', 'sh', 'bash', 'bat', 'cpp', 'h', 'c', 'js', 'rb', 'pl'] %}
+                                    {% set picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico', 'icon', 'tiff'] %}
+                                    {% if file_ext in video_extensions %}<span title="Video">🎬</span>
+                                    {% elif file_ext in audio_extensions %}<span title="Audio">🔊</span>
+                                    {% elif file_ext in disk_image_extensions %}<span title="Disk Image">💿</span>
+                                    {% elif file_ext in package_extensions %}<span title="Package">📦</span>
+                                    {% elif file_ext in picture_extensions %}<span title="Picture">📷</span>
+                                    {% elif file_ext == 'jar' %}<span title="Java Executable">☕</span>
+                                    {% elif file_ext in script_extensions %}<span title="Script">📜</span>
+                                    {% elif file.is_editable %}<span title="Editable Text">📝</span>
+                                    {% elif file_ext == 'sf2' %}<span title="SF2 Soundfont">🎶</span>
+                                    {% elif file_ext == 'pdf' %}<span title="PDF Document">📄</span>
+                                    {% elif is_viewable %}<span title="Viewable">📺</span>
+                                    {% elif is_extractable %}<span title="Extractable Archive">📚</span>
+                                    {% else %}[&nbsp;]
+                                    {% endif %}
+                                </span>
+                                <span class="fl-itemname-display" id="fl-filename-display-{{ file.id }}">
+                                    {% if is_viewable %}
+                                        <a href="{{ url_for('file_routes.view_file', file_id=file.id) }}" class="fl-viewable-file-link" data-filename="{{ file.original_filename|escape }}" title="View File">{{ file.original_filename }}</a>
+                                    {% else %}
+                                        {{ file.original_filename }}
+                                    {% endif %}
+                                </span>
+                                <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-{{ file.id }}" value="{{ file.original_filename }}">
+                            </div>
+                            <span class="fl-share-icon-indicator" id="fl-share-icon-{{ file.id }}" style="display: none;" title="Copy share link">
+                                <span class="fl-password-indicator"></span>{# JS will insert 🔒 or 🔓 here #}&nbsp;🔗
+                            </span>
+                        </div>
+                        <div class="fl-item-details">
+                            <span class="fl-td-size">
+                                {% if file.filesize == 0 %} 0 B
+                                {% elif file.filesize < 1024 %} {{ file.filesize }} B
+                                {% elif file.filesize < 1024*1024 %} {{ (file.filesize / 1024)|round(2) }} KB
+                                {% else %} {{ (file.filesize / (1024*1024))|round(2) }} MB
+                                {% endif %}
+                            </span>
+                            <span class="fl-td-modified"><span data-timestamp="{{ file.upload_date | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not subfolders and not files %}
+                <tr class="fl-empty-folder-row"><td colspan="4" class="fl-empty-folder-message">This folder is empty.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <div id="fl-action-status" class="fl-action-status-bar"></div>
+
+    {# File Viewer Modal - IDs are kept for JS, classes prefixed #}
+    <div id="fl-file-viewer-modal" class="fl-modal" style="display: none;">
+        <div class="fl-modal-content">
+            <div class="fl-modal-header">
+                <h5 id="fl-modal-filename" class="fl-modal-title-text">File Name</h5>
+                <button type="button" id="fl-btn-close-modal" class="fl-modal-close-button" aria-label="Close">&times;</button>
+            </div>
+            <div class="fl-modal-body">
+                <img id="fl-file-viewer-image" src="" alt="File preview" class="fl-modal-media fl-modal-image" />
+                <video id="fl-file-viewer-video" controls src="" class="fl-modal-media fl-modal-video"></video>
+                <audio id="fl-file-viewer-audio" controls src="" class="fl-modal-media fl-modal-audio"></audio>
+                <iframe id="fl-file-viewer-iframe" src="about:blank" class="fl-modal-iframe"></iframe>
+                <div id="fl-file-viewer-unsupported" class="fl-modal-unsupported-message">
+                    <p>Preview not available for this file type.</p>
+                    <p id="fl-unsupported-filename"></p>
+                    {# Corrected download link for unsupported files in modal #}
+                    <a href="#" id="fl-unsupported-download-link" class="btn btn-primary btn-sm fl-btn-download-unsupported" download>Download File</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    window.PyCloud_ClipboardData = {{ clipboard_json | default('null') | safe }};
+    {# Assuming upload_file_route is the correct function name in file_routes.py #}
+    window.PyCloud_UploadFileURL = "{{ url_for('file_routes.upload_file_route') }}";
+    window.PyCloud_Config = {
+        VIEWABLE_MIMES_IFRAME: {{ config.get('VIEWABLE_MIMES_IFRAME', []) | tojson | safe }}
+    };
+    window.PyCloud_DownloadFileEndpoint = "{{ url_for('file_routes.download_file', file_id=0).replace('0', '') }}"; // Base URL for downloads
+</script>
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+{# Assuming your JS for this page is named files.js or similar #}
+<script src="{{ url_for('static', filename='js/files.js') }}"></script>
+{% endblock %}

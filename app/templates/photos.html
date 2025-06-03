@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/photos.css') }}">
+{% endblock %}
+
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="ph-page-container"> {# Main wrapper for the photos gallery page content #}
+
+    <header class="ph-header"> {# Section for the page title and primary action button #}
+        <h1 class="ph-page-title">{{ title }}</h1> {# Main title for the photos page #}
+        <div class="ph-header-actions"> {# Container for action buttons in the header #}
+            {# This button should take the user to the page where they can upload files (which is the file list view) #}
+            <a href="{{ url_for('file_routes.list_files') }}" class="nl-btn nl-btn-primary ph-btn-upload-photos">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                Upload Photos
+            </a>
+        </div>
+    </header>
+
+    {% if image_files %}
+        <div class="ph-gallery-grid"> {# CSS Grid container for individual photo cards #}
+            {% for image in image_files %}
+                <div class="ph-image-card" id="ph-card-{{ image.id }}"> {# Individual photo card element #}
+                    <div class="ph-image-thumbnail-container"
+                         role="button"
+                         tabindex="0"
+                         aria-label="Preview {{ image.original_filename }}"
+                         data-preview-src="{{ image.view_url }}" {# This is already correctly generated in your Python route #}
+                         data-filename="{{ image.original_filename }}"
+                         data-file-id="{{ image.id }}">
+                        <img src="{{ image.view_url }}" alt="{{ image.original_filename }}" class="ph-image-thumbnail"> {# This is also correct #}
+                    </div>
+                    <div class="ph-image-info">
+                        <p class="ph-image-name" id="ph-filename-{{ image.id }}">{{ image.original_filename }}</p>
+                        <p class="ph-image-date">Uploaded: {{ image.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="ph-empty-state"> {# Styled container for when no photos are available #}
+            <p class="ph-empty-message">You haven't uploaded any photos yet. Start by uploading your first photo!</p>
+            <a href="{{ url_for('file_routes.list_files') }}" class="nl-btn nl-btn-primary ph-btn-upload-first">
+                Upload Your First Photo
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{# Modal structure for image preview #}
+<div id="ph-preview-modal" class="ph-modal" style="display: none;" aria-labelledby="ph-modal-filename-display" aria-modal="true" role="dialog">
+    <div class="ph-modal-backdrop"></div>
+    <div class="ph-modal-content">
+        <div class="ph-modal-header">
+            <h5 id="ph-modal-filename-display" class="ph-modal-title-text">Image Preview</h5>
+            <button type="button" id="ph-btn-close-modal" class="ph-modal-close-button" aria-label="Close preview">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+        <div class="ph-modal-body">
+            <img id="ph-modal-image-preview" src="" alt="Full size preview" class="ph-modal-image">
+        </div>
+        <div class="ph-modal-footer">
+            <button type="button" id="ph-btn-modal-delete" class="nl-btn nl-btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                Delete
+            </button>
+            <button type="button" id="ph-btn-modal-rename" class="nl-btn nl-btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
+                Rename
+            </button>
+            <a href="#" id="ph-modal-download-link" class="nl-btn nl-btn-primary" download>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Download
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // These URLs are needed by photos.js for dynamic actions
+        const DELETE_FILE_URL_BASE = "{{ url_for('file_routes.delete_file_route', file_id=0) }}".slice(0, -1);
+        const RENAME_FILE_URL_BASE = "{{ url_for('file_routes.rename_file', file_id=0) }}".slice(0, -1);
+        const DOWNLOAD_FILE_URL_BASE = "{{ url_for('file_routes.download_file', file_id=0) }}".slice(0, -1);
+    </script>
+    <script src="{{ url_for('static', filename='js/photos.js') }}"></script>
+{% endblock %}

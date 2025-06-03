@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Image Upscaler - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/image_upscaler.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="upscaler-modern-wrapper">
+    <header class="upscaler-modern-header">
+        <h2>Image Upscaler</h2>
+        <p>Upload your image and select an upscale factor for a basic resize.</p>
+    </header>
+
+    <div class="upscaler-modern-main-content">
+        <div class="upscaler-modern-form-panel">
+            <form method="POST" action="{{ url_for('tool_routes.image_upscaler') }}" enctype="multipart/form-data" id="upscalerModernForm" class="upscaler-form-element">
+                {{ form.hidden_tag() }} {# CSRF token from FlaskForm #}
+
+                <div class="upscaler-modern-file-upload-area">
+                    <label for="imageFileModern" class="upscaler-modern-file-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-arrow-up-fill" viewBox="0 0 16 16">
+                            <path d="M8 2a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13h8.906C14.502 13 16 11.57 16 9.773c0-1.636-1.242-2.969-2.834-3.194C12.923 3.999 10.69 2 8 2m2.354 5.146a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0z"/>
+                        </svg>
+                        <span>Click to browse or drag & drop image</span>
+                        <span class="upscaler-modern-file-name" id="fileNameDisplay">No file chosen</span>
+                    </label>
+                    {# Use direct input for custom styling and JS interaction, ensure name matches FlaskForm field #}
+                    <input class="form-control upscaler-modern-file-input" type="file" id="imageFileModern" name="image_file" accept="image/png, image/jpeg, image/webp, image/gif" required>
+                </div>
+                {# Display WTForms errors for image_file if any (though direct input is used, backend validation is key) #}
+                {% if form.image_file.errors %}
+                    <div class="invalid-feedback d-block mt-2 text-center">
+                        {% for error in form.image_file.errors %}
+                            <span>{{ error }}</span><br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+
+                <div class="upscaler-modern-preview-area" id="imagePreviewArea" style="display: none;">
+                    <img id="imagePreview" src="#" alt="Image Preview" class="upscaler-modern-preview-img"/>
+                    <button type="button" id="removeImageBtn" class="btn btn-sm btn-danger upscaler-modern-remove-btn">Remove</button>
+                </div>
+
+                <div class="upscaler-modern-options mt-3">
+                    <label for="scaleFactorModern" class="form-label upscaler-modern-option-label">{{ form.scale_factor.label.text }}:</label>
+                    {# Use direct select for custom styling, ensure name matches FlaskForm field #}
+                    <select class="form-select upscaler-modern-select" id="scaleFactorModern" name="scale_factor">
+                        {# Assuming scale_factor choices are (2, '2x'), (3, '3x'), (4, '4x') as in the working example's form #}
+                        {# You might need to adjust if your form field definition is different #}
+                        <option value="2"{% if form.scale_factor.data == 2 %} selected{% endif %}>2x</option>
+                        <option value="3"{% if form.scale_factor.data == 3 %} selected{% endif %}>3x</option>
+                        <option value="4"{% if form.scale_factor.data == 4 or form.scale_factor.data == none %} selected{% endif %}>4x (Recommended)</option>
+                    </select>
+                </div>
+                {# Display WTForms errors for scale_factor if any #}
+                 {% if form.scale_factor.errors %}
+                    <div class="invalid-feedback d-block mt-2 text-center">
+                        {% for error in form.scale_factor.errors %}<span>{{ error }}</span><br>{% endfor %}
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary upscaler-modern-submit-btn" id="upscaleSubmitButton">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    <span class="button-text">Upscale Image</span>
+                </button>
+            </form>
+        </div>
+
+        {% if original_filename and upscaled_filename %}
+        <div class="upscaler-modern-results-panel mt-4">
+            <h3 class="upscaler-modern-results-title">Upscaling Results</h3>
+            <div class="upscaler-modern-results-grid">
+                <div class="upscaler-modern-image-card">
+                    <h4 class="upscaler-modern-image-subtitle">Original</h4>
+                    <div class="upscaler-modern-image-wrapper">
+                        <img id="originalResultImage" src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=original_filename) }}" class="upscaler-modern-image-display" alt="Original Image">
+                    </div>
+                    <div class="upscaler-modern-card-actions">
+                        <button type="button" class="btn btn-sm btn-info upscaler-modern-view-btn" data-img-src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=original_filename) }}" data-img-alt="Original Image">View Full Size</button>
+                        <a href="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=original_filename) }}" download="{{ original_filename_for_download }}" class="btn btn-outline-secondary btn-sm upscaler-modern-download-btn">Download</a>
+                    </div>
+                </div>
+                <div class="upscaler-modern-image-card">
+                    <h4 class="upscaler-modern-image-subtitle">Upscaled {% if upscaled_dimensions %}({{ upscaled_dimensions.width}}x{{upscaled_dimensions.height }}){% endif %}</h4>
+                    <div class="upscaler-modern-image-wrapper">
+                        <img id="upscaledResultImage" src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" class="upscaler-modern-image-display" alt="Upscaled Image">
+                    </div>
+                    <div class="upscaler-modern-card-actions">
+                        <button type="button" class="btn btn-sm btn-info upscaler-modern-view-btn" data-img-src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" data-img-alt="Upscaled Image {% if upscaled_dimensions %}({{ upscaled_dimensions.width}}x{{upscaled_dimensions.height }}){% endif %}">View Full Size</button>
+                        <a href="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" download="upscaled_{{ original_filename_for_download }}" class="btn btn-outline-primary btn-sm upscaler-modern-download-btn">Download</a>
+                    </div>
+                </div>
+            </div>
+
+            {# Save Permanently Section - Integrated from original template #}
+            <div class="save-options-modern mt-4 pt-3 text-center" style="border-top: 1px solid var(--border-color);">
+                <p style="color: var(--text-color); opacity:0.9; margin-bottom: 15px;">Want to save the upscaled image permanently to your files?</p>
+                <form method="POST" action="{{ url_for('tool_routes.save_permanently_upscaled_image') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="temp_filename" value="{{ upscaled_filename }}">
+                    {# Ensure original_filename_for_download or equivalent is passed for this field #}
+                    <input type="hidden" name="original_filename_for_save" value="{{ original_filename_for_download }}">
+                    {# Ensure scale_factor is available if needed, or use upscaled_dimensions #}
+                    <input type="hidden" name="scale_factor" value="{{ request.form.get('scale_factor', scale_factor if scale_factor else (upscaled_dimensions.width // original_dimensions.width if original_dimensions and original_dimensions.width and upscaled_dimensions else '')) }}">
+
+                    <button type="submit" class="btn btn-success upscaler-modern-submit-btn" style="max-width: 300px; margin-left:auto; margin-right:auto; background-color: var(--success-color); border-color: var(--success-color);">
+                        Save to My Files
+                    </button>
+                </form>
+            </div>
+
+        </div>
+        {% elif upscaled_filename and not original_filename %} {# Case for only upscaled image shown (e.g. error during original processing but upscale worked) #}
+         <div class="upscaler-modern-results-panel mt-4">
+             <h3 class="upscaler-modern-results-title">Upscaled Image</h3>
+            <div class="upscaler-modern-results-grid upscaler-modern-results-grid-single">
+                <div class="upscaler-modern-image-card">
+                     <div class="upscaler-modern-image-wrapper">
+                         <img id="upscaledResultImage" src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" class="upscaler-modern-image-display" alt="Upscaled Image">
+                     </div>
+                     <div class="upscaler-modern-card-actions">
+                         <button type="button" class="btn btn-sm btn-info upscaler-modern-view-btn" data-img-src="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" data-img-alt="Upscaled Image">View Full Size</button>
+                         <a href="{{ url_for('tool_routes.serve_temp_upscaled_image', filename=upscaled_filename) }}" download="upscaled_image.png" class="btn btn-outline-primary btn-sm upscaler-modern-download-btn">Download</a>
+                     </div>
+                 </div>
+             </div>
+         </div>
+        {% endif %}
+    </div>
+
+    <div id="imageModal" class="upscaler-modern-modal">
+        <div class="upscaler-modern-modal-content">
+            <span class="upscaler-modern-modal-close-btn">&times;</span>
+            <h4 id="modalTitle" class="upscaler-modern-modal-title">Image Preview</h4>
+            <img id="modalImage" src="" alt="Full Size Image Preview" class="upscaler-modern-modal-image">
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const imageFileInput = document.getElementById('imageFileModern');
+    const imagePreviewArea = document.getElementById('imagePreviewArea');
+    const imagePreview = document.getElementById('imagePreview');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    const upscaleSubmitButton = document.getElementById('upscaleSubmitButton');
+    const upscalerModernForm = document.getElementById('upscalerModernForm');
+    const buttonSpinner = upscaleSubmitButton ? upscaleSubmitButton.querySelector('.spinner-border') : null;
+    const buttonText = upscaleSubmitButton ? upscaleSubmitButton.querySelector('.button-text') : null;
+
+
+    if (imageFileInput) {
+        imageFileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (imagePreview) imagePreview.src = e.target.result;
+                    if (imagePreviewArea) imagePreviewArea.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+                if (fileNameDisplay) fileNameDisplay.textContent = file.name;
+                if (upscaleSubmitButton) upscaleSubmitButton.disabled = false;
+            } else {
+                if (imagePreview) imagePreview.src = '#';
+                if (imagePreviewArea) imagePreviewArea.style.display = 'none';
+                if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
+            }
+        });
+    }
+
+    if (removeImageBtn) {
+        removeImageBtn.addEventListener('click', function() {
+            if (imageFileInput) imageFileInput.value = ''; // Clear the file input
+            if (imagePreview) imagePreview.src = '#';
+            if (imagePreviewArea) imagePreviewArea.style.display = 'none';
+            if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
+        });
+    }
+
+    if (upscalerModernForm && upscaleSubmitButton) {
+        upscalerModernForm.addEventListener('submit', function() {
+            if (buttonSpinner) buttonSpinner.style.display = 'inline-block';
+            if (buttonText) buttonText.textContent = 'Processing...';
+            upscaleSubmitButton.disabled = true;
+        });
+    }
+
+    // Modal JS
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalTitle = document.getElementById('modalTitle');
+    let closeBtn = null;
+
+    if (modal) {
+        closeBtn = modal.querySelector('.upscaler-modern-modal-close-btn');
+    } else {
+        console.error("Modal container #imageModal not found.");
+        // return; // Don't return if other scripts need to run
+    }
+
+    document.querySelectorAll('.upscaler-modern-view-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (!modal) return;
+
+            const imgSrc = this.dataset.imgSrc;
+            const imgAlt = this.dataset.imgAlt;
+
+            if (modalImage) {
+                modalImage.src = imgSrc;
+                modalImage.alt = imgAlt || "Full Size Image Preview";
+            }
+            if (modalTitle) {
+                modalTitle.textContent = imgAlt || "Image Preview";
+            }
+            modal.style.display = 'flex'; // This will trigger the CSS for showing the modal
+        });
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            if (modal) {
+                modal.style.display = 'none';
+                if (modalImage) modalImage.src = ""; // Clear image to free memory
+            }
+        });
+    }
+
+    window.addEventListener('click', function(event) {
+        if (modal && event.target === modal) { // Click outside modal content
+            modal.style.display = 'none';
+            if (modalImage) modalImage.src = "";
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (modal && event.key === "Escape" && modal.style.display === 'flex') {
+            modal.style.display = 'none';
+            if (modalImage) modalImage.src = "";
+        }
+    });
+});
+</script>
+{% endblock %}

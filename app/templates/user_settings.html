@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}User Settings - PyCloud{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }} {# Keep this to inherit from base.html if needed #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="us-page-container">
+    <h1 class="us-page-title">User Settings</h1>
+
+    <section class="us-section">
+        <h2 class="us-section-title">Appearance</h2>
+        <form method="POST" action="{{ url_for('.change_theme') }}" class="us-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="us-form-group">
+                <label for="us_theme_selector" class="us-label">Select Theme:</label>
+                <select name="theme" id="us_theme_selector" class="us-select">
+                    {% for theme_file, theme_display_name in available_themes.items() %}
+                        <option value="{{ theme_file }}" {% if theme_file == current_theme_name %}selected{% endif %}>
+                            {{ theme_display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="us-btn us-btn-primary">Save Theme</button>
+        </form>
+    </section>
+
+<section class="us-section">
+    <h2 class="us-section-title">Editor Appearance</h2>
+    <form method="POST" action="{{ url_for('main_routes.change_codemirror_theme') }}" class="us-form"> {# Will create this route #}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="us-form-group">
+            <label for="us_codemirror_theme_selector" class="us-label">Select Code Editor Theme:</label>
+            <select name="codemirror_theme" id="us_codemirror_theme_selector" class="us-select">
+                {% for theme_file, theme_display_name in available_codemirror_themes.items() %}
+                    <option value="{{ theme_file }}" {% if theme_file == current_codemirror_theme_name %}selected{% endif %}>
+                        {{ theme_display_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="us-btn us-btn-primary">Save Editor Theme</button>
+    </form>
+</section>
+
+    <section class="us-section">
+        <h2 class="us-section-title">Account Management</h2>
+        <ul class="us-links-list">
+            <li class="us-links-item"><a href="{{ url_for('.edit_profile') }}" class="us-btn us-btn-secondary">Edit Profile</a></li>
+            {# <li class="us-links-item"><a href="{{ url_for('.change_email') }}" class="us-btn us-btn-secondary">Change Email</a></li> #}
+        </ul>
+    </section>
+
+    {# This section was commented out in your original template, I've kept it that way but applied new classes #}
+    {#
+    <section class="us-section">
+        <h2 class="us-section-title">Notifications</h2>
+        <form class="us-form">
+            <div class="us-checkbox-group">
+                <input class="us-checkbox-input" type="checkbox" value="" id="us_email_notifications">
+                <label class="us-checkbox-label" for="us_email_notifications">
+                    Receive email notifications
+                </label>
+            </div>
+            <button type="submit" class="us-btn us-btn-primary" disabled>Save Notification Settings (Coming Soon)</button>
+        </form>
+    </section>
+    #}
+
+</div>
+{% endblock %}

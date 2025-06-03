@@ -1,0 +1,264 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}{{ file_path.split('/')[-1] }} at {{ ref_name }} · {{ repo.owner.username }}/{{ repo.name }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {# CodeMirror Core CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
+    {# Dynamically load the user's preferred CodeMirror Theme CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/' + (user_codemirror_theme | default('material-darker.css'))) }}">
+    <style>
+        .CodeMirror {
+            border: 1px solid #eee;
+            height: auto; /* Will be controlled by JS for auto-sizing */
+            min-height: 200px; /* Adjust as needed */
+            font-size: 0.9em; /* Optional: Adjust font size */
+        }
+        .git-rbv-actions {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.5rem; /* Adds space between buttons */
+        }
+        /* Ensure CodeMirror content is not editable when readOnly */
+        .cm-s-default .CodeMirror-cursor { /* Adjust .cm-s-default if your default theme class is different */
+             display: none !important;
+        }
+        .CodeMirror-focused .CodeMirror-cursor {
+            display: block !important; /* Or as per theme's default for focused state */
+        }
+    </style>
+{% endblock %}
+
+{% block repo_header_info %}
+    <div class="git-repo-context-header mb-3">
+        <div class="git-mygit-repo-card-header" style="padding: 0.5rem 1rem; border-bottom: 1px solid #dee2e6; background-color: #f8f9fa; display: flex; justify-content: space-between; align-items: center;">
+            <h2 class="git-mygit-repo-name" style="margin-bottom: 0;">
+                <a href="{{ url_for('git.view_repo_root', owner_username=repo.owner.username, repo_short_name=repo.name) }}" class="git-mygit-repo-link">
+                    <i class="fas fa-book"></i>
+                    {{ repo.owner.username }}/<strong class="git-mygit-repo-name-strong">{{ repo.name }}</strong>
+                </a>
+            </h2>
+            <div class="git-repo-actions-bar" style="display: flex; align-items: center;">
+                {% if current_user.is_authenticated %}
+                <button class="git-btn git-btn-sm git-star-button {% if current_user_starred %}starred{% else %}unstarred{% endif %}"
+                        data-repo-id="{{ repo.id }}"
+                        data-starred="{{ 'true' if current_user_starred else 'false' }}"
+                        title="{{ 'Unstar' if current_user_starred else 'Star' }} this repository"
+                        style="padding: .25rem .5rem; font-size: .875rem; margin-right: 0.5rem;">
+                    <i class="{% if current_user_starred %}fas fa-star{% else %}far fa-star{% endif %}"></i>
+                    <span class="star-button-text">{% if current_user_starred %}Unstar{% else %}Star{% endif %}</span>
+                </button>
+                {% endif %}
+                <span class="git-star-count-badge" id="star-count-{{ repo.id }}" style="display: inline-flex; align-items: center; padding: .25rem .5rem; font-size: .875rem; background-color: #e9ecef; border-radius: .2rem;">
+                    <i class="fas fa-star" style="color: #ffc107; margin-right: 4px;"></i> {{ repo.star_count }}
+                </span>
+            </div>
+        </div>
+        {% if overall_repo_git_stats and not overall_repo_git_stats.error %}
+        <div class="git-repo-sub-metadata" style="font-size: 0.85em; color: #6c757d; padding: 0.5rem 1rem; border-bottom: 1px solid #eee;">
+            <i class="fas fa-history"></i> {{ overall_repo_git_stats.commit_count }} Commits
+            {% if overall_repo_git_stats.last_commit_date %}
+                | Last Commit: {{ naturaltime(overall_repo_git_stats.last_commit_date) }}
+            {% endif %}
+        </div>
+        {% elif overall_repo_git_stats and overall_repo_git_stats.error %}
+             <div class="git-repo-error-text p-2" style="color: red; display: block; font-size: 0.85em;">Could not load repository stats: {{ overall_repo_git_stats.error }}</div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+
+{% block repo_content %}
+    {# Breadcrumbs are handled by repo_base.html through the breadcrumbs variable passed from the route #}
+
+    <div class="git-rbv-header">
+        <h3 class="git-rbv-filename">{{ file_path.split('/')[-1] }}</h3>
+
+        <div class="git-rbv-actions">
+            {% if can_commit %}
+                <a href="{{ url_for('git.repo_edit_view_route', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path) }}" class="git-btn git-btn-sm git-btn-primary">
+                    <i class="fas fa-pencil-alt"></i> Edit File
+                </a>
+            {% endif %}
+            <a href="{{ url_for('git.download_repo_file_raw', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path) }}" class="git-btn git-btn-sm git-btn-secondary" target="_blank">Raw</a>
+        </div>
+
+        <p class="git-rbv-filepath text-muted"><small>{{ file_path }}</small></p>
+
+        <div class="git-rbv-file-meta-details">
+            {% if file_git_details and not file_git_details.error %}
+                <div class="git-rbv-file-meta-item">
+                    <strong>Latest commit:</strong>
+                    {% if file_git_details.last_commit_id %}
+                    <a href="{{ url_for('git.view_commit_route', owner_username=owner_username, repo_short_name=repo_short_name, commit_id=file_git_details.last_commit_id) }}"
+                       class="git-link git-commit-link"
+                       title="{{ file_git_details.last_commit_message }}">
+                        {{ file_git_details.last_commit_message | truncate(70) }}
+                    </a>
+                    {% else %}
+                        <span class="git-rbv-commit-message" title="{{ file_git_details.last_commit_message }}">
+                            {{ file_git_details.last_commit_message | truncate(70) }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="git-rbv-file-meta-item">
+                    <strong>Last changed:</strong>
+                    {% if file_git_details.last_commit_date %}
+                        <span class="git-rbv-timestamp" data-timestamp="{{ file_git_details.last_commit_date.isoformat() }}">
+                            {{ file_git_details.last_commit_date.strftime('%b %d, %Y %H:%M') }} ({{ naturaltime(file_git_details.last_commit_date) }})
+                        </span>
+                    {% else %}
+                        <span class="git-rbv-timestamp-na">N/A</span>
+                    {% endif %}
+                </div>
+                {% if file_git_details.creation_date %}
+                <div class="git-rbv-file-meta-item">
+                    <strong>Created:</strong>
+                     <span class="git-rbv-timestamp" data-timestamp="{{ file_git_details.creation_date.isoformat() }}">
+                        {{ file_git_details.creation_date.strftime('%b %d, %Y %H:%M') }} ({{ naturaltime(file_git_details.creation_date) }})
+                    </span>
+                </div>
+                {% endif %}
+            {% elif file_git_details and file_git_details.error %}
+                <p class="git-rbv-error-text">Could not load Git history: {{ file_git_details.error }}</p>
+            {% else %}
+                <p class="git-rbv-no-info">Git history not available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="git-rbv-content-wrapper mt-3">
+        <textarea id="codeview" name="codeview" data-filename="{{ file_path }}">{{ content }}</textarea>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='codemirror/lib/codemirror.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/mode/meta.js') }}"></script>
+    {# Common modes: Load all that you might commonly encounter #}
+    <script src="{{ url_for('static', filename='codemirror/mode/clike/clike.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/python/python.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/javascript/javascript.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/css/css.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/xml/xml.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/htmlmixed/htmlmixed.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/markdown/markdown.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/shell/shell.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/sql/sql.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
+    {# Add more modes from your static/codemirror/mode directory as needed #}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Star button script
+        document.querySelectorAll('.git-star-button').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!{{ current_user.is_authenticated | tojson }}) {
+                    // User is not authenticated, redirect to login or show message
+                    // Example: window.location.href = "{{ url_for('auth.login', next=request.url) }}";
+                    // Or use your existing toast/flash message system
+                    if (typeof showToast === 'function') {
+                        showToast('Please log in to star repositories.', 'info');
+                    } else {
+                        alert('Please log in to star repositories.');
+                    }
+                    return;
+                }
+                const repoId = this.dataset.repoId;
+                const isStarred = this.dataset.starred === 'true';
+                const url = isStarred ? `/git/repo/${repoId}/unstar` : `/git/repo/${repoId}/star`; // Assuming these routes exist
+                const starIcon = this.querySelector('i');
+                const starText = this.querySelector('.star-button-text');
+                const starCountBadge = document.getElementById(`star-count-${repoId}`);
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json', // Optional: if your backend expects JSON for this simple POST
+                        'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // Ensure CSRF token is available
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || `HTTP error ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        if(starCountBadge) {
+                            starCountBadge.innerHTML = `<i class="fas fa-star" style="color: #ffc107; margin-right: 4px;"></i> ${data.star_count}`;
+                        }
+                        this.dataset.starred = data.starred ? 'true' : 'false';
+                        if (data.starred) {
+                            this.classList.add('starred');
+                            this.classList.remove('unstarred');
+                            starIcon.classList.remove('far');
+                            starIcon.classList.add('fas');
+                            if(starText) starText.textContent = 'Unstar';
+                            this.title = 'Unstar this repository';
+                        } else {
+                            this.classList.add('unstarred');
+                            this.classList.remove('starred');
+                            starIcon.classList.remove('fas');
+                            starIcon.classList.add('far');
+                            if(starText) starText.textContent = 'Star';
+                            this.title = 'Star this repository';
+                        }
+                    } else {
+                         if (typeof showToast === 'function') { showToast('Error: ' + (data.message || 'Could not update star status.'), 'error'); } else { alert('Error: ' + (data.message || 'Could not update star status.'));}
+                    }
+                })
+                .catch(error => {
+                    console.error('Starring Error:', error);
+                    if (typeof showToast === 'function') { showToast('An unexpected error occurred while starring.', 'error'); } else { alert('An unexpected error occurred.');}
+                });
+            });
+        });
+
+        // CodeMirror for repo_blob_view
+        const codeViewTextarea = document.getElementById('codeview');
+        if (codeViewTextarea) {
+            const filename = codeViewTextarea.dataset.filename;
+            let editorModeOption = 'text/plain'; // Default
+
+            // Get mode from codemirror_mode passed from server, or detect from filename
+            const serverHintedMode = "{{ codemirror_mode | default('text/plain') | e }}";
+            if (serverHintedMode && serverHintedMode !== 'text/plain') {
+                 editorModeOption = serverHintedMode;
+            } else if (CodeMirror.findModeByFileName && filename) {
+                const modeInfo = CodeMirror.findModeByFileName(filename);
+                if (modeInfo && modeInfo.mode) {
+                    editorModeOption = modeInfo.mode; // This can be a string e.g. "python" or an object {name: "javascript", json: true}
+                }
+            }
+            console.log("CodeMirror Blob View - Mode:", editorModeOption);
+
+            // Get theme from user_codemirror_theme passed from server
+            const userTheme = ("{{ user_codemirror_theme | default('material.css') | e }}").replace('.css', '');
+            console.log("CodeMirror Blob View - Theme:", userTheme);
+
+
+            const editor = CodeMirror.fromTextArea(codeViewTextarea, {
+                lineNumbers: true,
+                mode: editorModeOption,
+                theme: userTheme, // Apply user's theme
+                readOnly: true,
+                lineWrapping: true,
+                // Add other desired CodeMirror options for viewing
+            });
+            // Auto-adjust height - you might need to tweak this or use a fixed height.
+            // For full auto height, it can sometimes be tricky with complex layouts.
+            // editor.setSize(null, "auto"); // "auto" tries to fit content
+            editor.getWrapperElement().style.height = 'auto'; // Allow CSS to take over for auto height initially
+            editor.refresh(); // Refresh to apply sizing after DOM is stable.
+        }
+    });
+    </script>
+{% endblock %}

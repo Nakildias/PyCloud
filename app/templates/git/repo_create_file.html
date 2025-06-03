@@ -1,0 +1,288 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}Create New File/Folder - {{ repo.owner.username }}/{{ repo.name }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/material.css') }}">
+    <style>
+        .CodeMirror {
+            border: 1px solid #ced4da;
+            min-height: 200px; /* Adjust as needed */
+            border-radius: 0.25rem;
+        }
+        .git-form-actions {
+            margin-top: 1rem;
+        }
+        #git-editor-flash-messages .alert { margin-top: 1rem; }
+    </style>
+{% endblock %}
+
+{% block repo_content %}
+    <div class="container mt-3">
+        <h3>Create New File/Folder in <a href="{{ url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='') }}">{{ repo_short_name }}</a>
+            {% if dir_path %}/ <a href="{{ url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path) }}">{{ dir_path }}</a>{% endif %}
+            <span class="text-muted fs-6">(Branch: {{ ref_name }})</span>
+        </h3>
+
+        <div id="git-editor-flash-messages"></div>
+
+        <form id="create-file-form" method="POST" action="{{ url_for('git.create_repo_file', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path) }}" class="mt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+                <label for="file_name" class="form-label">Path / Filename / Foldername:</label>
+                <input type="text" class="form-control" id="file_name" name="file_name" value="{{ file_name if file_name is defined else '' }}" required placeholder="e.g., folder_name/, /abs_folder/, /abs_folder_no_slash, file.txt, /abs_file.txt">
+                <small class="form-text text-muted">
+                    To create a folder, ensure the name ends with a forward slash (e.g., `my_new_folder/`).
+                    Paths starting with `/` that do not contain a '.' in their final segment (e.g., `/dirname`) will also be treated as folders.
+                    Content is ignored for folders.
+                </small>
+            </div>
+
+            <div class="mb-3">
+                <label for="file_content_editor" class="form-label">File Content (ignored for folders):</label>
+                <textarea id="file_content_editor" name="file_content" class="form-control" rows="15">{{ file_content if file_content is defined else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="commit_message" class="form-label">Commit Message:</label>
+                <input type="text" class="form-control" id="commit_message" name="commit_message" value="{{ commit_message if commit_message is defined else '' }}" placeholder="Created (file_or_folder_name)">
+            </div>
+
+            <div class="git-form-actions">
+                <a href="{{ url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=dir_path) }}" class="git-btn git-btn-secondary">Cancel</a>
+                <button type="button" id="create-file-btn" class="git-btn git-btn-primary">
+                    <span id="create-btn-text">Create File/Folder</span>
+                    <span id="create-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='codemirror/lib/codemirror.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/mode/meta.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/edit/matchbrackets.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/edit/closebrackets.js') }}"></script>
+    {# Common modes - ensure these paths are correct #}
+    <script src="{{ url_for('static', filename='codemirror/mode/clike/clike.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/python/python.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/javascript/javascript.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/css/css.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/xml/xml.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/htmlmixed/htmlmixed.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/markdown/markdown.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/shell/shell.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/sql/sql.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentTextarea = document.getElementById('file_content_editor');
+            const fileNameInput = document.getElementById('file_name');
+            let editor = null; // CodeMirror instance, initially null
+
+            // Helper function to determine if a path is a folder and get its processed form
+            function getPathDetails(pathValue) {
+                let path = pathValue.trim();
+                let isFolder = false;
+                let finalPath = path; // Path to be sent to backend or used for display name
+
+                if (path.endsWith('/')) {
+                    isFolder = true;
+                } else if (path.startsWith('/')) {
+                    const lastSegment = path.substring(path.lastIndexOf('/') + 1);
+                    // Treat as folder if starts with '/' and last segment has no dot (or is empty for path="/")
+                    if (lastSegment === '' || !lastSegment.includes('.')) {
+                        isFolder = true;
+                        finalPath = path + '/'; // Normalize path for folder
+                    }
+                }
+                // else: default is file if no other conditions met
+                return {
+                    isFolder: isFolder,
+                    finalPath: finalPath, // Path normalized for folders (ends with /)
+                    originalPath: pathValue.trim() // Original user input
+                };
+            }
+
+            function initializeCodeMirror(currentPathValue) {
+                // If CodeMirror instance exists, remove it before re-initializing
+                if (editor) {
+                    editor.toTextArea();
+                    editor = null;
+                }
+
+                const details = getPathDetails(currentPathValue);
+
+                if (details.isFolder) {
+                    contentTextarea.value = ""; // Clear content for folders
+                    contentTextarea.disabled = true;
+                    contentTextarea.placeholder = "Content is not applicable for folders.";
+                    // For folders, initialize a minimal, read-only CodeMirror instance or leave as plain textarea
+                    // This helps visually indicate it's disabled.
+                    editor = CodeMirror.fromTextArea(contentTextarea, {
+                        lineNumbers: true,
+                        mode: 'text/plain',
+                        theme: 'material',
+                        readOnly: true,
+                        value: "" // Ensure editor content is also empty
+                    });
+                } else {
+                    contentTextarea.disabled = false;
+                    contentTextarea.placeholder = ""; // Default placeholder for files
+                    let mode = 'text/plain';
+                    // Determine mode for files based on filename
+                    if (details.originalPath && CodeMirror.findModeByFileName) {
+                        const modeInfo = CodeMirror.findModeByFileName(details.originalPath);
+                        if (modeInfo) {
+                            mode = modeInfo.mime || modeInfo.mode || 'text/plain';
+                        }
+                    }
+                    editor = CodeMirror.fromTextArea(contentTextarea, {
+                        lineNumbers: true,
+                        mode: mode,
+                        theme: 'material',
+                        matchBrackets: true,
+                        autoCloseBrackets: true,
+                        indentUnit: 4,
+                        smartIndent: true,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        lineWrapping: true,
+                        readOnly: false
+                    });
+                }
+                if (editor) {
+                    editor.setSize(null, '40vh'); // Adjust height as needed
+                }
+            }
+
+            // Initial setup of CodeMirror based on current filename input value (if any)
+            initializeCodeMirror(fileNameInput.value);
+
+            // Update CodeMirror when filename input changes
+            if (fileNameInput) {
+                let debounceTimer;
+                fileNameInput.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        initializeCodeMirror(this.value);
+                    }, 300); // Debounce to avoid rapid re-initialization
+                });
+            }
+
+            const createButton = document.getElementById('create-file-btn');
+            const form = document.getElementById('create-file-form');
+            const createBtnText = document.getElementById('create-btn-text');
+            const createSpinner = document.getElementById('create-spinner');
+            const flashMessagesContainer = document.getElementById('git-editor-flash-messages');
+
+            function showFlashMessage(message, category = 'info') {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${category} alert-dismissible fade show`;
+                alertDiv.setAttribute('role', 'alert');
+                alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+                flashMessagesContainer.innerHTML = ''; // Clear previous messages
+                flashMessagesContainer.appendChild(alertDiv);
+            }
+
+            if (createButton && form) {
+                createButton.addEventListener('click', function() {
+                    const pathDetails = getPathDetails(fileNameInput.value);
+                    const finalPathForRequest = pathDetails.finalPath; // Normalized path for backend
+
+                    if (!finalPathForRequest) { // Check if path is empty after trim
+                        showFlashMessage('Filename/path is required.', 'danger');
+                        fileNameInput.focus();
+                        return;
+                    }
+
+                    // Save editor content to textarea if it's a file and editor is active
+                    if (!pathDetails.isFolder && editor) {
+                        editor.save();
+                    }
+
+                    const fileContentValue = pathDetails.isFolder ? "" : contentTextarea.value;
+                    let commitMessageValue = form.elements['commit_message'].value;
+                    const csrfToken = form.elements['csrf_token'] ? form.elements['csrf_token'].value : '';
+
+                    // Determine display name for commit message
+                    let displayName;
+                    // Use originalPath for display name if it's a file, or normalized path (without trailing slash) if folder
+                    const nameSourcePath = pathDetails.isFolder ? pathDetails.finalPath.slice(0, -1) : pathDetails.originalPath;
+                    const pathSegments = nameSourcePath.split('/').filter(segment => segment.length > 0);
+                    displayName = pathSegments.pop() || (nameSourcePath === '/' ? 'root' : 'new_item');
+
+
+                    // Default commit message if empty
+                    if (!commitMessageValue.trim()) {
+                        commitMessageValue = "Created " + displayName;
+                    } else {
+                        commitMessageValue = commitMessageValue.trim();
+                    }
+
+                    if (!csrfToken && '{{ csrf_token() }}' !== 'None' ) {
+                        showFlashMessage('CSRF token is missing. Please refresh the page.', 'danger');
+                        return;
+                    }
+
+                    createBtnText.style.display = 'none';
+                    createSpinner.style.display = 'inline-block';
+                    createButton.disabled = true;
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            file_name: finalPathForRequest, // Send the potentially normalized path
+                            file_content: fileContentValue,
+                            commit_message: commitMessageValue
+                        })
+                    })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, data })))
+                    .then(({ ok, status, data }) => {
+                        if (ok && data.status === 'success') {
+                            showFlashMessage(data.message || 'Operation successful!', 'success');
+                            if (data.redirect_url) {
+                                setTimeout(() => { window.location.href = data.redirect_url; }, 1000);
+                            } else {
+                                // Fallback: redirect to the parent directory of the created item
+                                let parentObjectPath = "{{ dir_path }}"; // Default to current directory
+                                if (finalPathForRequest.includes('/')) {
+                                    let temp = finalPathForRequest;
+                                    if (pathDetails.isFolder && temp.endsWith('/')) {
+                                        temp = temp.slice(0, -1); // Remove trailing slash for dirname
+                                    }
+                                    parentObjectPath = temp.substring(0, temp.lastIndexOf('/'));
+                                }
+                                window.location.href = "{{ url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path='') }}" + encodeURIComponent(parentObjectPath);
+                            }
+                        } else {
+                            const errorMessage = data.message || (data.errors ? JSON.stringify(data.errors) : `Operation failed (HTTP ${status}).`);
+                            showFlashMessage(errorMessage, 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fetch Error:', error);
+                        showFlashMessage('An unexpected network error occurred: ' + error.message, 'danger');
+                    })
+                    .finally(() => {
+                        createBtnText.style.display = 'inline-block';
+                        createSpinner.style.display = 'none';
+                        createButton.disabled = false;
+                    });
+                });
+            }
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,78 @@
+{# templates/create_post.html #}
+{% extends "base.html" %}
+
+{% block title %}Create New Post - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="cp-container"> {# Renamed from create-post-container for consistency #}
+    <h2 class="cp-title">Create New Post</h2>
+    <form method="POST" action="{{ url_for('social_routes.create_post') }}" enctype="multipart/form-data" novalidate class="cp-form">
+        {{ form.hidden_tag() }} {# CSRF token #}
+
+        <div class="cp-form-group">
+            {{ form.text_content.label(class="cp-form-label") }}
+            {{ form.text_content(class="form-control cp-text-content-area", rows="5", placeholder="Share your thoughts, a photo, or a video...") }}
+            {% if form.text_content.errors %}
+                <ul class="cp-errors">
+                    {% for error in form.text_content.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="cp-form-group cp-file-upload-group">
+            {{ form.photo.label(class="cp-form-label") }}
+            {{ form.photo(class="form-control-file cp-input-file-photo") }} {# Kept form-control-file for base styling if any #}
+            <small class="cp-form-text cp-text-muted">Allowed image types: jpg, png, jpeg, gif, webp. Max size: {{ max_photo_upload_mb }}MB</small>
+            {% if form.photo.errors %}
+                <ul class="cp-errors">
+                    {% for error in form.photo.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="cp-form-group cp-file-upload-group">
+            {{ form.video.label(class="cp-form-label") }}
+            {{ form.video(class="form-control-file cp-input-file-video") }} {# Kept form-control-file #}
+            <small class="cp-form-text cp-text-muted">Allowed video types: mp4, webm, ogg, mov. Max size: {{ max_video_upload_mb }}MB</small>
+            {% if form.video.errors %}
+                <ul class="cp-errors">
+                    {% for error in form.video.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="cp-form-group cp-submit-group">
+            {{ form.submit(class="btn btn-primary cp-btn-submit") }} {# Renamed from btn-create-post #}
+            <a href="{{ request.referrer or url_for('main_routes.user_profile', username=current_user.username) }}" class="btn btn-secondary cp-btn-cancel">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Optional: Add JS for live preview of images/videos if desired
+document.addEventListener('DOMContentLoaded', function() {
+    const photoInput = document.querySelector('.cp-input-file-photo'); // Updated selector
+    const videoInput = document.querySelector('.cp-input-file-video'); // Updated selector
+
+    if (photoInput) {
+        photoInput.addEventListener('change', function(event) {
+            // You could add a preview here
+            // console.log("Photo selected:", event.target.files[0]);
+        });
+    }
+    if (videoInput) {
+        videoInput.addEventListener('change', function(event) {
+            // You could add a preview here
+            // console.log("Video selected:", event.target.files[0]);
+        });
+    }
+});
+</script>
+{% endblock %}

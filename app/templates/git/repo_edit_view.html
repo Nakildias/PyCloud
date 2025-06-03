@@ -1,0 +1,252 @@
+{% extends "git/repo_base.html" %}
+
+{% block title %}Edit {{ file_path.split('/')[-1] }} - {{ repo.owner.username }}/{{ repo.name }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() if super }}
+    {# CodeMirror Core CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/lib/codemirror.css') }}">
+    {# Dynamically load the user's preferred CodeMirror Theme CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror/theme/' + (user_codemirror_theme | default('material-darker.css'))) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/git.css') }}">
+    <style>
+        .CodeMirror {
+            border: 1px solid #ced4da; /* Bootstrap-like border */
+            height: auto;
+            min-height: 400px; /* Give a decent default height */
+            border-radius: 0.25rem;
+        }
+        .git-rev-edit-form .form-control { /* Assuming WTForms adds 'form-control' */
+            margin-bottom: 0.75rem;
+        }
+        .git-rev-edit-form label {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+        .git-form-actions {
+            margin-top: 1rem;
+        }
+        /* For flash messages that might be shown via JS */
+        .git-editor-flash-messages .alert { margin-top: 1rem; }
+    </style>
+{% endblock %}
+
+{% block repo_content %}
+    {# Breadcrumbs should be passed from the route and handled by repo_base.html or a macro #}
+
+    <div class="git-rev-edit-container container mt-3">
+        <h3 class="git-rev-edit-title">
+            Editing: <strong>{{ file_path }}</strong>
+            <span class="text-muted fs-6">(Branch: {{ ref_name }})</span>
+        </h3>
+
+        {# Container for JavaScript-driven flash messages #}
+        <div id="git-editor-flash-messages"></div>
+
+        <form id="repo-edit-form" method="POST" action="{{ url_for('git.save_repo_file', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, original_file_path=file_path) }}">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                <label for="new_file_path_input" class="form-label">File Path (edit to rename/move):</label>
+                <input type="text" class="form-control" id="new_file_path_input" name="new_file_path_input" value="{{ file_path | e }}">
+                <small class="form-text text-muted">
+                    If you change this path, the file will be moved/renamed.
+                    Keep it as <code>{{ file_path | e }}</code> to only save content changes.
+                </small>
+            </div>
+
+            <div class="mb-3">
+                {{ form.file_content.label(class="form-label") }}
+                {# Add data-filename, data-mode, and data-codemirror-theme #}
+                {{ form.file_content(id="codeeditor", class="form-control", rows="25", **{"data-filename": file_path, "data-mode": codemirror_mode, "data-codemirror-theme": (user_codemirror_theme | default('material.css'))}) }}
+                {% if form.file_content.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.file_content.errors %}<span>{{ error }}</span><br>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                {{ form.commit_message.label(class="form-label") }}
+                {{ form.commit_message(class="form-control", placeholder="Updated " + file_path.split('/')[-1] | e + "") }}
+                {% if form.commit_message.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.commit_message.errors %}<span>{{ error }}</span><br>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="git-form-actions">
+                <a href="{{ url_for('git.view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path=file_path) }}" class="git-btn git-btn-secondary">Cancel</a>
+                <button type="button" id="save-changes-btn" class="git-btn git-btn-primary">
+                    <span id="save-btn-text">Save Changes</span>
+                    <span id="save-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='codemirror/lib/codemirror.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/mode/meta.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/edit/matchbrackets.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/addon/edit/closebrackets.js') }}"></script>
+    {# Include necessary modes based on files you expect to edit #}
+    <script src="{{ url_for('static', filename='codemirror/mode/clike/clike.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/python/python.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/javascript/javascript.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/css/css.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/xml/xml.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/htmlmixed/htmlmixed.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/markdown/markdown.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/shell/shell.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/sql/sql.js') }}"></script>
+    <script src="{{ url_for('static', filename='codemirror/mode/yaml/yaml.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const editorTextarea = document.getElementById('codeeditor');
+            let editor; // To hold the CodeMirror instance
+
+            if (editorTextarea) {
+                const filename = editorTextarea.dataset.filename;
+                // Use the 'codemirror_mode' variable passed from your Python route (data-mode)
+                const serverModeHint = editorTextarea.dataset.mode || 'text/plain';
+                // Get the theme from the data attribute, default to 'material'
+                const userTheme = (editorTextarea.dataset.codemirrorTheme || 'material.css').replace('.css', '');
+                let editorModeOption = serverModeHint;
+
+                console.log("Using CodeMirror theme:", userTheme);
+
+                if (CodeMirror.findModeByFileName && filename) {
+                    const modeInfo = CodeMirror.findModeByFileName(filename);
+                    if (modeInfo && modeInfo.mode) {
+                        if (modeInfo.mime) { // modeInfo.mime is usually the string like "text/x-python"
+                             editorModeOption = modeInfo.mime;
+                        } else if (typeof modeInfo.mode === 'string') {
+                            editorModeOption = modeInfo.mode;
+                        }
+                    }
+                }
+
+                if (!editorModeOption || editorModeOption === 'null' || editorModeOption === '') {
+                    editorModeOption = 'text/plain'; // Sensible default
+                }
+                console.log("Selected CodeMirror mode:", editorModeOption);
+
+
+                editor = CodeMirror.fromTextArea(editorTextarea, {
+                    lineNumbers: true,
+                    mode: editorModeOption,
+                    theme: userTheme, // Apply the user's theme
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    indentUnit: 4,
+                    smartIndent: true,
+                    tabSize: 4,
+                    indentWithTabs: false,
+                    lineWrapping: true,
+                });
+                editor.setSize(null, '60vh');
+
+                const saveButton = document.getElementById('save-changes-btn');
+                const form = document.getElementById('repo-edit-form');
+                const saveBtnText = document.getElementById('save-btn-text');
+                const saveSpinner = document.getElementById('save-spinner');
+                const flashMessagesContainer = document.getElementById('git-editor-flash-messages');
+                const newFilePathInput = document.getElementById('new_file_path_input');
+
+                function showFlashMessage(message, category = 'info') {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert alert-${category} alert-dismissible fade show`;
+                    alertDiv.setAttribute('role', 'alert');
+                    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+                    flashMessagesContainer.innerHTML = '';
+                    flashMessagesContainer.appendChild(alertDiv);
+                }
+
+                if (saveButton && form && editor && newFilePathInput) {
+                    saveButton.addEventListener('click', function() {
+                        const fileContent = editor.getValue();
+                        let commitMessage = form.elements['commit_message'].value;
+                        const csrfTokenField = form.elements['csrf_token'];
+                        const csrfToken = csrfTokenField ? csrfTokenField.value : document.getElementById('csrf_token_manual')?.value;
+                        const newFilePathValue = newFilePathInput.value.trim();
+                        const originalFilePath = "{{ file_path | e }}"; // Get original file path from Jinja
+
+                        const currentFileName = originalFilePath.split('/').pop();
+
+                        if (!commitMessage.trim()) {
+                            commitMessage = "Updated " + currentFileName;
+                        }
+
+                        if (!newFilePathValue) {
+                            showFlashMessage('File path cannot be empty.', 'danger');
+                            newFilePathInput.focus();
+                            return;
+                        }
+                        if (!csrfToken) {
+                            showFlashMessage('CSRF token is missing. Please refresh and try again.', 'danger');
+                            console.error("CSRF token not found. Ensure form.hidden_tag() or a manual CSRF input is in your form.");
+                            return;
+                        }
+
+                        saveBtnText.style.display = 'none';
+                        saveSpinner.style.display = 'inline-block';
+                        saveButton.disabled = true;
+
+                        fetch(form.action, { // form.action already contains original_file_path
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify({
+                                file_content: fileContent,
+                                commit_message: commitMessage,
+                                new_file_path: newFilePathValue // Send new_file_path for potential rename/move
+                            })
+                        })
+                        .then(response => {
+                            return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
+                        })
+                        .then(({ ok, status, data }) => {
+                            if (data.status === 'success') {
+                                showFlashMessage(data.message || 'Operation successful!', 'success');
+                                // Use redirect_url from response if available (covers rename/move)
+                                if (data.redirect_url) {
+                                    setTimeout(() => { window.location.href = data.redirect_url; }, 1500);
+                                } else { // Fallback, should ideally always have redirect_url for success
+                                    const targetPath = (newFilePathValue !== originalFilePath) ? newFilePathValue : originalFilePath;
+                                    setTimeout(() => {
+                                        window.location.href = "{{ url_for('git.view_repo_blob', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, file_path='') }}" + encodeURIComponent(targetPath);
+                                    }, 1500);
+                                }
+                            } else if (data.status === 'info') { // Handle "no changes" scenario
+                                showFlashMessage(data.message || 'No changes to commit.', 'info');
+                            } else { // Handle errors
+                                const errorMessage = data.message || (data.errors ? Object.values(data.errors).join('; ') : `Failed (HTTP ${status}).`);
+                                showFlashMessage(errorMessage, 'danger');
+                                console.error("Save error data:", data);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Fetch Error:', error);
+                            showFlashMessage('An unexpected network error occurred: ' + error.message, 'danger');
+                        })
+                        .finally(() => {
+                            saveBtnText.style.display = 'inline-block';
+                            saveSpinner.style.display = 'none';
+                            saveButton.disabled = false;
+                        });
+                    });
+                }
+            } else {
+                console.error("CodeMirror textarea with ID 'codeeditor' not found.");
+            }
+        });
+    </script>
+{% endblock %}

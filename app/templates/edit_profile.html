@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - {{ super() }}{% endblock %}
+
+{% block head_extensions %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ep-page-container">
+    <h2 class="ep-page-title">Edit Your Profile</h2>
+    <form method="POST" action="{{ url_for('.edit_profile') }}" enctype="multipart/form-data" novalidate class="ep-form">
+        {{ form.hidden_tag() }}
+
+        <fieldset class="ep-fieldset">
+            <legend class="ep-legend">Basic Information</legend>
+            <div class="ep-form-group">
+                {{ form.username.label(class="ep-label") }}
+                {{ form.username(class="form-control ep-input-username") }}
+                {% if form.username.errors %}
+                    <ul class="ep-errors">
+                        {% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            <div class="ep-form-group">
+                {{ form.email.label(class="ep-label") }}
+                {{ form.email(class="form-control ep-input-email") }}
+                {% if form.email.errors %}
+                    <ul class="ep-errors">{% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset class="ep-fieldset">
+            <legend class="ep-legend">About You</legend>
+            <div class="ep-form-group">
+                {{ form.bio.label(class="ep-label") }} <span class="ep-char-count-note">({{ form.bio.validators[1].max }} characters max)</span>
+                {{ form.bio(class="form-control ep-textarea-bio", rows=6) }}
+                {% if form.bio.errors %}
+                    <ul class="ep-errors">{% for error in form.bio.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset class="ep-fieldset">
+            <legend class="ep-legend">Profile Picture</legend>
+            {% if profile_picture_url %}
+                <div class="ep-pfp-preview-container">
+                    <img src="{{ profile_picture_url }}" alt="Current Profile Picture" class="ep-pfp-current-preview">
+                </div>
+            {% endif %}
+            <div class="ep-form-group">
+                {{ form.profile_picture.label(class="ep-label") }}
+                {{ form.profile_picture(class="form-control-file ep-input-file-pfp") }}
+                {% if form.profile_picture.errors %}
+                    <ul class="ep-errors">{% for error in form.profile_picture.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset class="ep-fieldset">
+            <legend class="ep-legend">Your Links</legend>
+            {# Loop through link fields for brevity if all are similar #}
+            {% for link_field_name in ['github_url', 'spotify_url', 'youtube_url', 'twitter_url', 'steam_url', 'twitch_url', 'discord_server_url', 'reddit_url'] %}
+                {% set field = form[link_field_name] %}
+                <div class="ep-form-group">
+                    {{ field.label(class="ep-label") }}
+                    {# Safely access placeholder from render_kw #}
+                    {% set placeholder_text = field.render_kw.get('placeholder', '') if field.render_kw else '' %}
+                    {{ field(class="form-control ep-input-url", placeholder=placeholder_text) }}
+                    {% if field.errors %}<ul class="ep-errors">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+            {% endfor %}
+        </fieldset>
+
+        <div class="ep-form-group ep-submit-group">
+            {{ form.submit(class="btn btn-primary ep-submit-button") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

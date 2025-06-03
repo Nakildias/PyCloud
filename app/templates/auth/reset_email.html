@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    {# Link to the new reset_email.css file #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/reset_email.css') }}">
+</head>
+<body>
+    <div class="re-container"> {# Was container #}
+        <div class="re-header"> {# Was header #}
+            <h1 class="re-header-title">{{ app_name }} - Password Reset</h1> {# Added class to h1 #}
+        </div>
+        <div class="re-content"> {# Was content #}
+            <p class="re-paragraph">Hello {{ username }},</p> {# Added class to p #}
+            <p class="re-paragraph">We received a request to reset the password for your account associated with this email address.</p>
+            <p class="re-paragraph">To reset your password, please click the button below:</p>
+            <div class="re-button-container"> {# Was button-container #}
+                <a href="{{ reset_url }}" class="re-button">Reset Your Password</a> {# Was button #}
+            </div>
+            <p class="re-paragraph">This link is valid for approximately 30 minutes.</p>
+            <p class="re-paragraph">If you did not request a password reset, please ignore this email. No changes will be made to your account.</p>
+            <p class="re-paragraph">Thank you,</p>
+            <p class="re-paragraph">The <span class="re-app-name">{{ app_name }}</span> Team</p> {# Was app-name #}
+        </div>
+    </div>
+</body>
+</html>
