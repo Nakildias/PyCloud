@@ -114,13 +114,13 @@
 
 /* Primary Button (e.g., Add Server, Submit) */
 .monitor-btn-primary {
-    background: var(--primary-gradient, linear-gradient(135deg, var(--primary-color, #007bff) 0%, var(--primary-color-darker, #0056b3) 100%));
+    background: var(--primary-color);
     color: var(--primary-text-color, #ffffff);
     border-color: transparent; /* Gradient buttons often don't need a border */
 }
 
 .monitor-btn-primary:hover {
-    background: var(--primary-gradient-hover, linear-gradient(135deg, var(--primary-color-darker, #0056b3) 0%, var(--primary-color, #007bff) 100%));
+    background: var(--primary-color);
 }
 
 /* Secondary Button (e.g., Cancel) */
