@@ -11,7 +11,7 @@ set -o pipefail
 APP_NAME="PyCloud" # Updated App Name
 VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
 APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live
-TARGET_BIN_DIR="/usr/local/bin"         # Standard location for user-installed executables
+TARGET_BIN_DIR="/usr/local/bin" # Standard location for user-installed executables
 # Source directories/files relative to the script location
 SOURCE_APP_DIR="./" # This means run.py, app are in the same dir as install.sh
 REQUIRED_ITEMS=( # Items needed from the source directory
@@ -75,7 +75,7 @@ run_sudo() {
 
 # This is the primary change: explicitly disallow running with sudo
 if [ "$EUID" -eq 0 ]; then
-   error "This script should NOT be run with sudo. Please run it as a regular user: bash ./install.sh"
+    error "This script should NOT be run with sudo. Please run it as a regular user: bash ./install.sh"
 fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -209,7 +209,7 @@ info "Copying contents of app directory..."
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/app/." "${APP_INSTALL_DIR}/app/" || error "Failed to copy contents of app directory"
 # Add copy for default manager_settings.json if needed
 # if [[ -f "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" ]]; then
-#      cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
+#       cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/manager_settings.json" "${APP_INSTALL_DIR}/" || error "Failed to copy manager_settings.json"
 # fi
 info "Application files copied."
 
@@ -270,6 +270,43 @@ for link_name in "${LINK_NAMES[@]}"; do
 done
 info "Executable setup completed."
 
+# --- Systemd Service Setup ---
+info "Setting up systemd user service for ${APP_NAME}..."
+
+SERVICE_NAME="pycloud.service"
+SERVICE_FILE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
+USERNAME=$(whoami) # Get the current username
+
+mkdir -p "${SERVICE_FILE_DIR}" || error "Failed to create systemd user service directory."
+
+# Create the service file content
+cat <<EOF > "${SERVICE_FILE_PATH}"
+[Unit]
+Description=${APP_NAME} Flask Application
+After=network.target
+
+[Service]
+ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
+WorkingDirectory=${APP_INSTALL_DIR}
+Environment="FLASK_APP=run.py"
+Restart=always
+User=${USERNAME}
+Group=${USERNAME}
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+EOF
+
+info "Systemd service file created at ${SERVICE_FILE_PATH}"
+
+info "Enabling and starting the ${SERVICE_NAME} user service..."
+systemctl --user daemon-reload || error "Failed to reload systemd daemon."
+systemctl --user enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
+systemctl --user restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
+info "${SERVICE_NAME} enabled and restarted successfully."
 
 # --- Final Check ---
 if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
@@ -282,6 +319,9 @@ if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
         info " Static files in ${APP_INSTALL_DIR}/static (css,js,icons updated, others preserved)"
         info " Executable: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
         info " Symlinks: ${LINK_NAMES[*]} (if any) in ${TARGET_BIN_DIR}"
+        info " Systemd User Service: ${SERVICE_NAME} is enabled and running."
+        info " To check service status: systemctl --user status ${SERVICE_NAME}"
+        info " To view logs: journalctl --user -u ${SERVICE_NAME}"
         info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME} or pycloud"
         info " If the command isn't found immediately, try opening a new terminal session."
         info "-------------------------------------------"
