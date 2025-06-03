@@ -2,6 +2,8 @@
 # One Line Installation 
 `git clone https://github.com/Nakildias/PyCloud && cd PyCloud && bash install.sh`
 
+# To monitor servers you'll need to install the [PyCloud Daemon](https://github.com/Nakildias/PyCloudMonitorDaemon)
+
 ## 🚀 Overview
 
 PyCloud is a feature-rich, self-hostable web application built with Python and Flask. It aims to provide a comprehensive suite of tools for personal cloud storage, social interaction, developer utilities, and more, all under your control. From managing your files and notes to connecting with friends, running emulators, and even managing Git repositories, PyCloud offers a versatile platform for individuals and small groups.
