@@ -89,6 +89,7 @@ body.fl-body-group-chat-page {
 .gc-chat-form-element .gc-chat-input-inner:focus-within {
     border-color: var(--primary-color); /* Primary color border on focus */
     background-color: var(--secondary-color-rgb);
+}
 
 .gc-chat-form-element .gc-message-input-textarea {
     flex-grow: 1;
