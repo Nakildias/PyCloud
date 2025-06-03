@@ -160,13 +160,59 @@
 </script>
 
 {% if current_user.is_authenticated %}
+    {# 1. Load the Socket.IO client library FIRST #}
+    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+
+    {# 2. Initialize the socket connection and make it globally accessible #}
+    <script>
+        // Ensure this runs after socket.io.min.js is loaded.
+        // This will make 'socket' a global variable.
+        var socket = io(window.location.origin, {
+            // Explicitly defining transports can sometimes help with reliability,
+            // though WebSocket is generally preferred and attempted first by default.
+            transports: ['websocket', 'polling']
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket.IO: Connected to server from base.html.');
+            // You could emit an event here if your server needs to know about new connections
+            // For example: socket.emit('user_connected', { user_id: CURRENT_USER_ID });
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Socket.IO: Connection error -', error.message, error.stack ? error.stack : '(No stack)');
+            // Additional diagnostics for common issues:
+            if (error.message.includes('server error')) {
+                console.error('Socket.IO: This might indicate a problem with the server-side Socket.IO setup or the server is down.');
+            }
+            if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
+                 console.error('Socket.IO: Check network connectivity, firewall, or if the server is running and accessible at ' + window.location.origin);
+            }
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Socket.IO: Disconnected -', reason);
+            if (reason === 'io server disconnect') {
+                // The server deliberately disconnected the socket.
+                socket.connect(); // Optionally attempt to reconnect
+            }
+            // else the socket will automatically try to reconnect
+        });
+
+        // Example of handling a custom event from the server (if you have one)
+        // socket.on('custom_event_from_server', (data) => {
+        //   console.log('Received custom_event_from_server:', data);
+        // });
+
+    </script>
+
+    {# 3. Now load your other JS files that depend on 'socket' #}
     <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/base_friend_chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/localetime_formatter.js') }}"></script>
 {% else %}
     {# For non-authenticated users, only load toast.js if needed, or specific non-auth scripts #}
     {# <script src="{{ url_for('static', filename='js/base_notification.js') }}"></script> #}
-    {# This might cause errors if it relies on current_user details not present #}
 {% endif %}
 
 {% block scripts %}
