@@ -278,10 +278,10 @@ SERVICE_FILE_DIR="/etc/systemd"
 SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
 USERNAME=$(whoami) # Get the current username
 
-mkdir -p "${SERVICE_FILE_DIR}" || error "Failed to create systemd user service directory."
+run_sudo mkdir -p "${SERVICE_FILE_DIR}" || error "Failed to create systemd user service directory."
 
 # Create the service file content
-cat <<EOF > "${SERVICE_FILE_PATH}"
+run_sudo cat <<EOF > "${SERVICE_FILE_PATH}"
 [Unit]
 Description=${APP_NAME} Flask Application
 After=network.target
@@ -303,9 +303,9 @@ EOF
 info "Systemd service file created at ${SERVICE_FILE_PATH}"
 
 info "Enabling and starting the ${SERVICE_NAME} user service..."
-systemctl daemon-reload || error "Failed to reload systemd daemon."
-systemctl enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
-systemctl restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
+run_sudo systemctl daemon-reload || error "Failed to reload systemd daemon."
+run_sudo systemctl enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
+run_sudo systemctl restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
 info "${SERVICE_NAME} enabled and restarted successfully."
 
 # --- Final Check ---
