@@ -1,26 +1,169 @@
-/* app/static/css/monitor.css */
+/* 8/app/static/css/monitor.css */
 
+/* --- Keyframes for Animations --- */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 5px var(--primary-glow-color, rgba(0, 123, 255, 0.3)); }
+    50% { box-shadow: 0 0 15px 5px var(--primary-glow-color, rgba(0, 123, 255, 0.5)); }
+    100% { box-shadow: 0 0 5px var(--primary-glow-color, rgba(0, 123, 255, 0.3)); }
+}
+
+@keyframes subtleShine {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+
+/* --- Page Layout & General Styles --- */
 .monitor-page-container {
-    padding: 1rem;
-    max-width: 1200px;
+    padding: clamp(15px, 3vw, 30px); /* Responsive padding */
+    max-width: 1600px; /* Generous max-width for larger screens */
     margin: 0 auto;
-    color: var(--text-color); /* Base text color for the page */
+    animation: fadeIn 0.5s ease-out;
+    background: var(--secondary-color);
+    color: var(--text-color, #e0e0e0);
+    min-height: calc(100vh - var(--navbar-height, 60px)); /* Adjust if you have a fixed navbar */
 }
 
 .monitor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: clamp(20px, 4vw, 40px);
+    padding-bottom: clamp(10px, 2vw, 20px);
+    border-bottom: 1px solid var(--border-color-translucent, rgba(255, 255, 255, 0.1));
+    animation: fadeInUp 0.6s ease-out 0.2s backwards;
 }
 
 .monitor-main-title {
-    font-size: 2rem;
+    font-size: clamp(1.8rem, 4vw, 2.5rem); /* Responsive font size */
+    color: var(--heading-color, #ffffff);
     font-weight: 600;
-    color: var(--text-color); /* Primary text color for titles */
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-/* Modal Styles */
+/* --- Base Button Styles (assuming .monitor-btn is the base) --- */
+.monitor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6em 1.2em;
+    font-size: clamp(0.85rem, 1.5vw, 1rem);
+    font-weight: 500;
+    border-radius: var(--button-border-radius, 6px);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    text-decoration: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden; /* For shine animation */
+}
+
+.monitor-btn i {
+    margin-right: 0.5em;
+}
+
+.monitor-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.monitor-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.monitor-btn:not(:disabled):active {
+    transform: translateY(0px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+/* Button Shine Effect */
+.monitor-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.monitor-btn:hover::before {
+    left: 150%;
+}
+
+
+/* Primary Button (e.g., Add Server, Submit) */
+.monitor-btn-primary {
+    background: var(--primary-gradient, linear-gradient(135deg, var(--primary-color, #007bff) 0%, var(--primary-color-darker, #0056b3) 100%));
+    color: var(--primary-text-color, #ffffff);
+    border-color: transparent; /* Gradient buttons often don't need a border */
+}
+
+.monitor-btn-primary:hover {
+    background: var(--primary-gradient-hover, linear-gradient(135deg, var(--primary-color-darker, #0056b3) 0%, var(--primary-color, #007bff) 100%));
+}
+
+/* Secondary Button (e.g., Cancel) */
+.monitor-btn-secondary {
+    background-color: var(--secondary-bg-color, rgba(255, 255, 255, 0.1));
+    color: var(--secondary-text-color, #f0f0f0);
+    border: 1px solid var(--secondary-border-color, rgba(255, 255, 255, 0.3));
+}
+
+.monitor-btn-secondary:hover {
+    background-color: var(--secondary-bg-hover-color, rgba(255, 255, 255, 0.2));
+    border-color: var(--secondary-border-hover-color, rgba(255, 255, 255, 0.5));
+}
+
+/* Info Button (e.g., Update) */
+.monitor-btn-info {
+    background: var(--info-gradient, linear-gradient(135deg, var(--info-color, #17a2b8) 0%, var(--info-color-darker, #117a8b) 100%));
+    color: var(--info-text-color, #ffffff);
+}
+.monitor-btn-info:hover {
+    background: var(--info-gradient-hover, linear-gradient(135deg, var(--info-color-darker, #117a8b) 0%, var(--info-color, #17a2b8) 100%));
+}
+
+/* Warning Button (e.g., Reboot) */
+.monitor-btn-warning {
+    background: var(--warning-gradient, linear-gradient(135deg, var(--warning-color, #ffc107) 0%, var(--warning-color-darker, #d39e00) 100%));
+    color: var(--warning-text-color, #212529); /* Dark text for yellow */
+}
+.monitor-btn-warning:hover {
+    background: var(--warning-gradient-hover, linear-gradient(135deg, var(--warning-color-darker, #d39e00) 0%, var(--warning-color, #ffc107) 100%));
+}
+
+/* Danger Button (e.g., Delete) */
+.monitor-btn-danger {
+    background: var(--danger-gradient, linear-gradient(135deg, var(--danger-color, #dc3545) 0%, var(--danger-color-darker, #bd2130) 100%));
+    color: var(--danger-text-color, #ffffff);
+}
+.monitor-btn-danger:hover {
+    background: var(--danger-gradient-hover, linear-gradient(135deg, var(--danger-color-darker, #bd2130) 0%, var(--danger-color, #dc3545) 100%));
+}
+
+
+/* --- Modal Styles --- */
 .monitor-modal {
     display: none;
     position: fixed;
@@ -30,306 +173,368 @@
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6); /* Semi-transparent black overlay, not from theme vars directly but common */
+    background-color: var(--modal-backdrop-color, rgba(0, 0, 0, 0.7));
+    animation: fadeIn 0.3s ease-out;
+    padding-top: 5vh; /* Give some space from top */
 }
 
 .monitor-modal-content {
-    background-color: var(--bg-color); /* Modal background */
-    margin: 10% auto;
-    padding: 2rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) if defined, or a sensible default */
-    width: 80%;
-    max-width: 500px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2); /* Generic shadow */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    margin: 5% auto;
+    padding: clamp(20px, 4vw, 30px);
+    border: 1px solid var(--modal-border-color, rgba(255, 255, 255, 0.1));
+    border-radius: var(--modal-border-radius, 12px);
+    width: 90%;
+    max-width: 550px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     position: relative;
-    color: var(--text-color); /* Text color inside modal */
+    animation: fadeInUp 0.4s ease-out 0.1s backwards;
+    color: var(--modal-text-color, #e0e0e0);
 }
 
 .monitor-modal-close-btn {
-    color: var(--placeholder-color); /* Dimmed color for close icon */
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    color: var(--modal-close-color, #aaa);
     position: absolute;
-    top: 10px;
+    top: 15px;
     right: 20px;
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .monitor-modal-close-btn:hover,
 .monitor-modal-close-btn:focus {
-    color: var(--text-color); /* Brighter on hover */
+    color: var(--modal-close-hover-color, #fff);
     text-decoration: none;
     cursor: pointer;
+    transform: scale(1.1);
 }
 
 .monitor-modal-header h2 {
-    font-size: 1.5rem;
     margin-top: 0;
-    margin-bottom: 1rem;
-    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    font-size: clamp(1.5rem, 3vw, 1.8rem);
+    color: var(--modal-heading-color, #ffffff);
+    font-weight: 600;
+    text-align: center;
 }
 
-.monitor-add-server-form {
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: none;
-    margin-bottom: 0;
+.monitor-add-server-form .monitor-form-group {
+    margin-bottom: 1.25rem;
 }
 
-.monitor-form-group {
-    margin-bottom: 1rem;
-}
-
-.monitor-form-group label {
-    display: block;
-    margin-bottom: .3rem;
+.monitor-add-server-form label {
+    display: block; /* Changed to block for better spacing */
+    margin-bottom: 0.5rem;
     font-weight: 500;
-    color: var(--text-color); /* Label text color */
+    color: var(--label-color, #b0b0d0);
+    font-size: 0.9rem;
 }
 
-.monitor-form-group input[type="text"],
-.monitor-form-group input[type="number"],
-.monitor-form-group input[type="password"] {
+.monitor-add-server-form .form-control {
+    display: block;
     width: 100%;
-    padding: .6rem .8rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.3rem; /* Consistent with var(--border-radius-md) */
-    background-color: var(--secondary-color); /* Input background */
-    color: var(--text-color); /* Input text color */
-    font-size: .95rem;
-}
-
-.monitor-form-group input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.25); /* Focus glow using primary color */
-}
-
-.monitor-btn {
-    color: var(--bg-color); /* Text on primary buttons (assuming primary is light) */
-    padding: 0.7rem 1.2rem;
-    border: none;
-    border-radius: 0.3rem; /* Consistent with var(--border-radius-md) */
+    padding: 0.75em 1em;
     font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    text-decoration: none;
-    display: inline-block;
-}
-.monitor-btn:disabled {
-    background-color: var(--placeholder-color);
-    cursor: not-allowed;
-}
-
-.monitor-btn i {
-    margin-right: 0.5em;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--input-text-color, #e0e0e0);
+    background-color: var(--input-bg-color, rgba(255, 255, 255, 0.05));
+    background-clip: padding-box;
+    border: 1px solid var(--input-border-color, rgba(255, 255, 255, 0.2));
+    border-radius: var(--input-border-radius, 6px);
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-.monitor-btn-primary {
-    background-color: var(--primary-color);
-    color: var(--bg-color); /* High contrast text for primary button */
+.monitor-add-server-form .form-control:focus {
+    border-color: var(--primary-color, #007bff);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem var(--focus-ring-primary-color-translucent, rgba(0, 123, 255, 0.25));
+    background-color: var(--input-bg-focus-color, rgba(255, 255, 255, 0.1));
 }
 
-.monitor-btn-primary:hover:not(:disabled) {
-    background-color: var(--info-color); /* Darken primary or use another theme color for hover */
+.monitor-add-server-form .text-danger { /* Error messages */
+    color: var(--danger-color-text-form, var(--danger-color, #dc3545));
+    font-size: 0.85em;
+    display: block;
+    margin-top: 0.25rem;
 }
 
-.monitor-btn-secondary {
-    background-color: var(--secondary-color);
-    color: var(--text-color); /* Text on secondary buttons */
-    border: 1px solid var(--border-color);
+/* --- Servers List & Cards --- */
+.monitor-servers-list .git-mygit-section-title { /* Assuming this class is used for section titles */
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    color: var(--heading-color, #ffffff);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color-translucent, rgba(255, 255, 255, 0.1));
+    animation: fadeInUp 0.6s ease-out 0.4s backwards;
 }
-
-.monitor-btn-secondary:hover:not(:disabled) {
-    background-color: var(--border-color); /* Darken secondary or use another theme color */
-}
-
-.monitor-btn-danger {
-    background-color: var(--error-color);
-    color: var(--bg-color); /* High contrast text for danger button */
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-}
-
-.monitor-btn-danger:hover:not(:disabled) {
-    filter: brightness(0.9);
-}
-
 
 .monitor-server-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); /* Responsive columns */
+    gap: clamp(15px, 3vw, 25px);
     list-style: none;
     padding: 0;
-    margin:0;
 }
 
 .monitor-server-card {
-    background-color: var(--secondary-color); /* Card background */
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) */
-    padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Softer shadow */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    cursor: grab;
-    color: var(--text-color); /* Default text color for card content */
+    background: linear-gradient(145deg, var(--secondary-color), var(--bg-color));
+    border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.1));
+    border-radius: var(--card-border-radius, 10px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: fadeInUp 0.5s ease-out backwards;
+    /* Stagger animation for cards */
 }
 
-.monitor-server-card:active {
-    cursor: grabbing;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+.monitor-server-card:nth-child(1) { animation-delay: 0.1s; }
+.monitor-server-card:nth-child(2) { animation-delay: 0.15s; }
+.monitor-server-card:nth-child(3) { animation-delay: 0.2s; }
+/* Add more if you expect many cards on initial load */
+
+
+.monitor-server-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .monitor-server-card-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--card-border-color-light, rgba(255, 255, 255, 0.07));
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.8rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.8rem;
 }
 
 .monitor-server-name {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-color); /* Title color within card */
     margin: 0;
+    font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+    color: var(--card-title-color, #ffffff);
+    font-weight: 600;
 }
 
 .monitor-server-status {
-    padding: 0.3rem 0.6rem;
-    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
-    font-size: 0.8rem;
-    font-weight: 500;
-    border: 1px solid transparent; /* Base border */
+    padding: 0.3em 0.7em;
+    border-radius: var(--tag-border-radius, 15px); /* Pill shape */
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
 }
 
-.monitor-server-status.status-ok {
-    color: var(--success-color);
-    border-color: var(--success-color);
+.status-loading {
+    background-color: var(--status-loading-bg, #555);
+    color: var(--status-loading-text, #ccc);
+    /* animation: pulseGlow 2s infinite ease-in-out; */ /* Can be too distracting */
+}
+.status-ok {
+    background: var(--status-ok-gradient, linear-gradient(45deg, var(--success-color-light, #2f9e44), var(--success-color, #2b8a3e)));
+    color: var(--status-ok-text, #fff);
+    box-shadow: 0 0 8px var(--success-color-transparent, rgba(40, 167, 69, 0.5));
+}
+.status-error {
+    background: var(--status-error-gradient, linear-gradient(45deg, var(--danger-color-light, #e03131), var(--danger-color, #c92a2a)));
+    color: var(--status-error-text, #fff);
+    box-shadow: 0 0 8px var(--danger-color-transparent, rgba(220, 53, 69, 0.5));
+}
+.status-warning { /* For rebooting state */
+    background: var(--status-warning-gradient, linear-gradient(45deg, var(--warning-color-light, #f7c04a), var(--warning-color, #f5b01d)));
+    color: var(--status-warning-text, #212529);
+    box-shadow: 0 0 8px var(--warning-color-transparent, rgba(255, 193, 7, 0.5));
 }
 
-.monitor-server-status.status-error {
-    background-color: rgba(231, 76, 60, 0.1); /* Lighter shade of error (using --error-color's RGB if available) */
-    color: var(--error-color);
-    border-color: var(--error-color);
-}
-
-.monitor-server-status.status-loading {
-    background-color: rgba(var(--primary-color-rgb), 0.1); /* Lighter shade of info */
-    color: var(--info-color);
-    border-color: var(--info-color);
-}
 
 .monitor-server-card-body {
-    font-size: 0.9rem;
-    color: var(--text-color); /* Secondary text color for body */
-    transition: opacity 0.3s ease-in-out;
+    padding: 18px;
+    flex-grow: 1;
+    position: relative; /* For loading overlay */
 }
+
+
+
 
 .server-info-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.5rem;
+    gap: 10px;
+    font-size: 0.875rem;
 }
 
 .info-item {
     display: flex;
     justify-content: space-between;
-    padding: 0.25rem 0;
-    flex-wrap: wrap;
+    align-items: center; /* Vertically align items if they wrap */
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color-extralight-translucent, rgba(255, 255, 255, 0.05));
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+.info-item:last-child {
+    border-bottom: none;
 }
 
 .info-label {
     font-weight: 500;
-    color: var(--text-color); /* Dimmed label color */
-    margin-right: 0.5rem;
+    color: var(--text-color-secondary, #a0a0c0);
+    margin-right: 8px;
+    flex-shrink: 0; /* Prevent label from shrinking too much */
 }
 
 .info-value {
-    color: var(--text-color); /* Regular text color for values */
+    color: var(--text-color, #e0e0e0);
     text-align: right;
+    word-break: break-word; /* Break long values */
 }
 
 .progress-section {
-    margin-top: 0.5rem;
-    display: block;
+    display: flex;
+    flex-direction: column; /* Stack label/value and bar */
+}
+.progress-section .info-item-label-value-pair { /* New wrapper for label and value */
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 4px;
 }
 
-.progress-section .info-label,
-.progress-section .info-value {
-    display: inline-block;
-    width: auto;
-    text-align: left;
-}
-
-.progress-section .info-value {
-    margin-left: 0.5rem;
-}
 
 .progress-bar-container {
     width: 100%;
-    background-color: var(--border-color); /* Track background */
-    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
+    background-color: var(--progress-bar-track-color, rgba(0, 0, 0, 0.2));
+    border-radius: var(--progress-bar-radius, 4px);
     overflow: hidden;
-    margin-top: 0.25rem;
-    height: 18px;
+    height: 10px;
+    margin-top: 2px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .progress-bar {
     height: 100%;
-    width: 0%;
-    transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
-    text-align: center;
-    color: var(--bg-color); /* Text on progress bar (high contrast) */
-    font-size: 0.8rem;
-    line-height: 18px;
-    font-weight: 500;
+    border-radius: var(--progress-bar-radius, 4px);
+    transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.5s ease;
+    position: relative; /* For potential shine effect */
+    overflow: hidden;
+}
+/* Animated shine on progress bars */
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-image: linear-gradient(
+        -45deg,
+        rgba(255,255,255,0.15) 25%,
+                                      transparent 25%,
+                                      transparent 50%,
+                                      rgba(255,255,255,0.15) 50%,
+                                      rgba(255,255,255,0.15) 75%,
+                                      transparent 75%,
+                                      transparent
+    );
+    z-index: 1;
+    background-size: 30px 30px; /* Adjust for desired stripe size */
+    animation: subtleShine 2s linear infinite; /* Using a different animation name */
+    opacity: 0.7;
 }
 
-.progress-bar.low {
-    background-color: var(--success-color);
-}
-.progress-bar.medium {
-    background-color: var(--warning-color);
-    color: var(--bg-color); /* Ensure contrast on yellow */
-}
-.progress-bar.high {
-    background-color: var(--error-color);
-}
 
+.progress-bar.low { background: var(--progress-low-gradient, linear-gradient(90deg, var(--success-color-light, #38d9a9) 0%, var(--success-color, #20c997) 100%)); }
+.progress-bar.medium { background: var(--progress-medium-gradient, linear-gradient(90deg, var(--warning-color-light, #ffd43b) 0%, var(--warning-color, #fcc419) 100%)); }
+.progress-bar.high { background: var(--progress-high-gradient, linear-gradient(90deg, var(--danger-color-light, #ff6b6b) 0%, var(--danger-color, #fa5252) 100%)); }
 
-.monitor-server-card-body pre { /* For error messages or fallback */
-    background-color: var(--secondary-color); /* Code block background */
-    color: var(--text-color); /* Code block text */
-    padding: 0.5rem;
-    border-radius: 0.25rem; /* Consistent with var(--border-radius-sm) */
-    max-height: 300px;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 0.85em;
-    border: 1px solid var(--border-color);
-}
 
 .monitor-server-card-footer {
-    margin-top: 1rem;
-    text-align: right;
+    padding: 12px 18px;
+    border-top: 1px solid var(--card-border-color-light, rgba(255, 255, 255, 0.07));
+    display: flex; /* Use flex for better button alignment */
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 8px; /* Space between buttons */
+    background-color: var(--card-footer-bg-color, transparent);
 }
 
+.monitor-server-card-footer .monitor-btn {
+    padding: 0.5em 1em; /* Slightly smaller padding for footer buttons */
+    font-size: 0.8rem;
+}
+
+/* Action Output Area */
+.monitor-action-output {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: var(--border-radius-sm, 4px);
+    background-color: var(--console-bg-color, rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--console-border-color, rgba(255, 255, 255, 0.1));
+    color: var(--console-text-color, #b0b0d0);
+    font-family: var(--font-family-monospace, 'Courier New', Courier, monospace);
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+    transition: all 0.3s ease;
+    line-height: 1.6;
+}
+/* Specific colors for output states can be set via JS by adding classes if needed, or use general console colors */
+
+
+/* "No Servers" Message */
 .monitor-no-servers {
     text-align: center;
-    padding: 2rem;
-    background-color: var(--secondary-color); /* Background for "no servers" message */
-    border-radius: 0.5rem; /* Consistent with var(--border-radius-lg) */
-    color: var(--text-color); /* Text color */
+    padding: clamp(30px, 5vw, 60px) clamp(15px, 3vw, 30px);
+    background: var(--surface-alt-gradient, linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.05)));
+    border: 1px dashed var(--border-color-translucent-alt, rgba(255, 255, 255, 0.2));
+    border-radius: var(--card-border-radius, 10px);
+    color: var(--text-color-muted, #a0a0c0);
+    animation: fadeInUp 0.5s ease-out;
+    margin-top: 2rem;
 }
 
 .monitor-no-servers-icon {
-    font-size: 3rem;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    color: var(--primary-color-muted-alt, var(--primary-color, #007bff));
+    opacity: 0.7;
     margin-bottom: 1rem;
-    color: var(--placeholder-color); /* Dimmed icon color */
+    display: block; /* Ensure it's block for margin to work */
+}
+
+.monitor-no-servers .git-mygit-no-repos-title {
+    font-size: clamp(1.3rem, 2.5vw, 1.6rem);
+    color: var(--heading-color, #ffffff);
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+.monitor-no-servers .git-mygit-no-repos-text {
+    font-size: clamp(0.9rem, 1.8vw, 1rem);
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.monitor-no-servers a {
+    color: var(--link-color, var(--primary-color, #007bff));
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.monitor-no-servers a:hover {
+    color: var(--link-hover-color, var(--primary-color-lighter, #3395ff));
+    text-decoration: underline;
+    text-shadow: 0 0 5px var(--primary-color-transparent, rgba(0,123,255,0.5));
+}
+
+/* Draggable Item Styling */
+.monitor-server-card[draggable="true"] {
+    cursor: grab;
+}
+.monitor-server-card[style*="opacity: 0.5"] { /* Style for the item being dragged */
+    background: rgba(0,0,0,0.1); /* Make it more translucent */
+    border-style: dashed;
+    transform: scale(0.95); /* Slightly shrink it */
 }
