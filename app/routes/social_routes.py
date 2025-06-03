@@ -2,6 +2,7 @@
 import os
 import uuid
 from datetime import datetime, timezone
+from werkzeug.utils import secure_filename
 
 from flask import (
     Blueprint, render_template, redirect, url_for, flash, request,
