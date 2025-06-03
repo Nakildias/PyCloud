@@ -679,7 +679,18 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
         if not request.is_json:
             # This case should ideally not be hit if JS is working
             flash("Invalid request format. Expected JSON.", "danger")
-            return render_template("git/repo_create_file.html", owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, dir_path=dir_path, breadcrumbs=g.get('breadcrumbs', []), repo=repo_db_model)
+            # Ensure user_codemirror_theme is passed for re-render on error if needed,
+            # though typically JS handles this, this is for robustness.
+            user_cm_theme = 'material-darker.css' # Default
+            if hasattr(current_user, 'preferred_codemirror_theme') and current_user.preferred_codemirror_theme:
+                user_cm_theme = current_user.preferred_codemirror_theme
+
+            return render_template("git/repo_create_file.html",
+                                   owner_username=owner_username, repo_short_name=repo_short_name,
+                                   ref_name=ref_name, dir_path=dir_path,
+                                   breadcrumbs=g.get('breadcrumbs', []), repo=repo_db_model,
+                                   user_codemirror_theme=user_cm_theme) # Pass theme on error re-render
+
 
 
         data = request.get_json()
@@ -813,6 +824,10 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
         current_breadcrumbs.append({"name": part, "url": url_for('git.view_repo_tree', owner_username=owner_username, repo_short_name=repo_short_name, ref_name=ref_name, object_path=current_breadcrumb_path_builder)})
     current_breadcrumbs.append({"name": "Create New File/Folder", "url": ""}) # Current action
 
+    user_cm_theme = 'material-darker.css'
+    if hasattr(current_user, 'preferred_codemirror_theme') and current_user.preferred_codemirror_theme:
+        user_cm_theme = current_user.preferred_codemirror_theme
+
     # For GET, we just render the form. No WTForm instance is strictly needed if parsing JSON on POST.
     # However, if you want to use WTForms for CSRF protection, you'd instantiate it.
     # For simplicity here, assuming CSRF is handled by a macro or a global setup.
@@ -823,7 +838,7 @@ def create_repo_file(owner_username, repo_short_name, ref_name, dir_path):
                            dir_path=dir_path,
                            breadcrumbs=current_breadcrumbs,
                            repo=repo_db_model,
-                           # Pass empty strings for pre-filling on GET if needed, or handle in template
+                           user_codemirror_theme=user_cm_theme,
                            file_name = request.args.get("file_name", ""),
                            file_content = request.args.get("file_content", ""),
                            commit_message = request.args.get("commit_message", "")
