@@ -7,6 +7,11 @@ set -u
 # Pipelines return the exit status of the last command that failed, or zero if all succeeded.
 set -o pipefail
 
+# --- PRE-FLIGHT CHECK: PREVENT RUNNING WITH SUDO ---
+if [ "$EUID" -eq 0 ]; then
+  error "This script should NOT be run with sudo. Please run it as a regular user."
+fi
+
 # --- Configuration ---
 APP_NAME="PyCloud" # Updated App Name
 VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
@@ -68,10 +73,10 @@ command_exists() {
 }
 
 # Function to run command with sudo, prompting if needed
+# This function is retained for system-level package installations,
+# but the script itself will not execute if run with sudo.
 run_sudo() {
-    if [[ $EUID -eq 0 ]]; then
-        "$@" # Already root, just run it
-    elif command_exists sudo; then
+    if command_exists sudo; then
         info "Requesting sudo privileges for: $*"
         sudo "$@"
     else
@@ -79,12 +84,7 @@ run_sudo() {
     fi
 }
 
-# --- Pre-flight Checks ---
-
-if [ "$EUID" -eq 0 ]; then
-    warn "Running as root. While not recommended, the script will proceed."
-    warn "Consider running as a regular user; sudo will be requested when needed."
-fi
+# --- Pre-flight Checks (After initial sudo check) ---
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 info "Script source directory: ${SCRIPT_DIR}"
@@ -100,7 +100,6 @@ done
 # --- System Dependency Installation (Always Run) ---
 
 info "Attempting to install/update system dependencies (Python 3, venv)..."
-# ... (Package manager logic remains the same) ...
 if command_exists apt; then
     PACKAGE_MANAGER="apt"
     run_sudo apt update
@@ -231,6 +230,7 @@ if [[ "${DB_WAS_BACKED_UP}" == true ]]; then
         info "Database restored. Original backup is at ${DB_BACKUP_PATH} (can be manually deleted if desired)."
     else
         warn "Database backup was indicated but not found at ${DB_BACKUP_PATH}. Database may not have been restored."
+    SENSITIVE_CONTENT_START
     fi
 fi
 
@@ -266,6 +266,9 @@ deactivate
 
 # --- Executable Setup ---
 info "Copying ${MAIN_EXECUTABLE_NAME} executable to ${TARGET_BIN_DIR}/"
+# The installation script itself cannot be run with sudo, but it still needs to
+# use sudo for copying to /usr/local/bin, which is a system directory.
+# The user will be prompted for their password for this specific action.
 run_sudo cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/${MAIN_EXECUTABLE_NAME}" "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to copy ${MAIN_EXECUTABLE_NAME} to ${TARGET_BIN_DIR}"
 run_sudo chmod +x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || error "Failed to set executable permission."
 
@@ -279,9 +282,7 @@ for link_name in "${LINK_NAMES[@]}"; do
 done
 info "Executable setup completed."
 
----
-### Systemd Service Setup
----
+# --- Systemd Service Setup ---
 
 info "Setting up systemd user service for ${APP_NAME}..."
 
@@ -300,8 +301,8 @@ Environment=\"FLASK_APP=run.py\"
 Restart=always
 User=${USERNAME}
 Group=${GROUPNAME}
-# Prevent running with sudo
-ExecCondition=/bin/bash -c '[ "$$EUID" -ne 0 ]'
+# Prevent running with sudo - this check is performed by systemd at service start
+ExecCondition=/bin/bash -c '[ \"\$\$EUID\" -ne 0 ]'
 
 [Install]
 WantedBy=default.target"
@@ -320,10 +321,7 @@ info "Starting ${SERVICE_NAME}..."
 systemctl --user start "${SERVICE_NAME}" || warn "Failed to start ${SERVICE_NAME}. Check 'journalctl --user -u ${SERVICE_NAME}' for errors."
 info "${SERVICE_NAME} setup complete."
 
----
-### Final Check
----
-
+# --- Final Check ---
 if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
     if command_exists "${MAIN_EXECUTABLE_NAME}"; then
         info "-------------------------------------------"
