@@ -68,15 +68,18 @@ run_sudo() {
         sudo "$@"
     else
         error "sudo command not found. Cannot perform required action: $*"
-    fi
+    !fi
 }
 
 # --- Pre-flight Checks ---
 
-# This is the primary change: explicitly disallow running with sudo
-if [ "$EUID" -eq 0 ]; then
-    error "This script should NOT be run with sudo. Please run it as a regular user: bash ./install.sh"
+# Allow running with sudo for system service installation
+if [ "$EUID" -ne 0 ]; then
+   warn "This script is designed to be run with sudo for system service installation. Proceeding, but ensure you have sudo privileges."
+   # You could add an 'error' here if you strictly want to force sudo from the start,
+   # but it's often better to just prompt for sudo when needed.
 fi
+
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 info "Script source directory: ${SCRIPT_DIR}"
@@ -270,24 +273,23 @@ for link_name in "${LINK_NAMES[@]}"; do
 done
 info "Executable setup completed."
 
-# --- Systemd Service Setup ---
-info "Setting up systemd user service for ${APP_NAME}..."
+# --- Systemd Service Setup (System-wide) ---
+info "Setting up systemd system service for ${APP_NAME}..."
 
 SERVICE_NAME="pycloud.service"
-SERVICE_FILE_DIR="/etc/systemd"
+SERVICE_FILE_DIR="/etc/systemd/system" # System-wide service directory
 SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
-USERNAME=$(whoami) # Get the current username
-
-sudo mkdir -p "${SERVICE_FILE_DIR}" || error "Failed to create systemd user service directory."
+USERNAME=$(whoami) # Get the current username to set as User/Group in service file
 
 # Create the service file content
-sudo cat <<EOF > "${SERVICE_FILE_PATH}"
+# Use run_sudo for writing to /etc/systemd/system
+run_sudo bash -c "cat <<EOF > \"${SERVICE_FILE_PATH}\"
 [Unit]
 Description=${APP_NAME} Flask Application
 After=network.target
 
 [Service]
-ExecStart=PyCloud
+ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
 WorkingDirectory=${APP_INSTALL_DIR}
 Environment="FLASK_APP=run.py"
 Restart=always
@@ -297,15 +299,15 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=default.target
-EOF
+WantedBy=multi-user.target # Change to multi-user.target for system service
+EOF"
 
 info "Systemd service file created at ${SERVICE_FILE_PATH}"
 
-info "Enabling and starting the ${SERVICE_NAME} user service..."
-sudo systemctl daemon-reload || error "Failed to reload systemd daemon."
-sudo systemctl enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
-sudo systemctl restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
+info "Enabling and starting the ${SERVICE_NAME} system service..."
+run_sudo systemctl daemon-reload || error "Failed to reload systemd daemon."
+run_sudo systemctl enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
+run_sudo systemctl restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
 info "${SERVICE_NAME} enabled and restarted successfully."
 
 # --- Final Check ---
@@ -319,9 +321,9 @@ if [[ -x "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" ]]; then
         info " Static files in ${APP_INSTALL_DIR}/static (css,js,icons updated, others preserved)"
         info " Executable: ${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}"
         info " Symlinks: ${LINK_NAMES[*]} (if any) in ${TARGET_BIN_DIR}"
-        info " Systemd User Service: ${SERVICE_NAME} is enabled and running."
-        info " To check service status: systemctl --user status ${SERVICE_NAME}"
-        info " To view logs: journalctl --user -u ${SERVICE_NAME}"
+        info " Systemd System Service: ${SERVICE_NAME} is enabled and running."
+        info " To check service status: sudo systemctl status ${SERVICE_NAME}"
+        info " To view logs: journalctl -u ${SERVICE_NAME}"
         info " You should now be able to run the application using: ${MAIN_EXECUTABLE_NAME} or pycloud"
         info " If the command isn't found immediately, try opening a new terminal session."
         info "-------------------------------------------"
