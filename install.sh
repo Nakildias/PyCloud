@@ -274,7 +274,7 @@ info "Executable setup completed."
 info "Setting up systemd user service for ${APP_NAME}..."
 
 SERVICE_NAME="pycloud.service"
-SERVICE_FILE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE_DIR="/etc/systemd"
 SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
 USERNAME=$(whoami) # Get the current username
 
@@ -303,9 +303,9 @@ EOF
 info "Systemd service file created at ${SERVICE_FILE_PATH}"
 
 info "Enabling and starting the ${SERVICE_NAME} user service..."
-systemctl --user daemon-reload || error "Failed to reload systemd daemon."
-systemctl --user enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
-systemctl --user restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
+systemctl daemon-reload || error "Failed to reload systemd daemon."
+systemctl enable "${SERVICE_NAME}" || error "Failed to enable ${SERVICE_NAME}."
+systemctl restart "${SERVICE_NAME}" || error "Failed to restart ${SERVICE_NAME}."
 info "${SERVICE_NAME} enabled and restarted successfully."
 
 # --- Final Check ---
