@@ -13,7 +13,7 @@ VENV_DIR="$HOME/.local/share/${APP_NAME}" # Virtual environment location
 APP_INSTALL_DIR="${VENV_DIR}" # Where the Flask app files will live
 TARGET_BIN_DIR="/usr/local/bin"       # Standard location for user-installed executables
 # Source directories/files relative to the script location
-SOURCE_APP_DIR="./" # This means main.py, static, templates are in the same dir as install.sh
+SOURCE_APP_DIR="./" # This means run.py, app are in the same dir as install.sh
 REQUIRED_ITEMS=( # Items needed from the source directory
     "${SOURCE_APP_DIR}/run.py"
     "${SOURCE_APP_DIR}/app"
@@ -120,8 +120,8 @@ info "Python 3 and venv module confirmed."
 
 
 # --- Cleanup Previous Installation (if VENV_DIR exists) ---
-DB_PATH="${VENV_DIR}/database.db"
-DB_BACKUP_PATH="${HOME}/${APP_NAME}_database.db.bak.$(date +%Y%m%d_%H%M%S)" # Unique backup name
+DB_PATH="${VENV_DIR}/instance/database.db"
+DB_BACKUP_PATH="${HOME}/${APP_NAME}/instance/_database.db.bak.$(date +%Y%m%d_%H%M%S)" # Unique backup name
 DB_WAS_BACKED_UP=false
 
 if [[ -d "${VENV_DIR}" ]]; then
@@ -136,9 +136,21 @@ if [[ -d "${VENV_DIR}" ]]; then
     fi
 
     # 2. Remove specific old application files and folders (NOT the VENV_DIR itself)
-    info "Removing old application files (main.py, templates)..."
-    rm -f "${VENV_DIR}/main.py" || warn "Could not remove old main.py (might not exist)."
-    rm -rf "${VENV_DIR}/templates" || warn "Could not remove old templates directory (might not exist)."
+    info "Removing old application files (run.py, app/routes, app/templates, app/static/codemirror, app/static/css, app/static/icons, app/static/js, app/static/sounds, app/decorators.py, app/forms.py, app/models.py, app/utils.py, app/__init__.py, app/config.py)..."
+    rm -f "${VENV_DIR}/run.py" || warn "Could not remove old run.py (might not exist)."
+    rm -f "${VENV_DIR}/app/__init__.py" || warn "Could not remove old __init__.py (might not exist)."
+    rm -f "${VENV_DIR}/config.py" || warn "Could not remove old config.py (might not exist)."
+    rm -f "${VENV_DIR}/decorators.py" || warn "Could not remove old decorators.py (might not exist)."
+    rm -f "${VENV_DIR}/forms.py" || warn "Could not remove old forms.py (might not exist)."
+    rm -f "${VENV_DIR}/models.py" || warn "Could not remove old models.py (might not exist)."
+    rm -f "${VENV_DIR}/utils.py" || warn "Could not remove old utils.py (might not exist)."
+    rm -rf "${VENV_DIR}/app/templates" || warn "Could not remove old templates directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/static/css" || warn "Could not remove old css directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/static/js" || warn "Could not remove old js directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/static/icons" || warn "Could not remove old icons directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/static/codemirror" || warn "Could not remove old codemirror directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/static/sounds" || warn "Could not remove old sounds directory (might not exist)."
+    rm -rf "${VENV_DIR}/app/routes" || warn "Could not remove old routes directory (might not exist)."
 
     # 3. Remove specific static subdirectories as requested
     info "Removing specified static subdirectories (css, js, icons)..."
@@ -195,7 +207,7 @@ info "Copying application files into virtual environment..."
 mkdir -p "${APP_INSTALL_DIR}/static" || error "Failed to create static directory in venv: ${APP_INSTALL_DIR}/static"
 mkdir -p "${APP_INSTALL_DIR}/templates" || error "Failed to create templates directory in venv: ${APP_INSTALL_DIR}/templates"
 
-cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/main.py" "${APP_INSTALL_DIR}/main.py" || error "Failed to copy main.py"
+cp "${SCRIPT_DIR}/${SOURCE_APP_DIR}/run.py" "${APP_INSTALL_DIR}/run.py" || error "Failed to copy run.py"
 info "Copying contents of static directory..."
 cp -r "${SCRIPT_DIR}/${SOURCE_APP_DIR}/static/." "${APP_INSTALL_DIR}/static/" || error "Failed to copy contents of static directory"
 info "Copying contents of templates directory..."
@@ -222,8 +234,8 @@ info "Performing database migrations..."
 ORIGINAL_PWD=$(pwd)
 cd "${APP_INSTALL_DIR}" || error "Failed to change directory to ${APP_INSTALL_DIR}"
 
-export FLASK_APP=main.py
-info "FLASK_APP set to main.py"
+export FLASK_APP=run.py
+info "FLASK_APP set to run.py"
 
 if [[ ! -d "${APP_INSTALL_DIR}/migrations" ]]; then
     info "Migrations directory not found. Initializing Flask-Migrate..."
