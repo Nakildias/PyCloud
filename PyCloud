@@ -10,4 +10,4 @@ cd $VENV_DIR
 
 source $VENV_DIR/bin/activate
 
-python $VENV_DIR/main.py
+python $VENV_DIR/run.py
