@@ -563,107 +563,98 @@ def serve_gba_rom(filename):
 # --- Server Monitor ---
 
 def _log_daemon_comm(message, level="info"):
-    """Helper to log messages related to daemon communication."""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     log_func = getattr(current_app.logger, level, current_app.logger.info)
     log_func(f"[{timestamp}] [DAEMON_COMM] {message}")
 
-def _request_info_from_daemon(host, port, password):
+def _communicate_with_daemon(host, port, password, action_payload):
     """
-    Connects to the daemon, authenticates, and requests information.
-    Adapted from the user's client script.
-    Returns a tuple: (data_dict, error_message_string)
+    Connects to the daemon, authenticates, sends a command, and gets a response.
+    Returns a tuple: (response_dict, error_message_string)
     """
-    _log_daemon_comm(f"Attempting to connect to {host}:{port}...")
+    _log_daemon_comm(f"Attempting to connect to {host}:{port} for action: {action_payload.get('action')}")
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((host, port))
-            s.settimeout(10)  # Set a timeout for socket operations
+            s.settimeout(15)  # Timeout for socket operations
 
-            prompt = s.recv(1024).decode()
+            prompt = s.recv(1024).decode('utf-8', errors='replace')
             if "Password:" not in prompt:
                 err_msg = f"Did not receive password prompt from {host}:{port}. Received: {prompt}"
                 _log_daemon_comm(err_msg, level="warning")
                 return None, err_msg
 
-            s.sendall(password.encode())
-            auth_response_raw = s.recv(1024).decode()
+            s.sendall(password.encode('utf-8'))
+            auth_response_raw = s.recv(1024).decode('utf-8', errors='replace')
             _log_daemon_comm(f"Auth response from {host}:{port}: {auth_response_raw.strip()}")
 
             if "Authentication failed" in auth_response_raw:
                 err_msg = f"Authentication failed for {host}:{port}."
                 _log_daemon_comm(err_msg, level="warning")
                 return None, err_msg
-            elif "Authentication successful" not in auth_response_raw:
+            elif "Authentication successful" not in auth_response_raw: # Check for "Send JSON command"
                 err_msg = f"Unexpected authentication response from {host}:{port}: {auth_response_raw.strip()}"
                 _log_daemon_comm(err_msg, level="warning")
                 return None, err_msg
 
+            # Send the JSON command after successful authentication
+            command_json = json.dumps(action_payload)
+            s.sendall(command_json.encode('utf-8'))
+            _log_daemon_comm(f"Sent command to {host}:{port}: {command_json}")
+
+            # Receive the response
             full_data_str = ""
             while True:
-                chunk = s.recv(4096)
+                chunk = s.recv(8192) # Increased buffer for potentially larger JSON responses (e.g. update output)
                 if not chunk:
                     break
                 full_data_str += chunk.decode('utf-8', errors='replace')
-                try:
-                    # Attempt to parse if we might have a complete JSON object
-                    # This is a common pattern: server sends a confirmation, then JSON.
-                    # The JSON might not be immediately after the auth confirmation line.
-                    # We look for a structure that could be JSON.
-                    if full_data_str.strip().startswith("{") and full_data_str.strip().endswith("}"):
-                        # Find the start of the actual JSON data
-                        # It might be after "Sending data...\n" or similar.
-                        json_start_index = full_data_str.find('{')
-                        if json_start_index != -1:
-                            json_candidate = full_data_str[json_start_index:]
-                            data = json.loads(json_candidate)
-                            _log_daemon_comm(f"Successfully received and parsed data from {host}:{port}.")
-                            return data, None
-                except json.JSONDecodeError:
-                    # Not a complete JSON object yet, or malformed. Continue accumulating if more data is expected.
-                    # If the server sends data in one go, and then closes, this might fail if not caught correctly.
-                    pass # Continue to accumulate more data
-                except Exception as e_parse: # Catch other potential parsing errors
-                    _log_daemon_comm(f"Error during data parsing from {host}:{port}: {e_parse}", level="error")
-                    return None, f"Error parsing data: {e_parse}"
-
-
-            # If loop finishes, try to parse accumulated data (if any)
-            if full_data_str:
-                try:
-                    # Attempt to find JSON within the accumulated string
-                    json_start_index = full_data_str.find('{')
-                    if json_start_index != -1:
-                        json_candidate = full_data_str[json_start_index:]
-                        data = json.loads(json_candidate)
-                        _log_daemon_comm(f"Successfully received and parsed data (end of stream) from {host}:{port}.")
+                # Try to parse if we might have a complete JSON object (simple check)
+                if full_data_str.strip().startswith("{") and full_data_str.strip().endswith("}"):
+                    try:
+                        # It's possible the daemon sends multiple JSON objects or other text.
+                        # We are expecting a single JSON response for our command.
+                        data = json.loads(full_data_str.strip())
+                        _log_daemon_comm(f"Successfully received and parsed JSON response from {host}:{port}.")
                         return data, None
-                    else:
-                        err_msg = f"No JSON object found in data from {host}:{port}. Received: {full_data_str}"
-                        _log_daemon_comm(err_msg, level="warning")
-                        return None, err_msg
+                    except json.JSONDecodeError:
+                        # Not a complete or valid JSON object yet, continue accumulating if more data is expected.
+                        # This might happen if the daemon sends data in multiple chunks that don't form valid JSON until combined.
+                        pass
+
+            # If loop finishes and we haven't returned, try to parse accumulated data
+            if full_data_str.strip():
+                try:
+                    data = json.loads(full_data_str.strip())
+                    _log_daemon_comm(f"Successfully parsed accumulated JSON response from {host}:{port}.")
+                    return data, None
                 except json.JSONDecodeError as e:
-                    err_msg = f"JSONDecodeError for data from {host}:{port}: {e}. Raw: {full_data_str}"
+                    err_msg = f"JSONDecodeError for final data from {host}:{port}: {e}. Raw: {full_data_str[:500]}" # Log only part of raw data
                     _log_daemon_comm(err_msg, level="error")
                     return None, err_msg
             else:
-                err_msg = f"No data received from {host}:{port} after authentication."
+                err_msg = f"No data received from {host}:{port} after sending command."
                 _log_daemon_comm(err_msg, level="warning")
                 return None, err_msg
 
     except socket.timeout:
-        err_msg = f"Connection to {host}:{port} timed out."
+        err_msg = f"Connection to {host}:{port} timed out during action {action_payload.get('action')}."
         _log_daemon_comm(err_msg, level="error")
         return None, err_msg
     except ConnectionRefusedError:
-        err_msg = f"Connection to {host}:{port} refused. Is the daemon running?"
+        err_msg = f"Connection to {host}:{port} refused for action {action_payload.get('action')}. Is the daemon running?"
+        _log_daemon_comm(err_msg, level="error")
+        return None, err_msg
+    except json.JSONDecodeError as e: # Catch JSON errors specifically if they happen outside the loop
+        err_msg = f"JSON parsing error during communication with {host}:{port} for action {action_payload.get('action')}: {e}"
         _log_daemon_comm(err_msg, level="error")
         return None, err_msg
     except Exception as e:
-        err_msg = f"An unexpected error occurred with {host}:{port}: {e}"
-        current_app.logger.error(err_msg, exc_info=True)
+        err_msg = f"An unexpected error occurred with {host}:{port} during action {action_payload.get('action')}: {type(e).__name__} - {e}"
+        _log_daemon_comm(err_msg, level="error", exc_info=True)
         return None, err_msg
-    return None, "Unknown error or no data received."
+
+    return None, f"Unknown error or no data received from daemon for action {action_payload.get('action')}."
 
 
 @bp.route('/monitor', methods=['GET', 'POST'])
@@ -671,16 +662,14 @@ def _request_info_from_daemon(host, port, password):
 def monitor_dashboard():
     form = AddServerForm()
     if form.validate_on_submit():
-        # Check for existing server by name (already in place)
         existing_server_by_name = MonitoredServer.query.filter_by(
             user_id=current_user.id,
             name=form.name.data
         ).first()
         if existing_server_by_name:
             flash('A server with this name already exists.', 'warning')
-            return redirect(url_for('.monitor_dashboard')) # Redirect to show modal closed or handle via JS
+            return redirect(url_for('.monitor_dashboard'))
 
-        # Check for existing server by host and port
         existing_server_by_host_port = MonitoredServer.query.filter_by(
             user_id=current_user.id,
             host=form.host.data,
@@ -690,20 +679,19 @@ def monitor_dashboard():
             flash(f"The server {form.host.data}:{form.port.data} is already in your list.", 'warning')
             return redirect(url_for('.monitor_dashboard'))
 
-        # If no duplicates, add the new server
         new_server = MonitoredServer(
             user_id=current_user.id,
             name=form.name.data,
             host=form.host.data,
             port=form.port.data,
-            password=form.password.data,
+            password=form.password.data, # Password will be stored directly. Consider encryption at rest if sensitive.
             display_order=MonitoredServer.query.filter_by(user_id=current_user.id).count()
         )
         db.session.add(new_server)
         try:
             db.session.commit()
             flash(f"Server '{new_server.name}' added successfully!", 'success')
-        except Exception as e: # Catch potential unique constraint violation if somehow missed
+        except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error adding server: {e}")
             flash("Error adding server. It might already exist or there was a database issue.", "danger")
@@ -711,7 +699,6 @@ def monitor_dashboard():
         return redirect(url_for('.monitor_dashboard'))
 
     servers = MonitoredServer.query.filter_by(user_id=current_user.id).order_by(MonitoredServer.display_order).all()
-    # Pass the form to the template for the modal
     return render_template('tools/monitor.html', title="Server Monitor", servers=servers, form=form)
 
 @bp.route('/monitor/delete/<int:server_id>', methods=['POST'])
@@ -719,7 +706,7 @@ def monitor_dashboard():
 def delete_monitored_server(server_id):
     server = MonitoredServer.query.get_or_404(server_id)
     if server.user_id != current_user.id:
-        abort(403) # Forbidden
+        abort(403)
     db.session.delete(server)
     db.session.commit()
     flash(f"Server '{server.name}' deleted.", 'success')
@@ -732,14 +719,70 @@ def fetch_server_data_api(server_id):
     if server.user_id != current_user.id:
         return jsonify({'error': 'Forbidden'}), 403
 
-    data, error = _request_info_from_daemon(server.host, server.port, server.password)
+    action_payload = {"action": "get_system_info"}
+    response_data, error = _communicate_with_daemon(server.host, server.port, server.password, action_payload)
 
     if error:
-        return jsonify({'error': str(error), 'server_name': server.name, 'server_id': server.id}), 500 # Internal Server Error or specific error
-    if data:
-        return jsonify({'data': data, 'server_name': server.name, 'server_id': server.id}), 200
+        return jsonify({'error': str(error), 'server_name': server.name, 'server_id': server.id}), 500
 
-    return jsonify({'error': 'No data received or unknown issue.', 'server_name': server.name, 'server_id': server.id}), 500
+    if response_data and response_data.get("status") == "success" and "data" in response_data:
+        return jsonify({'data': response_data['data'], 'server_name': server.name, 'server_id': server.id}), 200
+    elif response_data and response_data.get("status") == "error":
+        return jsonify({'error': response_data.get('message', 'Daemon returned an error.'), 'server_name': server.name, 'server_id': server.id}), 500
+
+    return jsonify({'error': 'Invalid or no data received from daemon.', 'server_name': server.name, 'server_id': server.id, 'raw_response': response_data}), 500
+
+
+@bp.route('/monitor/reboot/<int:server_id>', methods=['POST'])
+@login_required
+def reboot_monitored_server(server_id):
+    server = MonitoredServer.query.get_or_404(server_id)
+    if server.user_id != current_user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    action_payload = {"action": "reboot"}
+    response_data, error = _communicate_with_daemon(server.host, server.port, server.password, action_payload)
+
+    if error:
+        return jsonify({'success': False, 'message': str(error)}), 500
+
+    if response_data and response_data.get("status") == "success":
+        return jsonify({'success': True, 'message': response_data.get('message', 'Reboot command sent successfully.')}), 200
+    elif response_data and response_data.get("status") == "error":
+        return jsonify({'success': False, 'message': response_data.get('message', 'Daemon reported an error during reboot.')}), 500
+
+    return jsonify({'success': False, 'message': 'Invalid or no response from daemon for reboot command.'}), 500
+
+@bp.route('/monitor/update/<int:server_id>', methods=['POST'])
+@login_required
+def update_monitored_server(server_id):
+    server = MonitoredServer.query.get_or_404(server_id)
+    if server.user_id != current_user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    action_payload = {"action": "update"}
+    response_data, error = _communicate_with_daemon(server.host, server.port, server.password, action_payload)
+
+    if error:
+        return jsonify({'success': False, 'message': str(error), 'output': '', 'error_output': ''}), 500
+
+    if response_data and response_data.get("status") == "success":
+        return jsonify({
+            'success': True,
+            'message': response_data.get('message', 'Update command processed.'),
+            'output': response_data.get('output', ''),
+            'error_output': response_data.get('error', '') # Daemon uses 'error' for stderr
+        }), 200
+    elif response_data and response_data.get("status") == "error":
+        return jsonify({
+            'success': False,
+            'message': response_data.get('message', 'Daemon reported an error during update.'),
+            'output': response_data.get('output', ''),
+            'error_output': response_data.get('error', '') # Daemon uses 'error' for stderr
+        }), 500
+
+    return jsonify({'success': False, 'message': 'Invalid or no response from daemon for update command.', 'output':'', 'error_output':''}), 500
+
 
 @bp.route('/monitor/reorder', methods=['POST'])
 @login_required
@@ -750,7 +793,7 @@ def reorder_monitored_servers():
 
     servers_to_reorder = MonitoredServer.query.filter(
         MonitoredServer.user_id == current_user.id,
-        MonitoredServer.id.in_(ordered_ids)
+        MonitoredServer.id.in_([int(id_str) for id_str in ordered_ids]) # Ensure IDs are integers
     ).all()
 
     server_map = {server.id: server for server in servers_to_reorder}
@@ -761,7 +804,6 @@ def reorder_monitored_servers():
             server_map[server_id].display_order = index
         else:
             current_app.logger.warning(f"Server ID {server_id} not found for user {current_user.id} during reorder.")
-            # Optionally, handle this error more gracefully
 
     try:
         db.session.commit()
@@ -770,3 +812,4 @@ def reorder_monitored_servers():
         db.session.rollback()
         current_app.logger.error(f"Error reordering servers: {e}", exc_info=True)
         return jsonify({'error': 'Failed to update server order.'}), 500
+
