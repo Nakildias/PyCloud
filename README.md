@@ -120,7 +120,9 @@ PyCloud is packed with a wide array of features, categorized below:
     * Upscaled images can be saved to the user's cloud storage.
 * **GBA Emulator**:
     * Web-based Game Boy Advance emulator.
-    * Load and play GBA ROMs (requires users to upload their ROMs).
+    * Load and play GBA ROMs (requires users to upload their ROMs locally).
+    * I do not endorse piracy so only use roms you own.
+    * GBA BIOS is not needed as the emulator doesn't need a GBA BIOS to work.
 
 ### 🖼️ Media Viewing
 * **Photo Viewer**: Dedicated section to browse and view uploaded photos.
