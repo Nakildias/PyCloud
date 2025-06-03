@@ -65,21 +65,19 @@ command_exists() {
 run_sudo() {
     if command_exists sudo; then
         info "Requesting sudo privileges for: $*"
+        # Prompt for sudo password if needed
         sudo "$@"
     else
         error "sudo command not found. Cannot perform required action: $*"
-    !fi
+    fi
 }
 
 # --- Pre-flight Checks ---
 
-# Allow running with sudo for system service installation
-if [ "$EUID" -ne 0 ]; then
-   warn "This script is designed to be run with sudo for system service installation. Proceeding, but ensure you have sudo privileges."
-   # You could add an 'error' here if you strictly want to force sudo from the start,
-   # but it's often better to just prompt for sudo when needed.
+# This is the primary change: explicitly disallow running with sudo
+if [ "$EUID" -eq 0 ]; then
+   error "This script should NOT be run with sudo directly. Please run it as a regular user (e.g., bash ./install.sh). The script will prompt for sudo password when needed."
 fi
-
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 info "Script source directory: ${SCRIPT_DIR}"
@@ -127,7 +125,7 @@ DB_WAS_BACKED_UP=false
 if [[ -d "${VENV_DIR}" ]]; then
     info "Existing installation directory found at ${VENV_DIR}. Performing selective update..."
 
-    # 1. Backup database if it exists
+    # 1. Backup database if it exists (no sudo needed for user's home directory)
     if [[ -f "${DB_PATH}" ]]; then
         info "Backing up existing database from ${DB_PATH} to ${DB_BACKUP_PATH}..."
         cp "${DB_PATH}" "${DB_BACKUP_PATH}" || error "Failed to backup database. Halting to prevent data loss."
@@ -165,7 +163,7 @@ if [[ -d "${VENV_DIR}" ]]; then
     fi
     # The main static folder "${VENV_DIR}/static" itself is NOT deleted.
 
-    # 4. Remove old executable and links
+    # 4. Remove old executable and links (requires sudo as they are in /usr/local/bin)
     info "Removing old executable and links from ${TARGET_BIN_DIR}..."
     run_sudo rm -f "${TARGET_BIN_DIR}/${MAIN_EXECUTABLE_NAME}" || warn "Could not remove old executable (might not exist)."
     for link_name in "${LINK_NAMES[@]}"; do
@@ -281,8 +279,7 @@ SERVICE_FILE_DIR="/etc/systemd/system" # System-wide service directory
 SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
 USERNAME=$(whoami) # Get the current username to set as User/Group in service file
 
-# Create the service file content
-# Use run_sudo for writing to /etc/systemd/system
+# Create the service file content. This requires sudo.
 run_sudo bash -c "cat <<EOF > \"${SERVICE_FILE_PATH}\"
 [Unit]
 Description=${APP_NAME} Flask Application
@@ -299,7 +296,7 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target # Change to multi-user.target for system service
+WantedBy=multi-user.target
 EOF"
 
 info "Systemd service file created at ${SERVICE_FILE_PATH}"
