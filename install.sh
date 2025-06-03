@@ -121,7 +121,7 @@ info "Python 3 and venv module confirmed."
 
 # --- Cleanup Previous Installation (if VENV_DIR exists) ---
 DB_PATH="${VENV_DIR}/instance/database.db"
-DB_BACKUP_PATH="${HOME}/${APP_NAME}/instance/_database.db.bak.$(date +%Y%m%d_%H%M%S)" # Unique backup name
+DB_BACKUP_PATH="${VENV_DIR}/instance/_database.db.bak.$(date +%Y%m%d_%H%M%S)" # Unique backup name
 DB_WAS_BACKED_UP=false
 
 if [[ -d "${VENV_DIR}" ]]; then
