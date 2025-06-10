@@ -4,7 +4,7 @@
 
 # To monitor servers you'll need to install the [PyCloud Daemon](https://github.com/Nakildias/PyCloudMonitorDaemon)
 
-# If you enconter bugs or issues please report it in Issues, give as much detail as possible.
+# If you encounter bugs or issues please report it in Issues, give as much detail as possible.
 
 ## 🚀 Overview
 
