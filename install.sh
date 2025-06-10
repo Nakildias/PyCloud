@@ -39,6 +39,7 @@ PYTHON_DEPS=( # Python packages to install via pip
     "paramiko"
     "eventlet"
     "py7zr"
+    "gunicorn"
 )
 MAIN_EXECUTABLE_NAME="PyCloud" # Name of the script to link in TARGET_BIN_DIR
 LINK_NAMES=( "pycloud" ) # Additional names (symlinks)
@@ -280,6 +281,7 @@ SERVICE_FILE_DIR="/etc/systemd/system" # System-wide service directory
 SERVICE_FILE_PATH="${SERVICE_FILE_DIR}/${SERVICE_NAME}"
 USERNAME=$(whoami) # Get the current username to set as User/Group in service file
 
+#OLD NON PRODUCTION EXECSTART ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
 # Create the service file content. This requires sudo.
 run_sudo bash -c "cat <<EOF > \"${SERVICE_FILE_PATH}\"
 [Unit]
@@ -287,7 +289,7 @@ Description=${APP_NAME} Flask Application
 After=network.target
 
 [Service]
-ExecStart=${VENV_DIR}/bin/python ${APP_INSTALL_DIR}/run.py
+ExecStart=${VENV_DIR}/bin/gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:8888 run:app
 WorkingDirectory=${APP_INSTALL_DIR}
 Environment="FLASK_APP=run.py"
 Restart=always
