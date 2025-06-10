@@ -218,6 +218,7 @@ cat <<EOF > "${CREDENTIALS_FILE}"
 DATABASE_URL="postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}"
 EOF
 # The EOF above MUST be at the very beginning of the line with no leading whitespace.
+# The EOF below MUST be at the very beginning of the line with no leading whitespace.
 
 info "Credentials saved successfully to '${CREDENTIALS_FILE}'."
 info "File permissions for '${CREDENTIALS_FILE}' set to read-only for owner."
