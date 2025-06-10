@@ -18,3 +18,4 @@ Flask-SocketIO
 paramiko
 py7zr
 eventlet
+gunicorn
