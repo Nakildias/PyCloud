@@ -18,6 +18,6 @@ if __name__ == '__main__':
     socketio.run(app,
                  debug=app.config.get('DEBUG', True), # Use debug status from app config
                  host='0.0.0.0',
-                 port=int(os.getenv('PORT', 8080)), # Allow port to be set by env var
+                 port=int(os.getenv('PORT', 8888)), # Allow port to be set by env var
                  allow_unsafe_werkzeug=True # For development reloader with SocketIO
                 )
