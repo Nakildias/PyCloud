@@ -246,8 +246,8 @@ class RepoEditFileForm(FlaskForm): # For Git file editing
     submit = SubmitField('Save Changes')
 
 class AddServerForm(FlaskForm):
-    name = StringField('Server Name', validators=[DataRequired(), Length(min=1, max=100)])
+    name = StringField('Server Name', validators=[DataRequired(), Length(min=1, max=20)])
     host = StringField('Server Host/IP', validators=[DataRequired(), Length(min=1, max=255)])
     port = IntegerField('Port', default=65432, validators=[DataRequired(), NumberRange(min=1, max=65535)])
-    password = PasswordField('Daemon Password', validators=[DataRequired(), Length(min=1, max=255)])
+    password = PasswordField('Daemon Password', validators=[Optional(), Length(min=1, max=255)])
     submit = SubmitField('Add Server')
