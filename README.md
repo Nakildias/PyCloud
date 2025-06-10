@@ -4,14 +4,16 @@
 
 # To monitor servers you'll need to install the [PyCloud Daemon](https://github.com/Nakildias/PyCloudMonitorDaemon)
 
+# If you enconter bugs or issues please report it in Issues, give as much detail as possible.
+
 ## 🚀 Overview
 
 PyCloud is a feature-rich, self-hostable web application built with Python and Flask. It aims to provide a comprehensive suite of tools for personal cloud storage, social interaction, developer utilities, and more, all under your control. From managing your files and notes to connecting with friends, running emulators, and even managing Git repositories, PyCloud offers a versatile platform for individuals and small groups.
 
 ## 🛠️ Core Technologies
 
-* **Backend**: Python, Flask
-* **Database**: Flask-SQLAlchemy SQlite3
+* **Backend**: Python, Flask, Gunicorn
+* **Database**: Flask-SQLAlchemy using postgresql
 * **Authentication**: Flask-Login
 * **Forms**: Flask-WTF
 * **Real-time Communication**: Flask-SocketIO (used for SSH client, chat features)
