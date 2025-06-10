@@ -732,6 +732,69 @@ def fetch_server_data_api(server_id):
 
     return jsonify({'error': 'Invalid or no data received from daemon.', 'server_name': server.name, 'server_id': server.id, 'raw_response': response_data}), 500
 
+@bp.route('/monitor/details/<int:server_id>', methods=['GET'])
+@login_required
+def fetch_single_server_details_api(server_id):
+    server = MonitoredServer.query.get_or_404(server_id)
+    if server.user_id != current_user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    # Return only necessary details for populating the form
+    return jsonify({
+        'id': server.id,
+        'name': server.name,
+        'host': server.host,
+        'port': server.port
+        # Do NOT send password back for security reasons
+    }), 200
+
+@bp.route('/monitor/edit/<int:server_id>', methods=['POST'])
+@login_required
+def update_monitored_server_details(server_id):
+    server = MonitoredServer.query.get_or_404(server_id)
+    if server.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
+    form = AddServerForm(request.form) # Use request.form as it's a POST request from AJAX
+
+    if form.validate_on_submit():
+        # Check for duplicate name excluding the current server being edited
+        existing_server_by_name = MonitoredServer.query.filter(
+            MonitoredServer.user_id == current_user.id,
+            MonitoredServer.name == form.name.data,
+            MonitoredServer.id != server_id
+        ).first()
+        if existing_server_by_name:
+            return jsonify({'success': False, 'message': 'A server with this name already exists for you.'}), 400
+
+        # Check for duplicate host/port combination excluding the current server
+        existing_server_by_host_port = MonitoredServer.query.filter(
+            MonitoredServer.user_id == current_user.id,
+            MonitoredServer.host == form.host.data,
+            MonitoredServer.port == form.port.data,
+            MonitoredServer.id != server_id
+        ).first()
+        if existing_server_by_host_port:
+            return jsonify({'success': False, 'message': f"The server {form.host.data}:{form.port.data} is already in your list."}), 400
+
+        server.name = form.name.data
+        server.host = form.host.data
+        server.port = form.port.data
+        if form.password.data: # Only update password if a new one is provided
+            server.password = form.password.data
+
+        try:
+            db.session.commit()
+            return jsonify({'success': True, 'message': f"Server '{server.name}' updated successfully!"}), 200
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating server {server_id}: {e}", exc_info=True)
+            return jsonify({'success': False, 'message': "Database error occurred while updating server."}), 500
+    else:
+        # If form validation fails, return the errors
+        errors = {field.name: field.errors for field in form if field.errors}
+        return jsonify({'success': False, 'message': 'Validation failed', 'errors': errors}), 400
+
 
 @bp.route('/monitor/reboot/<int:server_id>', methods=['POST'])
 @login_required
