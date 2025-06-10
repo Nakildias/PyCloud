@@ -110,7 +110,8 @@ IGNORE_PATTERNS_FOR_STATS = {
 class Config:
     SECRET_KEY = os.urandom(24)
     INSTANCE_FOLDER_PATH = INSTANCE_FOLDER_PATH
-    SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(INSTANCE_FOLDER_PATH, DB_NAME)}'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+                              'postgresql://pycloud:password@localhost:5432/pycloud' # Fallback for development
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
