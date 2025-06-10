@@ -309,7 +309,7 @@ class File(db.Model):
     parent_folder_id = db.Column(db.Integer, db.ForeignKey('folder.id'), nullable=True)
     is_public = db.Column(db.Boolean, default=False, nullable=False, index=True)
     public_id = db.Column(db.String(36), unique=True, nullable=True, index=True)
-    public_password_hash = db.Column(db.String(128), nullable=True)
+    public_password_hash = db.Column(db.String(1024), nullable=True)
 
     def __repr__(self):
         return f'<File {self.id}: {self.original_filename}>'
