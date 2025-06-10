@@ -18,7 +18,7 @@ from markupsafe import Markup
 import markdown # For README rendering
 
 # GitPython (ensure it's installed)
-from git import Repo as PyGitRepo, InvalidGitRepositoryError, NoSuchPathError
+from git import Repo as PyGitRepo, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 
 # Import from app package
 from app import db, csrf # db and csrf from app/__init__
@@ -93,26 +93,79 @@ def create_repo_route():
         description = request.form.get("description", "").strip()
 
         if not repo_name or not all(c.isalnum() or c in ['_', '-'] for c in repo_name) or len(repo_name) > 100:
-            flash("Invalid repository name.", "danger")
+            flash("Invalid repository name. Use alphanumeric characters, underscores, or hyphens (max 100 characters).", "danger")
         elif GitRepository.query.filter_by(user_id=current_user.id, name=repo_name).first():
             flash(f"Repository '{repo_name}' already exists.", "danger")
         else:
             repo_disk_path = get_repo_disk_path(current_user.username, repo_name) # Util function
+            git_exe = current_app.config['GIT_EXECUTABLE_PATH']
+
             if os.path.exists(repo_disk_path):
-                flash("Directory for this repository already exists on disk. Inconsistency.", "danger")
+                # This should ideally not happen if DB check passed, but good to be safe.
+                flash("Directory for this repository already exists on disk. Inconsistency detected.", "danger")
+                current_app.logger.error(f"Attempted to create repo '{repo_name}' for '{current_user.username}' but disk path already exists: {repo_disk_path}")
             else:
-                try:
-                    user_repo_base_dir = os.path.dirname(repo_disk_path)
-                    os.makedirs(user_repo_base_dir, exist_ok=True)
-                    git_exe = current_app.config['GIT_EXECUTABLE_PATH']
-                    subprocess.run([git_exe, "init", "--bare", repo_disk_path], check=True, capture_output=True)
-                    new_repo_db = GitRepository(user_id=current_user.id, name=repo_name, description=description, is_private=(visibility == "private"), disk_path=repo_disk_path)
-                    db.session.add(new_repo_db); db.session.commit()
-                    flash(f"Repository '{repo_name}' created!", "success")
-                    return redirect(url_for('.view_repo_root', owner_username=current_user.username, repo_short_name=repo_name))
-                except Exception as e:
-                    db.session.rollback(); flash(f"Error creating repository: {e}", "danger")
-                    current_app.logger.error(f"Error creating repo {repo_name} for {current_user.username}: {e}", exc_info=True)
+                # Use a temporary directory for the initial clone, commit, and push
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    try:
+                        user_repo_base_dir = os.path.dirname(repo_disk_path)
+                        os.makedirs(user_repo_base_dir, exist_ok=True)
+
+                        # 1. Initialize the bare repository
+                        subprocess.run([git_exe, "init", "--bare", repo_disk_path], check=True, capture_output=True)
+
+                        # 2. Clone the newly created bare repo into a temporary working directory
+                        #    We clone into temp_dir, which is not bare, so we can work in it.
+                        subprocess.run([git_exe, "clone", repo_disk_path, temp_dir], check=True, capture_output=True)
+
+                        # 3. Create a README.md file in the temporary working directory
+                        readme_path = os.path.join(temp_dir, "README.md")
+                        with open(readme_path, "w") as f:
+                            f.write(f"# {repo_name}\n\n")
+                            if description:
+                                f.write(f"{description}\n\n")
+                            f.write("This is an initial commit.\n")
+
+                        # 4. Configure committer for the temporary clone
+                        committer_name = current_user.username
+                        committer_email = current_user.email if hasattr(current_user, 'email') and current_user.email else f"{current_user.username}@example.com"
+                        author_string = f"{committer_name} <{committer_email}>"
+
+                        subprocess.run([git_exe, "-C", temp_dir, "config", "user.name", f'"{committer_name}"'], check=True, capture_output=True)
+                        subprocess.run([git_exe, "-C", temp_dir, "config", "user.email", f'"{committer_email}"'], check=True, capture_output=True)
+
+                        # 5. Add, commit, and push the README.md to the bare repo
+                        subprocess.run([git_exe, "-C", temp_dir, "add", "README.md"], check=True, capture_output=True)
+                        subprocess.run([git_exe, "-C", temp_dir, "commit", "-m", "Initial commit", f"--author={author_string}"], check=True, capture_output=True)
+
+                        # Determine the default branch name (usually 'main' or 'master')
+                        # On a fresh clone, the branch will be 'master' by default for older git, 'main' for newer.
+                        # We push HEAD to ensure the correct branch name is created/used.
+                        subprocess.run([git_exe, "-C", temp_dir, "push", "-u", "origin", "HEAD"], check=True, capture_output=True)
+
+                        # 6. Create database record after successful Git operations
+                        new_repo_db = GitRepository(user_id=current_user.id, name=repo_name, description=description, is_private=(visibility == "private"), disk_path=repo_disk_path)
+                        db.session.add(new_repo_db)
+                        db.session.commit()
+
+                        flash(f"Repository '{repo_name}' created and initialized!", "success")
+                        return redirect(url_for('.view_repo_root', owner_username=current_user.username, repo_short_name=repo_name))
+
+                    except subprocess.CalledProcessError as e:
+                        db.session.rollback() # Rollback DB transaction if Git ops fail
+                        error_output = e.stderr.decode(errors='ignore') or e.stdout.decode(errors='ignore')
+                        flash(f"Error initializing Git repository: {error_output}", "danger")
+                        current_app.logger.error(f"Git command failed during repo creation for {repo_name} by {current_user.username}: {e.cmd} -> {error_output}", exc_info=True)
+                        # Clean up partially created bare repo if subprocess failed
+                        if os.path.exists(repo_disk_path):
+                            shutil.rmtree(repo_disk_path, ignore_errors=True)
+                    except Exception as e:
+                        db.session.rollback() # Rollback DB transaction for other Python errors
+                        flash(f"An unexpected error occurred: {e}", "danger")
+                        current_app.logger.error(f"Unexpected error creating repo {repo_name} for {current_user.username}: {e}", exc_info=True)
+                        # Clean up partially created bare repo
+                        if os.path.exists(repo_disk_path):
+                            shutil.rmtree(repo_disk_path, ignore_errors=True)
         # Re-render form with submitted values if error
         return render_template("git/create_repo.html", repo_name=repo_name, description=description, visibility=visibility)
     return render_template("git/create_repo.html")
