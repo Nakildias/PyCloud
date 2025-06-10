@@ -21,7 +21,7 @@ login_manager = LoginManager()
 csrf = CSRFProtect()
 mail = Mail() # Flask-Mail instance
 migrate = Migrate()
-socketio = SocketIO(cors_allowed_origins="*", async_mode='threading', manage_session=True)
+socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet', manage_session=True)
 
 # LoginManager configuration
 login_manager.login_view = 'auth.login'
@@ -246,6 +246,9 @@ def create_app(config_name=None):
         handle_ssh_disconnect_request, handle_ssh_resize,
         handle_socket_disconnect
     )
+    from .events import handle_global_connect
+
+    socketio.on_event('connect', handle_global_connect)
     socketio.on_event('ssh_connect_request', handle_ssh_connect_request)
     socketio.on_event('ssh_command', handle_ssh_command)
     socketio.on_event('ssh_disconnect_request', handle_ssh_disconnect_request)
