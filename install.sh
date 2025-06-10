@@ -37,6 +37,7 @@ PYTHON_DEPS=( # Python packages to install via pip
     "yt-dlp"
     "Flask-SocketIO"
     "paramiko"
+    "eventlet"
     "py7zr"
 )
 MAIN_EXECUTABLE_NAME="PyCloud" # Name of the script to link in TARGET_BIN_DIR
