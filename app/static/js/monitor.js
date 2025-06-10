@@ -4,11 +4,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const serverGrid = document.getElementById('monitorServerGrid');
     let draggedItem = null;
 
-    // Modal elements
+    // Modal elements (existing)
     const addServerModal = document.getElementById('addServerModal');
     const openModalBtn = document.getElementById('openAddServerModalBtn');
     const closeModalBtn = document.getElementById('closeAddServerModalBtn');
     const cancelModalBtn = document.getElementById('cancelAddServerModalBtn');
+
+    // NEW: Edit Modal elements
+    const editServerModal = document.getElementById('editServerModal');
+    const closeEditModalBtn = document.getElementById('closeEditServerModalBtn');
+    const cancelEditModalBtn = document.getElementById('cancelEditServerModalBtn');
+    const editServerForm = document.getElementById('editServerForm');
+    const editServerIdInput = document.getElementById('editServerId');
+    const editServerNameInput = document.getElementById('editServerName');
+    const editServerHostInput = document.getElementById('editServerHost');
+    const editServerPortInput = document.getElementById('editServerPort');
+    const editServerPasswordInput = document.getElementById('editServerPassword');
+
 
     // URLs are expected to be defined globally in the HTML template
     // e.g., const MONITOR_FETCH_URL_BASE = "...";
@@ -17,8 +29,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // e.g., const MONITOR_UPDATE_URL_BASE = "...";
     // CSRF_TOKEN should be available globally if your Flask-WTF setup provides it, or handle as needed.
 
+    // NEW: Add new URL constants for edit feature (these need to be defined in your HTML too)
+    // For example, in your monitor.html, inside the <script> block with other MONITOR_URL_BASE definitions:
+    // const MONITOR_FETCH_SINGLE_SERVER_DETAILS_URL_BASE = "{{ url_for('tool_routes.fetch_single_server_details_api', server_id=0) }}".slice(0, -1);
+    // const MONITOR_EDIT_SERVER_URL_BASE = "{{ url_for('tool_routes.update_monitored_server_details', server_id=0) }}".slice(0, -1);
 
-    // Modal event listeners
+
+    // Modal event listeners (existing)
     if (openModalBtn && addServerModal) {
         openModalBtn.onclick = function() {
             addServerModal.style.display = "block";
@@ -39,6 +56,22 @@ document.addEventListener('DOMContentLoaded', function () {
             if (event.target == addServerModal) {
                 addServerModal.style.display = "none";
             }
+            // NEW: Also close the edit modal if clicked outside
+            else if (editServerModal && event.target == editServerModal) {
+                editServerModal.style.display = "none";
+            }
+        }
+    }
+
+    // NEW: Edit Modal event listeners
+    if (closeEditModalBtn && editServerModal) {
+        closeEditModalBtn.onclick = function() {
+            editServerModal.style.display = "none";
+        }
+    }
+    if (cancelEditModalBtn && editServerModal) {
+        cancelEditModalBtn.onclick = function() {
+            editServerModal.style.display = "none";
         }
     }
 
@@ -140,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (result.error) {
                 if (statusEl) {
-                    statusEl.textContent = 'Error';
+                    statusEl.textContent = 'Offline';
                     statusEl.className = 'monitor-server-status status-error';
                 }
                 const errorDisplayId = `error-display-${serverId}`;
@@ -189,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cardBodyEl) cardBodyEl.classList.remove('loading');
             console.error('Fetch error for server ' + serverId + ':', error);
             if (statusEl) {
-                statusEl.textContent = 'Fetch Err';
+                statusEl.textContent = 'Offline';
                 statusEl.className = 'monitor-server-status status-error';
             }
             const errorDisplayId = `error-display-${serverId}`;
@@ -198,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 cardBodyEl.innerHTML = `<pre id="${errorDisplayId}" style="color: var(--danger-color-text, red); margin-top: 10px;"></pre>`;
                 document.getElementById(errorDisplayId).textContent = 'Network error or backend unavailable.';
             } else if(errorDisplayEl) {
-                errorDisplayEl.textContent = 'Network error or backend unavailable.';
+                errorDisplayEl.textContent = 'Network error or Server Offline.';
             }
         });
     }
@@ -206,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     serverCards.forEach(card => {
         const serverId = card.dataset.serverId;
         fetchDataForServer(serverId);
-        const intervalId = setInterval(() => fetchDataForServer(serverId), 500); // Fetch every 30 seconds
+        const intervalId = setInterval(() => fetchDataForServer(serverId), 1000); // Fetch every second
         card.dataset.intervalId = intervalId;
     });
 
@@ -308,6 +341,98 @@ document.addEventListener('DOMContentLoaded', function () {
             handleServerAction(action, serverId, serverName);
         });
     });
+
+    // NEW: START Edit Server Logic Block
+    document.querySelectorAll('.monitor-edit-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const serverId = this.dataset.serverId;
+            // Fetch server details from API to populate the form
+            fetch(`${MONITOR_FETCH_SINGLE_SERVER_DETAILS_URL_BASE}${serverId}`)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                editServerIdInput.value = data.id;
+                editServerNameInput.value = data.name;
+                editServerHostInput.value = data.host;
+                editServerPortInput.value = data.port;
+                editServerPasswordInput.value = ''; // Always clear password for security
+
+                editServerForm.action = `${MONITOR_EDIT_SERVER_URL_BASE}${data.id}`;
+                editServerModal.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error fetching server details:', error);
+                const errorMessage = error.message || 'Failed to fetch server details for editing.';
+                if (typeof showToast === 'function') {
+                    showToast(errorMessage, 'error');
+                } else {
+                    alert(errorMessage);
+                }
+            });
+        });
+    });
+
+    if (editServerForm) {
+        editServerForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const serverId = editServerIdInput.value;
+            const formData = new FormData(editServerForm);
+
+            fetch(editServerForm.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded', // Corrected content type
+                    'X-CSRFToken': typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: new URLSearchParams(formData).toString() // Corrected body
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (typeof showToast === 'function') {
+                    showToast(result.message, result.success ? 'success' : 'error');
+                } else {
+                    alert(result.message);
+                }
+                if (result.success) {
+                    editServerModal.style.display = 'none';
+                    // Refresh data for the specific server card or all servers
+                    fetchDataForServer(serverId); // Re-fetch data for the updated server
+                    // Also update the name displayed on the card immediately if it changed
+                    const serverNameEl = document.getElementById(`name-${serverId}`);
+                    if (serverNameEl) {
+                        serverNameEl.textContent = editServerNameInput.value; // Use the new name from input
+                    }
+                } else {
+                    // Display validation errors if available
+                    if (result.errors) {
+                        let errorMessages = "Please correct the following errors:\n";
+                        for (const field in result.errors) {
+                            errorMessages += `${field}: ${result.errors[field].join(', ')}\n`;
+                        }
+                        if (typeof showToast === 'function') {
+                            showToast(errorMessages, 'error', 5000); // Show for longer
+                        } else {
+                            alert(errorMessages);
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating server:', error);
+                if (typeof showToast === 'function') {
+                    showToast('Network error while updating server.', 'error');
+                } else {
+                    alert('Network error while updating server.');
+                }
+            });
+        });
+    }
+    // NEW: END Edit Server Logic Block
 
 
     if (serverGrid) {
