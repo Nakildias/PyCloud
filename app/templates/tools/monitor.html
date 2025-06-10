@@ -61,6 +61,41 @@
         </div>
     </div>
 
+    <div id="editServerModal" class="monitor-modal">
+        <div class="monitor-modal-content">
+            <span class="monitor-modal-close-btn" id="closeEditServerModalBtn">&times;</span>
+            <div class="monitor-modal-header">
+                <h2>Edit Server</h2>
+            </div>
+            {# The form action will be set dynamically by JavaScript #}
+            <form id="editServerForm" method="POST" action="" class="monitor-add-server-form">
+                {# This hidden tag will be populated by JS or rendered server-side if doing a full page load #}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="editServerId" name="server_id">
+                <div class="monitor-form-group">
+                    <label for="editServerName">Server Name</label>
+                    <input type="text" class="form-control" id="editServerName" name="name" required>
+                </div>
+                <div class="monitor-form-group">
+                    <label for="editServerHost">Server Host/IP</label>
+                    <input type="text" class="form-control" id="editServerHost" name="host" required>
+                </div>
+                <div class="monitor-form-group">
+                    <label for="editServerPort">Port</label>
+                    <input type="number" class="form-control" id="editServerPort" name="port" required>
+                </div>
+                <div class="monitor-form-group">
+                    <label for="editServerPassword">Daemon Password (leave blank to keep current)</label>
+                    <input type="password" class="form-control" id="editServerPassword" name="password">
+                </div>
+                <button type="submit" class="monitor-btn monitor-btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                 <button type="button" id="cancelEditServerModalBtn" class="monitor-btn monitor-btn-secondary" style="margin-left: 0.5rem;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <section class="monitor-servers-list">
         <h2 class="git-mygit-section-title" style="margin-bottom:1rem;">Monitored Servers</h2>
         {% if servers %}
@@ -100,6 +135,10 @@
                         <button type="button" class="monitor-btn monitor-btn-info monitor-action-btn" data-action="update" data-server-id="{{ server.id }}">
                             <i class="fas fa-sync-alt"></i> Update
                         </button>
+                        <button type="button" class="monitor-btn monitor-btn-secondary monitor-edit-btn" data-server-id="{{ server.id }}"
+                                data-server-name="{{ server.name }}" data-server-host="{{ server.host }}" data-server-port="{{ server.port }}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
                         <form method="POST" action="{{ url_for('tool_routes.delete_monitored_server', server_id=server.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete server \'{{ server.name|e }}\'?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="monitor-btn monitor-btn-danger">
@@ -131,6 +170,9 @@
     const MONITOR_REORDER_URL = "{{ url_for('tool_routes.reorder_monitored_servers') }}";
     const MONITOR_REBOOT_URL_BASE = "{{ url_for('tool_routes.reboot_monitored_server', server_id=0) }}".slice(0, -1);
     const MONITOR_UPDATE_URL_BASE = "{{ url_for('tool_routes.update_monitored_server', server_id=0) }}".slice(0, -1);
+    const MONITOR_FETCH_SINGLE_SERVER_DETAILS_URL_BASE = "{{ url_for('tool_routes.fetch_single_server_details_api', server_id=0) }}".slice(0, -1);
+    const MONITOR_EDIT_SERVER_URL_BASE = "{{ url_for('tool_routes.update_monitored_server_details', server_id=0) }}".slice(0, -1);
+
     // The CSRF_TOKEN will be picked up by the monitor.js if it's globally defined by your base template or another script.
     // If not, you might need to pass it or handle it as monitor.js does with X-CSRFToken header.
 </script>
