@@ -17,3 +17,4 @@ yt-dlp
 Flask-SocketIO
 paramiko
 py7zr
+eventlet
