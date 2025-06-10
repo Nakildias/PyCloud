@@ -217,6 +217,7 @@ cat <<EOF > "${CREDENTIALS_FILE}"
 # Full SQLAlchemy Database URI:
 DATABASE_URL="postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}"
 EOF
+# The EOF above MUST be at the very beginning of the line with no leading whitespace.
 
 info "Credentials saved successfully to '${CREDENTIALS_FILE}'."
 info "File permissions for '${CREDENTIALS_FILE}' set to read-only for owner."
@@ -397,6 +398,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF"
+# The EOF above MUST be at the very beginning of the line with no leading whitespace.
 
 info "Systemd service file created at ${SERVICE_FILE_PATH}"
 
