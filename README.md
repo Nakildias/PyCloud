@@ -29,7 +29,7 @@ PyCloud is packed with a wide array of features, categorized below:
 * **User Registration**: Secure user registration with password hashing.
 * **Login/Logout**: Standard session-based authentication.
 * **Password Management**:
-    * Forgot Password & Reset functionality (likely via email).
+    * Forgot Password & Reset functionality
     * Email change/reset options.
 * **User Profiles**:
     * Viewable user profiles with bio and social links.
