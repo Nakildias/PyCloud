@@ -236,16 +236,16 @@ info "Attempting to install/update system dependencies (Python 3, venv, PostgreS
 if command_exists apt; then
     PACKAGE_MANAGER="apt"
     run_sudo apt update
-    run_sudo apt install -y python3 python3-venv postgresql || error "Failed using apt."
+    run_sudo apt install -y python3 python3-venv postgresql ffmpeg || error "Failed using apt."
 elif command_exists dnf; then
     PACKAGE_MANAGER="dnf"
-    run_sudo dnf install -y python3 python3-virtualenv postgresql-server postgresql-contrib || error "Failed using dnf."
+    run_sudo dnf install -y python3 python3-virtualenv postgresql-server postgresql-contrib ffmpeg || error "Failed using dnf."
 elif command_exists pacman; then
     PACKAGE_MANAGER="pacman"
-    run_sudo pacman -S --noconfirm --needed python python-virtualenv postgresql || error "Failed using pacman."
+    run_sudo pacman -S --noconfirm --needed python python-virtualenv postgresql ffmpeg || error "Failed using pacman."
 elif command_exists emerge; then
     PACKAGE_MANAGER="emerge"
-    run_sudo emerge --ask --noreplace dev-lang/python dev-db/postgresql || error "Failed initial emerge for python/postgresql."
+    run_sudo emerge --ask --noreplace dev-lang/python dev-db/postgresql media-video/ffmpeg || error "Failed initial emerge for python/postgresql."
     info "Assuming Python 3 venv module is included with dev-lang/python on Gentoo."
 else
     error "Could not detect a supported package manager. Please install Python 3, venv module, and PostgreSQL manually."
