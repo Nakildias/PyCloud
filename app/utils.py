@@ -16,6 +16,7 @@ import requests
 from PIL import Image, ImageSequence
 from werkzeug.utils import secure_filename
 from flask import current_app, url_for
+import re
 
 from .models import User, File, Folder, Setting, Notification, GitRepository
 from .models import OllamaChatMessage
@@ -509,14 +510,25 @@ def get_codemirror_mode_from_filename(filename): # For Git file editor
     }
     return simple_map.get(ext, 'text/plain')
 
-def secure_path_component(component): # For Git create/upload file routes
-    if component == ".." or component == ".": return "_"
-    secured_by_werkzeug = secure_filename(component)
-    if component.startswith('_') and secured_by_werkzeug and not secured_by_werkzeug.startswith('_') and component[1:] == secured_by_werkzeug:
-        final_secured_name = '_' + secured_by_werkzeug
-    else:
-        final_secured_name = secured_by_werkzeug
-    return final_secured_name if final_secured_name else "_"
+def secure_path_component(component):
+    """
+    A less restrictive version of werkzeug's secure_filename that allows
+    leading underscores, which are significant in Python (e.g., __init__.py),
+    and other common characters in filenames.
+    """
+    # Allow alphanumeric, underscore, hyphen, and period.
+    # This regex allows leading underscores.
+    component = re.sub(r'[^a-zA-Z0-9_.-]', '_', component)
+
+    # Prevent directory traversal attempts, even though we check for '..' in parts separately.
+    if '..' in component:
+        return '_' # Or handle as an error appropriately
+
+    # If the component is empty after sanitization, return a single underscore.
+    if not component:
+        return "_"
+
+    return component
 
 
 def calculate_repo_language_stats(repo_disk_path, ref_name="HEAD"): # For Git language stats display
