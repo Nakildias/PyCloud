@@ -51,6 +51,14 @@ class CreateFolderForm(FlaskForm):
     submit = SubmitField('Create Folder')
 
 
+class CreateFileForm(FlaskForm):
+    name = StringField('File Name', validators=[
+        DataRequired(message="File name cannot be empty."),
+        Length(min=1, max=250, message="File name must be between 1 and 250 characters.")
+    ])
+    submit = SubmitField('Create File')
+
+
 class EditFileForm(FlaskForm):
     content = TextAreaField('File Content', validators=[DataRequired()])
     submit = SubmitField('Save Changes')

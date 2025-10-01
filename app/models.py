@@ -249,6 +249,11 @@ class Folder(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     parent_folder_id = db.Column(db.Integer, db.ForeignKey('folder.id'), nullable=True)
 
+    # Sharing attributes
+    is_public = db.Column(db.Boolean, default=False)
+    public_id = db.Column(db.String(36), unique=True, nullable=True)
+    public_password_hash = db.Column(db.String(256), nullable=True)
+
     children = db.relationship('Folder',
                                backref=db.backref('parent', remote_side=[id]),
                                lazy='dynamic',
