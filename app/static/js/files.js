@@ -26,7 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnCancelCreateFolder = document.getElementById('fl-btn-cancel-create-folder');
     const inputFolderName = formCreateFolder ? formCreateFolder.querySelector('.fl-input-foldername') : null;
 
+    const btnShowCreateFile = document.getElementById('fl-btn-show-create-file');
+    const formCreateFile = document.getElementById('fl-form-create-file');
+    const btnCancelCreateFile = document.getElementById('fl-btn-cancel-create-file');
+    const inputFileName = formCreateFile ? formCreateFile.querySelector('.fl-input-foldername') : null;
+
     const selectAllCheckbox = document.getElementById('fl-select-all-checkbox');
+
     let itemRows = fileTable ? Array.from(fileTable.querySelectorAll('.fl-item-row')) : [];
 
     const multiSelectActionsContainer = document.getElementById('fl-multi-select-actions-toolbar');
@@ -36,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnArchiveSelected = document.getElementById('fl-btn-archive-selected');
     const btnUnarchiveSelected = document.getElementById('fl-btn-unarchive-selected');
     const btnEditSelected = document.getElementById('fl-btn-edit-selected');
+    const btnRenameSelected = document.getElementById('fl-btn-rename-selected');
     const btnDownloadSelected = document.getElementById('fl-btn-download-selected');
     const btnShareSelected = document.getElementById('fl-btn-share-selected');
     const downloadFileBaseUrl = window.PyCloud_DownloadFileEndpoint;
@@ -53,6 +60,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const unsupportedFilename = document.getElementById('fl-unsupported-filename');
     const unsupportedDownloadLink = document.getElementById('fl-unsupported-download-link');
     const btnCloseModal = document.getElementById('fl-btn-close-modal');
+    const tableBody = fileTable ? fileTable.querySelector('tbody') : null; // Added for easy access
+
+    // === Global State ===
+    let uploadsInProgress = 0;
+
+    // --- On-Leave Warning ---
+    window.addEventListener('beforeunload', function(e) {
+        if (uploadsInProgress > 0) {
+            const confirmationMessage = 'Uploads are still in progress. Are you sure you want to leave? All ongoing uploads will be cancelled.';
+            (e || window.event).returnValue = confirmationMessage; // For legacy browsers
+            return confirmationMessage; // For modern browsers
+        }
+    });
 
     // NEW: Unselect everything on page refresh (modified for new selection model)
     if (selectAllCheckbox) {
@@ -111,8 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // MODIFIED: getSelectedItems to include isPublic
     function getSelectedItems() {
-        // Ensure itemRows is up-to-date if called after DOM modifications not involving full reload
-        // itemRows = fileTable ? Array.from(fileTable.querySelectorAll('.fl-item-row')) : [];
         return itemRows
         .filter(row => row.classList.contains('selected'))
         .map(row => {
@@ -122,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 name: row.dataset.itemName,
                 isEditable: row.dataset.isEditable === 'true',
                 fileExt: row.dataset.fileExt || '',
-                isPublic: row.dataset.isPublic === 'true'
+                isPublic: row.dataset.isPublic === 'true' // This already works for both
             };
         });
     }
@@ -137,43 +155,40 @@ document.addEventListener('DOMContentLoaded', function() {
             if (btnArchiveSelected) btnArchiveSelected.style.display = 'none';
             if (btnUnarchiveSelected) btnUnarchiveSelected.style.display = 'none';
             if (btnEditSelected) btnEditSelected.style.display = 'none';
+            if (btnRenameSelected) btnRenameSelected.style.display = 'none';
             if (btnDownloadSelected) btnDownloadSelected.style.display = 'none';
             if (btnShareSelected) btnShareSelected.style.display = 'none';
-
 
             if (selectedItems.length > 0) {
                 const allFolders = selectedItems.every(item => item.type === 'folder');
                 const allFiles = selectedItems.every(item => item.type === 'file');
                 const allArchives = allFiles && selectedItems.every(item => ['zip', '7z', 'rar'].includes(item.fileExt));
                 const singleEditableFile = selectedItems.length === 1 && selectedItems[0].type === 'file' && selectedItems[0].isEditable;
-                const singleFileSelected = selectedItems.length === 1 && selectedItems[0].type === 'file';
+                const singleItemSelected = selectedItems.length === 1;
                 const unshareSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-share-off"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M15.861 15.896a3 3 0 0 0 4.265 4.22m.578 -3.417a3.012 3.012 0 0 0 -1.507 -1.45" /><path d="M8.7 10.7l1.336 -.688m2.624 -1.352l2.64 -1.36" /><path d="M8.7 13.3l6.6 3.4" /><path d="M3 3l18 18" /></svg>';
                 const shareSVG = '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-share"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.7 10.7l6.6 -3.4" /><path d="M8.7 13.3l6.6 3.4" /></svg>';
 
-                // Show Archive button if all selected are folders
                 if (allFolders) {
                     if (btnArchiveSelected) btnArchiveSelected.style.display = 'inline-block';
                 }
-                // Show Unarchive button if all selected are archive files
                 if (allArchives) {
                     if (btnUnarchiveSelected) btnUnarchiveSelected.style.display = 'inline-block';
                 }
-                // Show Edit button if exactly one editable file is selected
                 if (singleEditableFile) {
                     if (btnEditSelected) btnEditSelected.style.display = 'inline-block';
                 }
-
-                // Show Download button if all selected are files (not folders)
                 if (allFiles && selectedItems.length > 0) {
                     if (btnDownloadSelected) btnDownloadSelected.style.display = 'inline-block';
                 }
-
-                // NEW: Show Share/Unshare button if exactly one file is selected
-                if (singleFileSelected) {
+                if (selectedItems.length > 0) {
+                    if(btnRenameSelected) btnRenameSelected.style.display = 'inline-block';
+                }
+                // CORRECTED: This now correctly handles any single selected item
+                if (singleItemSelected) {
                     if (btnShareSelected) {
                         btnShareSelected.style.display = 'inline-block';
-                        const fileData = selectedItems[0];
-                        if (fileData.isPublic) {
+                        const itemData = selectedItems[0];
+                        if (itemData.isPublic) {
                             btnShareSelected.innerHTML = unshareSVG;
                             btnShareSelected.classList.remove('btn-info');
                             btnShareSelected.classList.add('btn-warning');
@@ -188,68 +203,165 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- Event Listeners (add this) ---
+    // --- Dynamic DOM Manipulation & Timestamp Formatting ---
+    function formatAllTimestamps() {
+        document.querySelectorAll('[data-timestamp]').forEach(el => {
+            try {
+                const timestamp = el.dataset.timestamp;
+                // Simple formatting, assuming localetime_formatter.js might add more complex logic
+                const date = new Date(timestamp);
+                const format = el.dataset.format || 'YYYY-MM-DD HH:MM';
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                el.textContent = format.replace('YYYY', year).replace('MM', month).replace('DD', day)
+                .replace('HH', hours).replace('mm', minutes);
+            } catch (e) {
+                console.error("Error formatting timestamp:", e);
+                el.textContent = el.dataset.timestamp; // Fallback
+            }
+        });
+    }
+
+    function removeEmptyFolderMessage() {
+        const emptyRow = tableBody.querySelector('.fl-empty-folder-row');
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+    }
+
+    function createFolderRow(folderData) {
+        const listFilesBaseUrl = window.PyCloud_ListFilesEndpoint.replace('/0', '');
+        const folderUrl = folderData.id ? `${listFilesBaseUrl}/${folderData.id}` : listFilesBaseUrl;
+        const nameEscaped = folderData.name.replace(/"/g, '&quot;');
+        // Return the FULL TR structure
+        return `
+        <tr class="fl-item-row fl-folder-row" data-item-id="${folderData.id}" data-item-type="folder" data-item-name="${nameEscaped}">
+        <td class="fl-td fl-td-name" colspan="4">
+        <div class="fl-item-info-wrapper">
+        <div class="fl-item-header">
+        <span class="fl-item-icon fl-item-icon-folder">📁</span>
+        <span class="fl-itemname-display" id="fl-foldername-display-${folderData.id}"><a href="${folderUrl}">${folderData.name}</a></span>
+        <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-${folderData.id}" value="${folderData.name}">
+        </div>
+        <div class="fl-item-details">
+        <span class="fl-td-size">--</span>
+        <span class="fl-td-modified"><span data-timestamp="${folderData.modified}" data-format="YYYY-MM-DD HH:mm"></span></span>
+        </div>
+        </div>
+        </td>
+        </tr>`;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function createFileRow(fileData) {
+        const viewUrl = window.PyCloud_ViewFileEndpoint.replace('0', fileData.id);
+        const nameEscaped = fileData.name.replace(/"/g, '&quot;');
+        const fileExt = fileData.file_ext || fileData.name.split('.').pop().toLowerCase();
+        let iconHtml;
+        const video_extensions = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'webm'];
+        const audio_extensions = ['mp3', 'ogg', 'wav', 'flac', 'm4a', 'aac'];
+        const picture_extensions = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'heif', 'avif', 'bmp', 'svg', 'ico'];
+        if (video_extensions.includes(fileExt)) { iconHtml = '<span title="Video">🎬</span>'; }
+        else if (audio_extensions.includes(fileExt)) { iconHtml = '<span title="Audio">🔊</span>'; }
+        else if (picture_extensions.includes(fileExt)) { iconHtml = '<span title="Picture">📷</span>'; }
+        else if (fileData.is_editable) { iconHtml = '<span title="Editable Text">📝</span>'; }
+        else if (fileExt === 'pdf') { iconHtml = '<span title="PDF Document">📄</span>'; }
+        else { iconHtml = '[&nbsp;]'; }
+
+        const isViewable = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'mp4', 'webm', 'ogg', 'mov', 'mp3', 'wav', 'aac', 'flac', 'm4a', 'pdf', 'txt'].includes(fileExt);
+        const fileNameHtml = isViewable ? `<a href="${viewUrl}" class="fl-viewable-file-link" data-filename="${nameEscaped}" title="View File">${fileData.name}</a>` : fileData.name;
+
+        // Return the FULL TR structure
+        return `
+        <tr class="fl-item-row fl-file-row" data-item-id="${fileData.id}" data-item-type="file" data-item-name="${nameEscaped}" data-is-public="${fileData.is_public}" data-is-password-protected="${fileData.is_password_protected}" data-public-id="${fileData.public_id || ''}" data-share-url="${fileData.share_url || ''}" data-is-editable="${fileData.is_editable}" data-file-ext="${fileExt}">
+        <td class="fl-td fl-td-name" colspan="4">
+        <div class="fl-item-info-wrapper">
+        <div class="fl-item-header">
+        <span class="fl-item-icon fl-item-icon-file">${iconHtml}</span>
+        <span class="fl-itemname-display" id="fl-filename-display-${fileData.id}">${fileNameHtml}</span>
+        <input type="text" class="form-control form-control-sm fl-itemname-input fl-filename-input" id="fl-filename-input-${fileData.id}" value="${fileData.name}">
+        </div>
+        <span class="fl-share-icon-indicator" id="fl-share-icon-${fileData.id}" style="display: none;" title="Copy share link"><span class="fl-password-indicator"></span>&nbsp;🔗</span>
+        </div>
+        <div class="fl-item-details">
+        <span class="fl-td-size">${formatFileSize(fileData.size)}</span>
+        <span class="fl-td-modified"><span data-timestamp="${fileData.modified}" data-format="YYYY-MM-DD HH:mm"></span></span>
+        </div>
+        </td>
+        </tr>`;
+    }
+
+    function insertItemIntoTable(itemData) {
+        try {
+            if (!tableBody) return;
+            removeEmptyFolderMessage();
+
+            const newRowHtml = itemData.type === 'folder' ? createFolderRow(itemData) : createFileRow(itemData);
+
+            // Create a temporary TBODY element to parse the TR string correctly
+            const tempTbody = document.createElement('tbody');
+            tempTbody.innerHTML = newRowHtml.trim();
+            const newRow = tempTbody.firstElementChild;
+
+            if (newRow) {
+                tableBody.appendChild(newRow); // Append the fully formed TR
+
+                // Update global state
+                itemRows = Array.from(fileTable.querySelectorAll('.fl-item-row'));
+                newRow.setAttribute('draggable', 'true');
+                formatAllTimestamps(); // Format the timestamp on the new row
+            } else {
+                throw new Error("Failed to parse new row HTML.");
+            }
+
+        } catch (e) {
+            console.error("Failed to insert item into table:", e);
+            if(typeof showToast === 'function') showToast('Error displaying new item. Please refresh.', 'danger');
+        }
+    }
+
+
+    // --- Event Listeners ---
+    // CORRECTED: This now handles both files and folders by building the correct URL
     if (btnShareSelected) {
         btnShareSelected.addEventListener('click', function() {
             const selectedItems = getSelectedItems();
-            if (selectedItems.length !== 1 || selectedItems[0].type !== 'file') {
-                if (typeof showToast === 'function') showToast('Please select a single file to share or unshare.', 'warning');
+            if (selectedItems.length !== 1) {
+                if (typeof showToast === 'function') showToast('Please select a single file or folder to share.', 'warning');
                 return;
             }
-            const fileToShare = selectedItems[0];
+            const itemToShare = selectedItems[0];
+            const itemType = itemToShare.type;
 
-            if (fileToShare.isPublic) {
-                if (confirm(`Are you sure you want to unshare '${fileToShare.name}'? This will disable its public link.`)) {
-                    handleUnshareFile(fileToShare.id, this);
+            const shareEndpoint = itemType === 'folder'
+            ? `/files/folder/share/${itemToShare.id}`
+            : `/files/share/${itemToShare.id}`;
+            const unshareEndpoint = itemType === 'folder'
+            ? `/files/folder/unshare/${itemToShare.id}`
+            : `/files/unshare/${itemToShare.id}`;
+
+            if (itemToShare.isPublic) {
+                if (confirm(`Are you sure you want to unshare the ${itemType} '${itemToShare.name}'? This will disable its public link.`)) {
+                    handleUnshareFile(itemToShare.id, this, unshareEndpoint);
                 }
             } else {
-                if (confirm(`Are you sure you want to share '${fileToShare.name}' publicly?`)) {
-                    handleShareFile(fileToShare.id, this);
+                if (confirm(`Are you sure you want to share the ${itemType} '${itemToShare.name}' publicly?`)) {
+                    handleShareFile(itemToShare.id, this, shareEndpoint);
                 }
             }
         });
     }
 
-    function toggleShare(button, fileId, fileName) {
-        const isCurrentlyPublic = button.textContent.trim().toLowerCase() === 'unshare';
-        const action = isCurrentlyPublic ? 'unshare' : 'share';
-        const confirmationMessage = isCurrentlyPublic ?
-        `Are you sure you want to unshare '${fileName}'? This will disable its public link.` :
-        `Are you sure you want to share '${fileName}' publicly?`;
-
-        if (!confirm(confirmationMessage)) {
-            return;
-        }
-
-        const url = isCurrentlyPublic ? `/unshare_file/${fileId}` : `/share_file/${fileId}`;
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken
-            }
-        })
-        .then(response => handleFetchErrors(response))
-        .then(data => {
-            if (data.success) {
-                button.textContent = isCurrentlyPublic ? 'Share' : 'Unshare';
-                if (isCurrentlyPublic) {
-                    button.classList.remove('btn-warning');
-                    button.classList.add('btn-info');
-                } else {
-                    button.classList.remove('btn-info');
-                    button.classList.add('btn-warning');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (typeof showToast === 'function') showToast(`Failed to ${action} file.`, 'danger');
-        });
-    }
-
-
-    // MODIFIED: updateSelectAllCheckboxState to work with .selected class on item rows
     function updateSelectAllCheckboxState() {
         if (!selectAllCheckbox || itemRows.length === 0) return;
         const selectedCount = getSelectedItems().length;
@@ -265,46 +377,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- Create Folder Form Toggle Logic ---
-    if (btnShowCreateFolder && formCreateFolder && btnCancelCreateFolder && inputFolderName) {
-        btnShowCreateFolder.addEventListener('click', () => {
-            formCreateFolder.style.display = 'block';
-            btnShowCreateFolder.style.display = 'none';
-            inputFolderName.value = '';
-            inputFolderName.focus();
-        });
-        btnCancelCreateFolder.addEventListener('click', () => {
-            formCreateFolder.style.display = 'none';
-            btnShowCreateFolder.style.display = '';
-        });
-    }
-
-    // --- Upload Handling (Drag & Drop / Browse) ---
-    function handleFiles(files) {
-        if (!csrfToken) {
-            if (typeof showToast === 'function') showToast('Cannot upload: Missing security token.', 'danger');
-            return;
-        }
-        const parentFolderIdToUse = parentFolderInput ? parentFolderInput.value : '';
-        let uploadPromises = [];
-        const totalFiles = files.length;
-
-        if (typeof showToast === 'function') showToast(`Starting upload of ${totalFiles} file(s)...`, 'info', 3000);
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('parent_folder_id', parentFolderIdToUse);
-
-            const uploadURL = window.PyCloud_UploadFileURL;
-            if (!uploadURL) {
-                console.error("Upload URL is not defined.");
-                if (typeof showToast === 'function') showToast('Upload configuration error.', 'danger');
-                return;
-            }
-
-            const uploadPromise = fetch(uploadURL, {
+    // --- Create Item Form Handling ---
+    function handleCreateFormSubmit(formElement, url, successCallback) {
+        formElement.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(formElement);
+            fetch(url, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
                 body: formData
@@ -312,44 +390,203 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(handleFetchErrors)
             .then(data => {
                 if (data.status === 'success') {
-                    return { success: true, file: file.name, message: data.message };
+                    if (typeof showToast === 'function') showToast(data.message, 'success');
+                    insertItemIntoTable(data.item);
+                    successCallback();
                 } else {
-                    throw new Error(data.message || `Upload failed for ${file.name}`);
+                    throw new Error(data.message);
                 }
             })
             .catch(error => {
-                console.error(`Error uploading ${file.name}:`, error);
-                return { success: false, file: file.name, message: error.message };
+                if (typeof showToast === 'function') showToast(`Error: ${error.message}`, 'danger');
             });
-            uploadPromises.push(uploadPromise);
-        }
-
-        Promise.allSettled(uploadPromises)
-        .then(results => {
-            let successfulUploads = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-            let failedUploads = totalFiles - successfulUploads;
-            let toastMessage = '';
-            let toastType = 'info';
-
-            if (failedUploads > 0) {
-                const firstErrorResult = results.find(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-                const errorMsg = firstErrorResult ? (firstErrorResult.reason ? firstErrorResult.reason.message : (firstErrorResult.value ? firstErrorResult.value.message : 'Unknown error')) : 'Unknown error';
-                toastMessage = `Upload finished: ${successfulUploads} succeeded, ${failedUploads} failed. Error: ${errorMsg}`;
-                toastType = 'warning';
-            } else if (successfulUploads > 0) {
-                toastMessage = `All ${successfulUploads} files uploaded successfully! Reloading...`;
-                toastType = 'success';
-            } else {
-                toastMessage = 'Upload process completed.';
-            }
-            if (typeof showToast === 'function') showToast(toastMessage, toastType, failedUploads > 0 || successfulUploads === 0 ? 7000 : 3000);
-            if (successfulUploads > 0) {
-                setTimeout(() => {
-                    location.reload();
-                }, failedUploads > 0 ? 5000 : 2500);
-            }
         });
     }
+
+    if (btnShowCreateFolder && formCreateFolder && btnCancelCreateFolder && inputFolderName) {
+        btnShowCreateFolder.addEventListener('click', () => {
+            formCreateFolder.style.display = 'block';
+            btnShowCreateFolder.style.display = 'none';
+            btnShowCreateFile.style.display = 'none';
+            inputFolderName.value = '';
+            inputFolderName.focus();
+        });
+        btnCancelCreateFolder.addEventListener('click', () => {
+            formCreateFolder.style.display = 'none';
+            btnShowCreateFolder.style.display = '';
+            btnShowCreateFile.style.display = '';
+        });
+        handleCreateFormSubmit(formCreateFolder, formCreateFolder.action, () => {
+            btnCancelCreateFolder.click(); // Programmatically click cancel to hide form
+        });
+    }
+
+    if (btnShowCreateFile && formCreateFile && btnCancelCreateFile && inputFileName) {
+        btnShowCreateFile.addEventListener('click', () => {
+            formCreateFile.style.display = 'block';
+            btnShowCreateFile.style.display = 'none';
+            btnShowCreateFolder.style.display = 'none';
+            inputFileName.value = '';
+            inputFileName.focus();
+        });
+        btnCancelCreateFile.addEventListener('click', () => {
+            formCreateFile.style.display = 'none';
+            btnShowCreateFile.style.display = '';
+            btnShowCreateFolder.style.display = '';
+        });
+        handleCreateFormSubmit(formCreateFile, formCreateFile.action, () => {
+            btnCancelCreateFile.click(); // Programmatically click cancel to hide form
+        });
+    }
+
+    // --- Upload Handling (Drag & Drop / Browse) with Progress ---
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function formatTime(seconds) {
+        if (seconds === Infinity || isNaN(seconds) || seconds < 0) return '...';
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+        return `${(seconds / 3600).toFixed(1)}h`;
+    }
+
+    function createUploadToast(fileId, fileName) {
+        const container = document.getElementById('fl-upload-progress-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.id = `upload-toast-${fileId}`;
+        toast.className = 'fl-upload-progress-item';
+        toast.innerHTML = `
+        <div class="progress-header" title="${fileName}">${fileName}</div>
+        <div class="progress-bar-container">
+        <div class="progress-bar"></div>
+        </div>
+        <div class="progress-details">
+        <span class="progress-info">Starting...</span>
+        <span class="progress-percentage">0%</span>
+        </div>
+        <div class="progress-details">
+        <span class="progress-speed">... MB/s</span>
+        <span class="progress-eta">ETA: ...</span>
+        </div>
+        `;
+        container.appendChild(toast);
+        return toast;
+    }
+
+    function handleFiles(files) {
+        if (!csrfToken) {
+            if (typeof showToast === 'function') showToast('Cannot upload: Missing security token.', 'danger');
+            return;
+        }
+        const parentFolderIdToUse = parentFolderInput ? parentFolderInput.value : '';
+        const uploadURL = window.PyCloud_UploadFileURL;
+        if (!uploadURL) {
+            console.error("Upload URL is not defined.");
+            if (typeof showToast === 'function') showToast('Upload configuration error.', 'danger');
+            return;
+        }
+
+        Array.from(files).forEach((file, index) => {
+            const fileId = `file-${Date.now()}-${index}`;
+            const toastElement = createUploadToast(fileId, file.name);
+            uploadsInProgress++;
+
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('parent_folder_id', parentFolderIdToUse);
+
+            let lastTime = Date.now();
+            let lastLoaded = 0;
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const currentTime = Date.now();
+                    const elapsed = (currentTime - lastTime) / 1000; // in seconds
+                    const loadedSinceLast = event.loaded - lastLoaded;
+
+                    if (elapsed > 0) {
+                        const speed = loadedSinceLast / elapsed; // bytes per second
+                        const remainingBytes = event.total - event.loaded;
+                        const eta = remainingBytes / speed; // seconds
+
+                        const progressBar = toastElement.querySelector('.progress-bar');
+                        const percentage = Math.round((event.loaded / event.total) * 100);
+                        progressBar.style.width = `${percentage}%`;
+
+                        toastElement.querySelector('.progress-percentage').textContent = `${percentage}%`;
+                        toastElement.querySelector('.progress-info').textContent =
+                        `${formatBytes(event.loaded)} / ${formatBytes(event.total)}`;
+                        toastElement.querySelector('.progress-speed').textContent = `${formatBytes(speed)}/s`;
+                        toastElement.querySelector('.progress-eta').textContent = `ETA: ${formatTime(eta)}`;
+
+                        lastTime = currentTime;
+                        lastLoaded = event.loaded;
+                    }
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                uploadsInProgress--;
+                const progressBar = toastElement.querySelector('.progress-bar');
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.status === 'success') {
+                            progressBar.style.backgroundColor = '#28a745';
+                            toastElement.querySelector('.progress-info').textContent = 'Completed!';
+                            insertItemIntoTable(response.file); // THIS IS THE KEY
+                            setTimeout(() => toastElement.remove(), 3000);
+                        } else {
+                            throw new Error(response.message || 'Upload failed with a server error.');
+                        }
+                    } catch (e) {
+                        console.error("Error processing upload response:", e);
+                        progressBar.style.backgroundColor = '#dc3545';
+                        toastElement.querySelector('.progress-info').textContent = 'Processing Error.';
+                    }
+                } else {
+                    progressBar.style.backgroundColor = '#dc3545';
+                    const errorMsg = xhr.statusText || 'Upload failed.';
+                    try {
+                        const jsonResponse = JSON.parse(xhr.responseText);
+                        toastElement.querySelector('.progress-info').textContent = jsonResponse.message || errorMsg;
+                    } catch (e) {
+                        toastElement.querySelector('.progress-info').textContent = errorMsg;
+                    }
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                uploadsInProgress--;
+                const progressBar = toastElement.querySelector('.progress-bar');
+                progressBar.style.backgroundColor = '#dc3545'; // Red for error
+                toastElement.querySelector('.progress-info').textContent = 'Network Error.';
+                console.error(`Error uploading ${file.name}: Network issue or server unreachable.`);
+                if (typeof showToast === 'function') showToast(`Network error uploading ${file.name}.`, 'danger');
+            });
+
+            xhr.addEventListener('abort', () => {
+                uploadsInProgress--;
+                toastElement.querySelector('.progress-bar').style.backgroundColor = '#ffc107'; // Yellow for abort
+                toastElement.querySelector('.progress-info').textContent = 'Cancelled.';
+            });
+
+            xhr.open('POST', uploadURL, true);
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.send(formData);
+        });
+    }
+
 
     if (dropZone && parentFolderInput && csrfToken) {
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -505,9 +742,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveNewName(itemType, id, newName, displayElement, rowElement) {
-        if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
+        if (!csrfToken) {
+            if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger');
+            return Promise.reject(new Error('Missing security token.'));
+        }
         let url = itemType === 'folder' ? `/files/folder/rename/${id}` : `/files/rename/${id}`;
-        fetch(url, {
+        return fetch(url, { // <-- Added "return"
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ new_name: newName })
@@ -533,7 +773,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Share/Unshare Handling ---
-    function handleShareFile(fileId, sourceElement) {
+    // CORRECTED: Generic functions that accept the endpoint URL
+    function handleShareFile(itemId, sourceElement, endpoint) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
         const addPassword = confirm("Protect this share link with a password?");
         let password = null;
@@ -545,10 +786,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         const payload = {};
-        if (password !== null && password !== "") {
-            payload.password = password;
-        }
-        fetch(`/files/share/${fileId}`, {
+        if (password) { payload.password = password; }
+
+        fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
             body: JSON.stringify(payload)
@@ -556,10 +796,10 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(handleFetchErrors)
         .then(data => {
             if (data.status === 'success') {
-                if (typeof showToast === 'function') showToast(data.message || 'File shared!', 'success');
-                updateShareUI(fileId, true, data.share_url, data.password_protected);
+                if (typeof showToast === 'function') showToast(data.message || 'Item shared!', 'success');
+                updateShareUI(itemId, true, data.share_url, data.password_protected);
             } else {
-                throw new Error(data.message || 'Failed to share file.');
+                throw new Error(data.message || 'Failed to share item.');
             }
         })
         .catch(error => {
@@ -568,9 +808,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function handleUnshareFile(fileId, sourceElement) {
+    function handleUnshareFile(itemId, sourceElement, endpoint) {
         if (!csrfToken) { if (typeof showToast === 'function') showToast('Error: Missing security token.', 'danger'); return; }
-        fetch(`/files/unshare/${fileId}`, {
+        fetch(endpoint, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
         })
@@ -578,9 +818,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 if (typeof showToast === 'function') showToast(data.message || 'Sharing disabled.', 'success');
-                updateShareUI(fileId, false, null, false);
+                updateShareUI(itemId, false, null, false);
             } else {
-                throw new Error(data.message || 'Failed to unshare file.');
+                throw new Error(data.message || 'Failed to unshare item.');
             }
         })
         .catch(error => {
@@ -589,15 +829,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function updateShareUI(fileId, isShared, shareUrl, passwordProtected) {
-        const row = document.querySelector(`.fl-item-row[data-item-id="${fileId}"][data-item-type="file"]`);
+    // CORRECTED: This function now correctly selects any item row by its ID, not just files.
+    function updateShareUI(itemId, isShared, shareUrl, passwordProtected) {
+        const row = document.querySelector(`.fl-item-row[data-item-id="${itemId}"]`);
         if (!row) return;
 
         row.dataset.isPublic = isShared ? 'true' : 'false';
         row.dataset.isPasswordProtected = passwordProtected ? 'true' : 'false';
         row.dataset.shareUrl = shareUrl || '';
 
-        const shareIconIndicator = row.querySelector(`#fl-share-icon-${fileId}`);
+        const shareIconIndicator = row.querySelector(`#fl-share-icon-${itemId}`);
         const passwordIndicatorSpan = shareIconIndicator ? shareIconIndicator.querySelector('.fl-password-indicator') : null;
 
         if (shareIconIndicator) {
@@ -610,7 +851,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     passwordIndicatorSpan.style.display = 'inline';
                 }
                 shareIconIndicator.title = passwordProtected ? "Copy password-protected share link" : "Copy share link (no password)";
-
             } else {
                 shareIconIndicator.style.display = 'none';
                 delete shareIconIndicator.dataset.link;
@@ -1072,17 +1312,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (typeof showToast === 'function') showToast(`Moving ${items.length} item(s)...`, 'info', 3000);
 
-        fetch(`/files/api/move`, { // New API endpoint for moving items
+        fetch(`/files/api/move`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ items: items, target_folder_id: targetFolderId })
         })
         .then(handleFetchErrors)
         .then(data => {
-            if (data.status === 'success') {
-                if (typeof showToast === 'function') showToast(data.message || 'Items moved successfully! Reloading...', 'success');
-                // Reload the page to reflect changes
-                setTimeout(() => { location.reload(); }, 1500);
+            if (data.status === 'success' || data.status === 'partial_success') {
+                if (typeof showToast === 'function') showToast(data.message || 'Items moved successfully!', 'success');
+                // Remove the moved items from the DOM
+                items.forEach(item => {
+                    const rowToRemove = document.querySelector(`.fl-item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
+                    if (rowToRemove) {
+                        rowToRemove.remove();
+                    }
+                });
+                // Update UI state
+                itemRows = Array.from(fileTable.querySelectorAll('.fl-item-row'));
+                updateSelectAllCheckboxState();
+                updateMultiSelectActionsVisibility();
+
+                if (data.errors && data.errors.length > 0) {
+                    if (typeof showToast === 'function') showToast(`Move failed for some items: ${data.errors.join(', ')}`, 'warning');
+                }
             } else {
                 let errorMsg = data.message || 'Failed to move items.';
                 if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
@@ -1343,22 +1596,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initial UI updates on page load
+    if (btnRenameSelected) {
+        btnRenameSelected.addEventListener('click', async function() {
+            const selectedItems = getSelectedItems();
+            if (selectedItems.length === 0) {
+                if(typeof showToast === 'function') showToast('No items selected to rename.', 'info');
+                return;
+            }
+
+            if (selectedItems.length === 1) {
+                // Single item: trigger inline rename
+                const item = selectedItems[0];
+                const row = document.querySelector(`.fl-item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
+                if (row) {
+                    const displayElement = row.querySelector('.fl-itemname-display');
+                    const inputField = row.querySelector('.fl-itemname-input');
+                    if (displayElement && inputField) {
+                        inputField.value = item.name;
+                        displayElement.style.display = 'none';
+                        inputField.style.display = 'inline-block';
+                        inputField.focus();
+                        inputField.select();
+                    }
+                }
+            } else {
+                // Multiple items: process as a queue
+                if(typeof showToast === 'function') showToast(`Starting rename queue for ${selectedItems.length} items...`, 'info');
+                for (const item of selectedItems) {
+                    const newName = prompt(`Enter new name for: ${item.name}`, item.name);
+
+                    if (newName === null) { // User pressed cancel
+                        if(typeof showToast === 'function') showToast('Rename queue cancelled.', 'warning');
+                        break; // Exit the loop
+                    }
+
+                    if (newName && newName.trim() !== item.name) {
+                        const rowElement = document.querySelector(`.fl-item-row[data-item-id="${item.id}"][data-item-type="${item.type}"]`);
+                        const displayElement = rowElement ? rowElement.querySelector('.fl-itemname-display') : null;
+
+                        try {
+                            // Wait for the rename operation to complete before moving to the next
+                            await saveNewName(item.type, item.id, newName.trim(), displayElement, rowElement);
+                        } catch (error) {
+                            if(typeof showToast === 'function') showToast(`Could not rename ${item.name}.`, 'danger');
+                            // Decide if you want to stop the queue on error
+                            const continueOnError = confirm(`An error occurred renaming "${item.name}".\n\nContinue with the next item?`);
+                            if (!continueOnError) {
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(typeof showToast === 'function') showToast('Rename queue finished.', 'success');
+            }
+        });
+    }
+
+    // --- Final Initialization on Page Load ---
     updatePasteButtonVisibility();
     updateCutItemVisuals();
     updateSelectAllCheckboxState();
     updateMultiSelectActionsVisibility();
 
+    // CORRECTED: This loop now correctly checks both files and folders for their shared status on page load.
     itemRows.forEach(row => {
-        if (row.dataset.itemType === 'file') {
-            const fileId = row.dataset.itemId;
+        const itemType = row.dataset.itemType;
+        if (itemType === 'file' || itemType === 'folder') {
+            const itemId = row.dataset.itemId;
             const isPublic = row.dataset.isPublic === 'true';
             const shareUrl = row.dataset.shareUrl;
             const isPasswordProtected = row.dataset.isPasswordProtected === 'true';
+
             if (isPublic && shareUrl) {
-                updateShareUI(fileId, true, shareUrl, isPasswordProtected);
+                updateShareUI(itemId, true, shareUrl, isPasswordProtected);
             }
         }
     });
 
 }); // End DOMContentLoaded
+
