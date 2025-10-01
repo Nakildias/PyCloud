@@ -1,5 +1,5 @@
 # PyCloud: Your Personal Cloud & Social Platform 
-# One Line Installation 
+# One Line Installation BE CAREFUL THIS WILL DESTROY POSTGRESQL DATABASES. USE IN A FRESH VM ONLY
 `git clone https://github.com/Nakildias/PyCloud && cd PyCloud && bash install.sh`
 
 # To monitor servers you'll need to install the [PyCloud Daemon](https://github.com/Nakildias/PyCloudMonitorDaemon)
