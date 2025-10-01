@@ -38,7 +38,11 @@
         <button id="fl-btn-show-create-folder" class="btn btn-secondary btn-sm fl-btn-show-create-folder">
         <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-folder-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5" /><path d="M16 19h6" /><path d="M19 16v6" /></svg>
         </button>
+        <button id="fl-btn-show-create-file" class="btn btn-secondary btn-sm fl-btn-show-create-file">
+        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M12 11l0 6" /><path d="M9 14l6 0" /></svg>
+        </button>
         <button id="fl-btn-paste" class="btn btn-primary btn-sm fl-btn-paste" style="display: none;">Paste</button>
+
 
         <div id="fl-multi-select-actions-toolbar" class="fl-multi-select-actions-toolbar" style="display: none;">
             <button id="fl-btn-cut-selected" class="btn btn-secondary btn-sm fl-btn-cut-selected">
@@ -55,6 +59,9 @@
             </button>
             <button id="fl-btn-edit-selected" class="btn btn-secondary btn-sm fl-btn-edit-selected" style="display: none;">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
+            </button>
+            <button id="fl-btn-rename-selected" class="btn btn-secondary btn-sm fl-btn-rename-selected" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-forms"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a3 3 0 0 0 -3 3v12a3 3 0 0 0 3 3" /><path d="M6 3a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3" /><path d="M13 7h7a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-7" /></svg>
             </button>
             <button id="fl-btn-share-selected" class="btn btn-secondary btn-sm fl-btn-share-selected" style="display: none;">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.3"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-share"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M8.7 10.7l6.6 -3.4" /><path d="M8.7 13.3l6.6 3.4" /></svg>
@@ -76,6 +83,18 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm fl-btn-submit-foldername">{{ create_folder_form.submit.label }}</button>
                 <button type="button" id="fl-btn-cancel-create-folder" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
+            </div>
+        </form>
+
+        <form id="fl-form-create-file" method="POST" action="{{ url_for('file_routes.create_file') }}" class="fl-form-create-folder" style="display: none;" novalidate>
+            {{ create_file_form.hidden_tag() }}
+            <input type="hidden" name="parent_folder_id" value="{{ current_folder.id if current_folder else '' }}">
+            <div class="fl-create-folder-form-inner">
+                <div class="form-group fl-form-group-foldername" style="flex-grow: 1; margin-bottom: 0;">
+                    {{ create_file_form.name(class="form-control form-control-sm fl-input-foldername", placeholder="New file name...", required=True, autocomplete="off") }}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm fl-btn-submit-foldername">{{ create_file_form.submit.label }}</button>
+                <button type="button" id="fl-btn-cancel-create-file" class="btn btn-secondary btn-sm fl-btn-cancel-foldername">Cancel</button>
             </div>
         </form>
     </div>
@@ -142,7 +161,13 @@
                 {% endif %}
 
                 {% for folder in subfolders %}
-                <tr class="fl-item-row fl-folder-row" data-item-id="{{ folder.id }}" data-item-type="folder" data-item-name="{{ folder.name|escape }}">
+                <tr class="fl-item-row fl-folder-row"
+                    data-item-id="{{ folder.id }}"
+                    data-item-type="folder"
+                    data-item-name="{{ folder.name|escape }}"
+                    data-is-public="{{ 'true' if folder.is_public else 'false' }}"
+                    data-is-password-protected="{{ 'true' if folder.public_password_hash else 'false' }}"
+                    data-share-url="{{ url_for('file_routes.serve_shared_folder', public_id=folder.public_id, _external=True) if folder.public_id else '' }}">
                     <td class="fl-td fl-td-name" colspan="4">
                         <div class="fl-item-info-wrapper">
                             <div class="fl-item-header">
@@ -152,7 +177,11 @@
                                 </span>
                                 <input type="text" class="form-control form-control-sm fl-itemname-input fl-foldername-input" id="fl-foldername-input-{{ folder.id }}" value="{{ folder.name }}">
                             </div>
-                            <div class="fl-item-details">
+                            <span class="fl-share-icon-indicator" id="fl-share-icon-{{ folder.id }}" style="display: none;" title="Copy share link">
+                                <span class="fl-password-indicator"></span>&nbsp;🔗
+                            </span>
+                        </div>
+                        <div class="fl-item-details">
                                 <span class="fl-td-size">--</span>
                                 <span class="fl-td-modified"><span data-timestamp="{{ folder.timestamp | localetime }}" data-format="YYYY-MM-DD HH:MM"></span></span>
                             </div>
@@ -173,7 +202,7 @@
                     data-is-password-protected="{{ 'true' if file.public_password_hash else 'false' }}"
                     data-public-id="{{ file.public_id }}"
                     {# Assuming serve_shared_file is in main_routes or a root blueprint #}
-                    data-share-url="{{ url_for('file_routes.serve_shared_file_unprefixed', public_id=file.public_id, _external=True) if file.public_id else '' }}"
+                    data-share-url="{{ url_for('file_routes.serve_shared_file', public_id=file.public_id, _external=True) if file.public_id else '' }}"
                     data-is-editable="{{ 'true' if file.is_editable else 'false' }}"
                     data-file-ext="{{ file_ext }}">
                     <td class="fl-td fl-td-name" colspan="4">
@@ -258,20 +287,22 @@
         </div>
     </div>
 </div>
+
+<div id="fl-upload-progress-container" class="fl-upload-progress-container"></div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
     window.PyCloud_ClipboardData = {{ clipboard_json | default('null') | safe }};
-    {# Assuming upload_file_route is the correct function name in file_routes.py #}
     window.PyCloud_UploadFileURL = "{{ url_for('file_routes.upload_file_route') }}";
+    window.PyCloud_ListFilesEndpoint = "{{ url_for('file_routes.list_files', folder_id=0) }}"; // For folder links
+    window.PyCloud_ViewFileEndpoint = "{{ url_for('file_routes.view_file', file_id=0) }}"; // Base for view links
     window.PyCloud_Config = {
         VIEWABLE_MIMES_IFRAME: {{ config.get('VIEWABLE_MIMES_IFRAME', []) | tojson | safe }}
     };
-    window.PyCloud_DownloadFileEndpoint = "{{ url_for('file_routes.download_file', file_id=0).replace('0', '') }}"; // Base URL for downloads
+    window.PyCloud_DownloadFileEndpoint = "{{ url_for('file_routes.download_file', file_id=0).replace('0', '') }}";
 </script>
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
-{# Assuming your JS for this page is named files.js or similar #}
 <script src="{{ url_for('static', filename='js/files.js') }}"></script>
 {% endblock %}
