@@ -882,3 +882,59 @@ display: none !important;
     border: 2px solid #007bff; /* Blue border */
     box-shadow: 0 0 10px rgba(0, 123, 255, 0.5); /* Blue glow */
 }
+
+/* NEW: Upload Progress Toast Styles */
+.fl-upload-progress-container {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    width: 350px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1060; /* Higher than most other elements */
+    display: flex;
+    flex-direction: column-reverse; /* New uploads appear on top */
+    gap: 0.5rem;
+}
+
+.fl-upload-progress-item {
+    background-color: #333;
+    color: #fff;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.fl-upload-progress-item .progress-header {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fl-upload-progress-item .progress-bar-container {
+    width: 100%;
+    background-color: #555;
+    border-radius: 0.25rem;
+    height: 10px;
+    overflow: hidden;
+}
+
+.fl-upload-progress-item .progress-bar {
+    background-color: #007bff;
+    width: 0%;
+    height: 100%;
+    transition: width 0.1s linear, background-color 0.5s ease;
+}
+
+.fl-upload-progress-item .progress-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #ccc;
+}
