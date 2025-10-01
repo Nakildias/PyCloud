@@ -21,7 +21,7 @@ from werkzeug.security import check_password_hash, generate_password_hash # For 
 from app import db, csrf
 from app.utils import get_user_upload_path # Import directly
 from app.models import File, Folder, User, Setting, GroupChatMessage, DirectMessage # Models
-from app.forms import UploadFileForm, CreateFolderForm, EditFileForm # Forms
+from app.forms import UploadFileForm, CreateFolderForm, CreateFileForm, EditFileForm # Forms
 from app.utils import ( # Utility functions
     get_user_storage_info, is_file_editable, allowed_file,
     check_name_conflict, copy_file_record, copy_folder_recursive, delete_folder_recursive,
@@ -43,6 +43,7 @@ bp = Blueprint('file_routes', __name__, url_prefix='/files')
 def list_files(folder_id):
     upload_form = UploadFileForm()
     create_folder_form = CreateFolderForm()
+    create_file_form = CreateFileForm()
     current_folder = None
     parent_folder = None
 
@@ -100,6 +101,7 @@ def list_files(folder_id):
                            limit_type_indicator=limit_type_indicator,
                            max_upload_mb=effective_display_max_upload_mb,
                            upload_form=upload_form, create_folder_form=create_folder_form,
+                           create_file_form=create_file_form,
                            clipboard_json=clipboard_json,
                            current_folder_id_for_upload=current_folder_id_for_upload)
 
@@ -190,8 +192,25 @@ def upload_file_route(): # Renamed to avoid conflict with helper if any
             except Exception as e_thumb: current_app.logger.error(f"Thumbnail generation failed for video {new_file.id}: {e_thumb}")
 
         if request.accept_mimetypes.accept_json:
-            return jsonify({"status": "success", "message": f"File '{final_original_filename_for_db}' uploaded!", "file": {"id": new_file.id, "original_filename": new_file.original_filename}}), 201
+            file_ext = os.path.splitext(new_file.original_filename)[1].lower().lstrip('.')
+            return jsonify({
+                "status": "success",
+                "message": f"File '{new_file.original_filename}' uploaded!",
+                "file": {
+                    "id": new_file.id,
+                    "name": new_file.original_filename,
+                    "size": new_file.filesize,
+                    "modified": new_file.upload_date.isoformat(),
+                    "is_editable": is_file_editable(new_file.original_filename, new_file.mime_type),
+                    "is_public": new_file.is_public,
+                    "is_password_protected": bool(new_file.public_password_hash),
+                    "public_id": new_file.public_id,
+                    "share_url": url_for('file_routes.serve_shared_file_unprefixed', public_id=new_file.public_id, _external=True) if new_file.public_id else '',
+                    "file_ext": file_ext
+                }
+            }), 201
         flash(f"File '{final_original_filename_for_db}' uploaded successfully!", "success")
+
         redirect_url = url_for('.list_files', folder_id=target_parent_folder_id) if target_parent_folder_id else url_for('.list_files')
         return redirect(request.referrer or redirect_url)
 
@@ -220,7 +239,7 @@ def upload_file_route(): # Renamed to avoid conflict with helper if any
 def download_file(file_id):
     file_record = File.query.get_or_404(file_id)
     can_access = False
-    if file_record.owner == current_user: can_access = True
+    if file_record.user_id == current_user.id: can_access = True
     else: # Check if shared in group or direct chat involving current user
         if GroupChatMessage.query.filter_by(file_id=file_record.id).first(): can_access = True
         if not can_access:
@@ -258,7 +277,7 @@ def download_file(file_id):
 def view_file(file_id): # For inline viewing
     file_record = File.query.get_or_404(file_id)
     can_access = False # Same access logic as download_file
-    if file_record.owner == current_user: can_access = True
+    if file_record.user_id == current_user.id: can_access = True
     else:
         if GroupChatMessage.query.filter_by(file_id=file_record.id).first(): can_access = True
         if not can_access:
@@ -283,7 +302,7 @@ def view_file(file_id): # For inline viewing
 @login_required
 def delete_file_route(file_id): # Renamed
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user:
+    if file_record.user_id != current_user.id:
         return jsonify({"status": "error", "message": "Permission denied."}), 403
 
     original_filename = file_record.original_filename
@@ -304,7 +323,7 @@ def delete_file_route(file_id): # Renamed
 @login_required
 def edit_file_route(file_id): # Renamed in original, keeping consistent
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user:
+    if file_record.user_id != current_user.id:
         abort(403)
     if not is_file_editable(file_record.original_filename, file_record.mime_type):
         flash(f"File '{file_record.original_filename}' is not editable.", 'warning')
@@ -394,37 +413,77 @@ def edit_file_route(file_id): # Renamed in original, keeping consistent
 # For this exercise, I will put them here and note they need careful registration.
 
 # These should probably be in a different blueprint if `bp` has a /files prefix
-@bp.route('/s/<string:public_id>', methods=['GET', 'POST'], endpoint='serve_shared_file_unprefixed') # Temp endpoint name
-@csrf.exempt # If it's a public endpoint, CSRF might not apply or needs careful handling.
+@bp.route('/s/<string:public_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def serve_shared_file(public_id):
     file_record = File.query.filter_by(public_id=public_id, is_public=True).first_or_404()
     is_protected = bool(file_record.public_password_hash)
-    password_ok = not is_protected
 
-    if is_protected and request.method == 'POST':
+    if not is_protected:
+        # Public file with no password, proceed to download directly
+        user_upload_path = get_user_upload_path(file_record.user_id)
+        return send_from_directory(user_upload_path, file_record.stored_filename, as_attachment=True, download_name=file_record.original_filename, conditional=True)
+
+    # If we are here, the file is password-protected
+    if request.method == 'POST':
         submitted_password = request.form.get('password')
         if submitted_password and check_password_hash(file_record.public_password_hash, submitted_password):
-            password_ok = True
+            # Password is correct, proceed to download
+            user_upload_path = get_user_upload_path(file_record.user_id)
+            return send_from_directory(user_upload_path, file_record.stored_filename, as_attachment=True, download_name=file_record.original_filename, conditional=True)
         else:
             flash('Incorrect password.', 'danger')
+            # Fall through to re-render the password page on failed POST
 
-    if password_ok:
-        user_upload_path = get_user_upload_path(file_record.user_id)
-        full_file_path = os.path.join(user_upload_path, file_record.stored_filename)
-        if not os.path.exists(full_file_path): abort(404)
-        try:
-            return send_from_directory(user_upload_path, file_record.stored_filename, as_attachment=True, download_name=file_record.original_filename, conditional=True)
-        except Exception as e: abort(500)
-    elif is_protected:
-        return render_template('share_password.html', public_id=public_id, file_name=file_record.original_filename)
-    else: abort(500) # Should not happen
+    # Render password page on GET or failed POST
+    return render_template('share_password.html', public_id=public_id, file_name=file_record.original_filename)
+
+
+@bp.route('/s/folder/<string:public_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def serve_shared_folder(public_id):
+    folder_record = Folder.query.filter_by(public_id=public_id, is_public=True).first_or_404()
+    is_protected = bool(folder_record.public_password_hash)
+
+    if not is_protected:
+        # Public folder with no password, proceed to download directly
+        user_upload_path = get_user_upload_path(folder_record.user_id)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip_file:
+            try:
+                with zipfile.ZipFile(temp_zip_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    add_folder_to_zip(zipf, folder_record.id, folder_record.user_id, folder_record.name, user_upload_path)
+                return send_file(temp_zip_file.name, mimetype='application/zip', as_attachment=True, download_name=f"{folder_record.name}.zip", conditional=True)
+            finally:
+                if os.path.exists(temp_zip_file.name):
+                    os.remove(temp_zip_file.name)
+
+    # If we are here, the folder is password-protected
+    if request.method == 'POST':
+        submitted_password = request.form.get('password')
+        if submitted_password and check_password_hash(folder_record.public_password_hash, submitted_password):
+            # Password is correct, proceed to download
+            user_upload_path = get_user_upload_path(folder_record.user_id)
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip_file:
+                try:
+                    with zipfile.ZipFile(temp_zip_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        add_folder_to_zip(zipf, folder_record.id, folder_record.user_id, folder_record.name, user_upload_path)
+                    return send_file(temp_zip_file.name, mimetype='application/zip', as_attachment=True, download_name=f"{folder_record.name}.zip", conditional=True)
+                finally:
+                    if os.path.exists(temp_zip_file.name):
+                        os.remove(temp_zip_file.name)
+        else:
+            flash('Incorrect password.', 'danger')
+            # Fall through to re-render the password page on failed POST
+
+    # Render password page on GET or failed POST
+    return render_template('share_password.html', public_id=public_id, file_name=f"{folder_record.name}.zip")
 
 
 @bp.route('/share/<int:file_id>', methods=['POST'])
 @login_required
 def share_file(file_id):
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user: abort(403)
+    if file_record.user_id != current_user.id: abort(403)
     data = request.get_json() or {}
     password = data.get('password')
     try:
@@ -433,17 +492,51 @@ def share_file(file_id):
         else: file_record.public_password_hash = None; password_protected = False
         file_record.is_public = True
         db.session.commit()
-        share_url = url_for('.serve_shared_file_unprefixed', public_id=file_record.public_id, _external=True) # Adjust endpoint
+        share_url = url_for('.serve_shared_file', public_id=file_record.public_id, _external=True)
         return jsonify({"status": "success", "message": "File shared" + (" (password protected)." if password_protected else "."), "share_url": share_url, "password_protected": password_protected})
     except Exception as e:
         db.session.rollback(); current_app.logger.error(f"Error sharing file {file_id}: {e}")
         return jsonify({"status": "error", "message": "Failed to share file."}), 500
 
+@bp.route('/folder/share/<int:folder_id>', methods=['POST'])
+@login_required
+def share_folder(folder_id):
+    folder_record = Folder.query.get_or_404(folder_id)
+    # CORRECTED: Changed .owner check to a direct user_id comparison
+    if folder_record.user_id != current_user.id:
+        abort(403)
+    data = request.get_json() or {}
+    password = data.get('password')
+    try:
+        if not folder_record.public_id:
+            folder_record.public_id = str(uuid.uuid4())
+        if password:
+            folder_record.public_password_hash = generate_password_hash(password)
+            password_protected = True
+        else:
+            folder_record.public_password_hash = None
+            password_protected = False
+        folder_record.is_public = True
+        db.session.commit()
+        share_url = url_for('file_routes.serve_shared_folder', public_id=folder_record.public_id, _external=True)
+        return jsonify({
+            "status": "success",
+            "message": "Folder shared" + (" (password protected)." if password_protected else "."),
+            "share_url": share_url,
+            "password_protected": password_protected
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error sharing folder {folder_id}: {e}")
+        return jsonify({"status": "error", "message": "Failed to share folder."}), 500
+
+
+
 @bp.route('/unshare/<int:file_id>', methods=['POST'])
 @login_required
 def unshare_file(file_id):
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user: abort(403)
+    if file_record.user_id != current_user.id: abort(403)
     try:
         file_record.is_public = False
         file_record.public_password_hash = None
@@ -453,6 +546,95 @@ def unshare_file(file_id):
         db.session.rollback(); current_app.logger.error(f"Error unsharing file {file_id}: {e}")
         return jsonify({"status": "error", "message": "Failed to unshare file."}), 500
 
+@bp.route('/folder/unshare/<int:folder_id>', methods=['POST'])
+@login_required
+def unshare_folder(folder_id):
+    folder_record = Folder.query.get_or_404(folder_id)
+    # CORRECTED: Changed .owner check to a direct user_id comparison
+    if folder_record.user_id != current_user.id:
+        abort(403)
+    try:
+        folder_record.is_public = False
+        folder_record.public_password_hash = None
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Folder sharing disabled."})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error unsharing folder {folder_id}: {e}")
+        return jsonify({"status": "error", "message": "Failed to unshare folder."}), 500
+
+
+
+@bp.route('/file/new', methods=['POST'])
+@login_required
+def create_file():
+    form = CreateFileForm()
+    parent_folder_id_str = request.form.get('parent_folder_id')
+    parent_folder_id = int(parent_folder_id_str) if parent_folder_id_str and parent_folder_id_str != 'None' else None
+    user_id = current_user.id
+
+    if parent_folder_id and not Folder.query.filter_by(id=parent_folder_id, user_id=user_id).first():
+        if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "Parent folder not found."}), 404
+        flash('Parent folder not found.', 'danger'); return redirect(url_for('.list_files'))
+
+    if form.validate_on_submit():
+        new_name = form.name.data.strip()
+        if '/' in new_name or '\\' in new_name:
+            if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "File name cannot contain slashes."}), 400
+            flash('File name cannot contain slashes.', 'danger')
+        elif File.query.filter_by(user_id=user_id, parent_folder_id=parent_folder_id, original_filename=new_name).first():
+            if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": f'A file named "{new_name}" already exists here.'}), 409
+            flash(f'A file named "{new_name}" already exists here.', 'danger')
+        else:
+            try:
+                user_upload_folder = get_user_upload_path(user_id)
+                if not os.path.exists(user_upload_folder): os.makedirs(user_upload_folder, exist_ok=True)
+                _, ext = os.path.splitext(new_name)
+                stored_filename_on_disk = str(uuid.uuid4()) + ext
+                file_path_on_disk = os.path.join(user_upload_folder, stored_filename_on_disk)
+                with open(file_path_on_disk, 'w') as f: pass
+                mime_type, _ = mimetypes.guess_type(file_path_on_disk)
+                mime_type = mime_type or 'application/octet-stream'
+
+                new_file = File(
+                    original_filename=new_name, stored_filename=stored_filename_on_disk, filesize=0,
+                    mime_type=mime_type, user_id=user_id, parent_folder_id=parent_folder_id
+                )
+                db.session.add(new_file); db.session.commit()
+
+                if request.accept_mimetypes.accept_json:
+                    return jsonify({
+                        "status": "success",
+                        "message": f'File "{new_name}" created.',
+                        "item": {
+                            "id": new_file.id,
+                            "type": "file",
+                            "name": new_file.original_filename,
+                            "size": 0,
+                            "modified": new_file.upload_date.isoformat(),
+                            "is_editable": is_file_editable(new_file.original_filename, new_file.mime_type),
+                            "is_public": False,
+                            "is_password_protected": False,
+                            "public_id": None,
+                            "share_url": None,
+                            "file_ext": ext.lstrip('.').lower()
+                        }
+                    }), 201
+                flash(f'File "{new_name}" created.', 'success')
+            except Exception as e:
+                db.session.rollback(); current_app.logger.error(f"Error creating file: {e}", exc_info=True)
+                if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "Failed to create file on server."}), 500
+                flash('Failed to create file.', 'danger')
+    else:
+        # Handle form validation errors for JSON requests
+        if request.accept_mimetypes.accept_json:
+            error_message = next((iter(errors) for field, errors in form.errors.items()), ["Invalid input."])[0]
+            return jsonify({"status": "error", "message": error_message}), 400
+        for field, errors in form.errors.items():
+            for error in errors: flash(error, 'danger')
+
+    return redirect(url_for('.list_files', folder_id=parent_folder_id) if parent_folder_id else url_for('.list_files'))
+
 
 # --- Folder Operations ---
 @bp.route('/folder/new', methods=['POST'])
@@ -461,24 +643,44 @@ def create_folder():
     form = CreateFolderForm()
     parent_folder_id_str = request.form.get('parent_folder_id')
     parent_folder_id = int(parent_folder_id_str) if parent_folder_id_str and parent_folder_id_str != 'None' else None
+    user_id = current_user.id
 
-    if parent_folder_id and not Folder.query.filter_by(id=parent_folder_id, user_id=current_user.id).first():
+    if parent_folder_id and not Folder.query.filter_by(id=parent_folder_id, user_id=user_id).first():
+        if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "Parent folder not found."}), 404
         flash('Parent folder not found.', 'danger'); return redirect(url_for('.list_files'))
 
     if form.validate_on_submit():
         new_name = form.name.data.strip()
-        if '/' in new_name or '\\' in new_name: flash('Folder name cannot contain slashes.', 'danger')
-        elif Folder.query.filter_by(user_id=current_user.id, parent_folder_id=parent_folder_id, name=new_name).first():
+        if '/' in new_name or '\\' in new_name:
+            if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "Folder name cannot contain slashes."}), 400
+            flash('Folder name cannot contain slashes.', 'danger')
+        elif Folder.query.filter_by(user_id=user_id, parent_folder_id=parent_folder_id, name=new_name).first():
+            if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": f'A folder named "{new_name}" already exists here.'}), 409
             flash(f'A folder named "{new_name}" already exists here.', 'danger')
         else:
             try:
-                new_folder = Folder(name=new_name, user_id=current_user.id, parent_folder_id=parent_folder_id)
+                new_folder = Folder(name=new_name, user_id=user_id, parent_folder_id=parent_folder_id)
                 db.session.add(new_folder); db.session.commit()
+                if request.accept_mimetypes.accept_json:
+                    return jsonify({
+                        "status": "success",
+                        "message": f'Folder "{new_name}" created.',
+                        "item": {
+                            "id": new_folder.id,
+                            "type": "folder",
+                            "name": new_folder.name,
+                            "modified": new_folder.timestamp.isoformat()
+                        }
+                    }), 201
                 flash(f'Folder "{new_name}" created.', 'success')
             except Exception as e:
-                db.session.rollback(); current_app.logger.error(f"Error creating folder: {e}")
+                db.session.rollback(); current_app.logger.error(f"Error creating folder: {e}", exc_info=True)
+                if request.accept_mimetypes.accept_json: return jsonify({"status": "error", "message": "Failed to create folder on server."}), 500
                 flash('Failed to create folder.', 'danger')
     else:
+        if request.accept_mimetypes.accept_json:
+            error_message = next((iter(errors) for field, errors in form.errors.items()), ["Invalid input."])[0]
+            return jsonify({"status": "error", "message": error_message}), 400
         for field, errors in form.errors.items():
             for error in errors: flash(error, 'danger')
     return redirect(url_for('.list_files', folder_id=parent_folder_id) if parent_folder_id else url_for('.list_files'))
@@ -488,7 +690,7 @@ def create_folder():
 @login_required
 def delete_folder_route(folder_id): # Renamed
     folder_to_delete = Folder.query.get_or_404(folder_id)
-    if folder_to_delete.owner != current_user:
+    if folder_to_delete.user_id != current_user.id:
         return jsonify({"status": "error", "message": "Permission denied."}), 403
     folder_name = folder_to_delete.name
     try:
@@ -504,7 +706,7 @@ def delete_folder_route(folder_id): # Renamed
 @login_required
 def rename_folder(folder_id):
     folder_record = Folder.query.get_or_404(folder_id)
-    if folder_record.owner != current_user: return jsonify({"status": "error", "message": "Permission denied."}), 403
+    if folder_record.user_id != current_user.id: return jsonify({"status": "error", "message": "Permission denied."}), 403
     data = request.get_json(); new_name_raw = data.get('new_name', '').strip()
     if not new_name_raw or len(new_name_raw) > 100 or '/' in new_name_raw or '\\' in new_name_raw:
         return jsonify({"status": "error", "message": "Invalid folder name."}), 400
@@ -523,7 +725,7 @@ def rename_folder(folder_id):
 @login_required
 def rename_file(file_id):
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user: return jsonify({"status": "error", "message": "Permission denied."}), 403
+    if file_record.user_id != current_user.id: return jsonify({"status": "error", "message": "Permission denied."}), 403
     data = request.get_json(); new_name_raw = data.get('new_name', '').strip()
     if not new_name_raw or len(new_name_raw) > 250 or '/' in new_name_raw or '\\' in new_name_raw:
         return jsonify({"status": "error", "message": "Invalid filename."}), 400
@@ -668,7 +870,7 @@ def paste_from_clipboard():
 @login_required
 def archive_folder_route(folder_id): # Renamed
     folder = Folder.query.get_or_404(folder_id)
-    if folder.owner != current_user: abort(403)
+    if folder.user_id != current_user.id: abort(403)
     archive_basename = secure_filename(f"{folder.name}.zip")
     user_upload_path = get_user_upload_path(current_user.id)
     archive_final_physical_path = os.path.join(user_upload_path, archive_basename) # Store flat for now
@@ -709,7 +911,7 @@ def archive_folder_route(folder_id): # Renamed
 @login_required
 def extract_file_route(file_id): # Renamed
     file_record = File.query.get_or_404(file_id)
-    if file_record.owner != current_user: abort(403)
+    if file_record.user_id != current_user.id: abort(403)
     user_upload_path = get_user_upload_path(current_user.id)
     archive_path = os.path.join(user_upload_path, file_record.stored_filename)
     file_ext = os.path.splitext(file_record.original_filename)[1].lower()
