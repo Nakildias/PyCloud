@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, url_for
 from sqlalchemy.orm import relationship
-from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, DateTime, Boolean, inspect, UniqueConstraint
+from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, DateTime, Boolean, inspect, UniqueConstraint, BigInteger
 from flask_login import UserMixin
 
 from . import db
@@ -307,7 +307,7 @@ class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     original_filename = db.Column(db.String(255), nullable=False)
     stored_filename = db.Column(db.String(255), unique=True, nullable=False)
-    filesize = db.Column(db.Integer, nullable=False)
+    filesize = db.Column(db.BigInteger, nullable=False)
     mime_type = db.Column(db.String(100), nullable=True)
     upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -678,4 +678,3 @@ class MonitoredServer(db.Model):
 
     def __repr__(self):
         return f'<MonitoredServer {self.name} ({self.host}:{self.port}) for User {self.user_id}>'
-
